@@ -1,0 +1,44 @@
+=== FOODWELL URI DESIGN ===
+
+Products
+
+GET     /products?category=dairy&search=milk&sort=price&page=1&limit=20
+POST    /products
+GET     /products/{id}
+PUT     /products/{id}
+DELETE  /products/{id}
+------------------------------------------------------------------------------
+Categories
+
+GET     /categories
+POST    /categories
+GET     /categories/{id}
+DELETE  /categories/{id}
+------------------------------------------------------------------------------
+Customers
+
+POST    /customers
+GET     /customers/{id}
+PUT     /customers/{id}
+------------------------------------------------------------------------------
+Carts
+
+GET     /customers/{id}/cart
+POST    /customers/{id}/cart/items
+PUT     /customers/{id}/cart/items/{itemId}
+DELETE  /customers/{id}/cart/items/{itemId}
+------------------------------------------------------------------------------
+Orders
+
+GET     /customers/{id}/orders
+POST    /orders
+GET     /orders/{id}
+PATCH   /orders/{id}          (update status: pending -> packed -> delivered)
+------------------------------------------------------------------------------
+Delivery Slots
+
+GET     /delivery-slots?date=2026-02-15&available=true
+POST    /delivery-slots
+GET     /delivery-slots/{id}
+PUT     /delivery-slots/{id}
+DELETE  /delivery-slots/{id}
