@@ -1,0 +1,7 @@
+# Placeholder - real OpenAPI spec coming soon
+openapi: 3.0.0
+info:
+  title: Foodwell API
+  version: 1.0.0
+  description: RESTful API for the Foodwell online grocery store.
+paths: {}
