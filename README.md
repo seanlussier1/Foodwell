@@ -21,4 +21,4 @@ The service exposes resources for products, categories, customers, carts, orders
   
 ## API Documentation
 
-The OpenAPI specification for this project is available at []).
+The OpenAPI specification for this project is available at []).The OpenAPI specification for this project is available at [docs/openapi.yaml](docs/openapi.yaml).
