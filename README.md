@@ -10,6 +10,15 @@ The service exposes resources for products, categories, customers, carts, orders
 - **Mohamed Amine** — Database Engineer: Schema design, PostgreSQL, repositories
 - **Sean Lussier** — DevOps & Documentation: Docker, CI/CD, OpenAPI spec, testingMohamed Amine
 
+## Tech Stack
+
+- Java 17
+- Spring Boot 3
+- PostgreSQL
+- Docker
+- Maven
+- Swagger / OpenAPI 3.0
+  
 ## API Documentation
 
 The OpenAPI specification for this project is available at []).
