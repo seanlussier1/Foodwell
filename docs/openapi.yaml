@@ -1,64 +1,74 @@
 openapi: 3.0.3
 info:
-  title: Grocery Store API
-  version: 1.0.0
+  title: Foodwell API
+  version: 1.0.0-build1
   description: >
-    A RESTful API for an online grocery store, supporting product browsing,
-    cart management, and order placement. Built for 420-511-VA Web Services.
+    A RESTful API for an online grocery store (420-511-VA Web Services).
+
+
+    **Build 1 status:** only `GET /products` and `GET /products/{id}` are
+    implemented. Every other operation is tagged `planned`
+    (`x-status: planned`) and is documented as the target contract for
+    Build 2 or Build 3; it does not work yet.
 servers:
+  - url: http://localhost/foodwell-api/api/v1
+    description: WampServer (Apache, www/foodwell-api)
   - url: http://localhost:8080/api/v1
-    description: Local Development Server
+    description: PHP built-in server (composer start)
+tags:
+  - name: implemented
+    description: Working in Build 1
+  - name: planned
+    description: Contract only - not implemented yet (Build 2 / Build 3)
 
 paths:
   /products:
     get:
-      summary: Get a list of products
+      tags: [implemented]
+      x-status: implemented
+      summary: Get the list of products
       description: >
-        Retrieves a paginated list of products. Supports filtering by
-        category and searching by name, plus sorting.
-      parameters:
-        - in: query
-          name: category
-          required: false
-          schema:
-            type: string
-          description: Filter products by category name (e.g. "dairy")
-        - in: query
-          name: search
-          required: false
-          schema:
-            type: string
-          description: Search products by name
-        - in: query
-          name: sort
-          required: false
-          schema:
-            type: string
-            enum: [price, name, -price, -name]
-          description: Sort field; prefix with "-" for descending
-        - in: query
-          name: page
-          required: false
-          schema:
-            type: integer
-            default: 1
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            default: 20
+        Returns every product from the database, wrapped in a `data` envelope.
+        No filtering, sorting or pagination in Build 1. When there are no
+        products the response is still `200` with `{"data": []}`.
       responses:
         '200':
-          description: A JSON array of products
+          description: The product list (possibly empty)
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Product'
+                $ref: '#/components/schemas/ProductList'
+              examples:
+                populated:
+                  summary: Seeded database
+                  value:
+                    data:
+                      - id: 101
+                        name: Whole Milk 2L
+                        price: 4.99
+                        unit: each
+                        stock: 42
+                        categoryId: 2
+                        categoryName: Dairy
+                        imageUrl: https://example.com/images/whole-milk.jpg
+                      - id: 104
+                        name: Gala Apples
+                        price: 2.99
+                        unit: lb
+                        stock: 120
+                        categoryId: 1
+                        categoryName: Produce
+                        imageUrl: https://example.com/images/gala-apples.jpg
+                empty:
+                  summary: No products in the database
+                  value:
+                    data: []
+        '500':
+          $ref: '#/components/responses/ServerError'
     post:
-      summary: Add a new product
+      tags: [planned]
+      x-status: planned
+      summary: Add a new product (Build 2)
       requestBody:
         required: true
         content:
@@ -67,7 +77,7 @@ paths:
               $ref: '#/components/schemas/ProductInput'
       responses:
         '201':
-          description: Product successfully created
+          description: Product created
           content:
             application/json:
               schema:
@@ -76,32 +86,44 @@ paths:
           description: Invalid product data
 
   /products/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
     get:
-      summary: Retrieve a specific product by ID
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-          description: The unique identifier of the product
+      tags: [implemented]
+      x-status: implemented
+      summary: Get one product by ID
       responses:
         '200':
-          description: A single Product object
+          description: The product
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Product'
+              example:
+                id: 101
+                name: Whole Milk 2L
+                price: 4.99
+                unit: each
+                stock: 42
+                categoryId: 2
+                categoryName: Dairy
+                imageUrl: https://example.com/images/whole-milk.jpg
         '404':
-          description: Product not found
+          description: No product with that ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  status: 404
+                  message: Product 999999 not found.
+        '500':
+          $ref: '#/components/responses/ServerError'
     put:
-      summary: Replace a product's details
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+      tags: [planned]
+      x-status: planned
+      summary: Replace a product's details (Build 2)
       requestBody:
         required: true
         content:
@@ -110,26 +132,24 @@ paths:
               $ref: '#/components/schemas/ProductInput'
       responses:
         '200':
-          description: Product successfully updated
+          description: Product updated
         '404':
           description: Product not found
     delete:
-      summary: Delete a product
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+      tags: [planned]
+      x-status: planned
+      summary: Delete a product (Build 2)
       responses:
         '204':
-          description: Product successfully deleted
+          description: Product deleted
         '404':
           description: Product not found
 
   /categories:
     get:
-      summary: Get a list of all categories
+      tags: [planned]
+      x-status: planned
+      summary: Get all categories (Build 2)
       responses:
         '200':
           description: A JSON array of categories
@@ -140,7 +160,9 @@ paths:
                 items:
                   $ref: '#/components/schemas/Category'
     post:
-      summary: Add a new category
+      tags: [planned]
+      x-status: planned
+      summary: Add a category (Build 2)
       requestBody:
         required: true
         content:
@@ -149,20 +171,22 @@ paths:
               $ref: '#/components/schemas/CategoryInput'
       responses:
         '201':
-          description: Category successfully created
+          description: Category created
 
   /categories/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
     get:
-      summary: Retrieve a specific category by ID
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+      tags: [planned]
+      x-status: planned
+      summary: Get one category (Build 2)
       responses:
         '200':
-          description: A single Category object
+          description: A single category
           content:
             application/json:
               schema:
@@ -170,22 +194,20 @@ paths:
         '404':
           description: Category not found
     delete:
-      summary: Delete a category
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+      tags: [planned]
+      x-status: planned
+      summary: Delete a category (Build 2)
       responses:
         '204':
-          description: Category successfully deleted
+          description: Category deleted
         '404':
           description: Category not found
 
   /customers:
     post:
-      summary: Register a new customer
+      tags: [planned]
+      x-status: planned
+      summary: Register a customer (Build 2)
       requestBody:
         required: true
         content:
@@ -194,7 +216,7 @@ paths:
               $ref: '#/components/schemas/CustomerInput'
       responses:
         '201':
-          description: Customer successfully created
+          description: Customer created
           content:
             application/json:
               schema:
@@ -203,17 +225,19 @@ paths:
           description: Invalid customer data
 
   /customers/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
     get:
-      summary: Retrieve a specific customer by ID
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+      tags: [planned]
+      x-status: planned
+      summary: Get one customer (Build 2)
       responses:
         '200':
-          description: A single Customer object
+          description: A single customer
           content:
             application/json:
               schema:
@@ -221,13 +245,9 @@ paths:
         '404':
           description: Customer not found
     put:
-      summary: Update a customer's details
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+      tags: [planned]
+      x-status: planned
+      summary: Update a customer (Build 2)
       requestBody:
         required: true
         content:
@@ -236,13 +256,15 @@ paths:
               $ref: '#/components/schemas/CustomerInput'
       responses:
         '200':
-          description: Customer successfully updated
+          description: Customer updated
         '404':
           description: Customer not found
 
   /customers/{id}/cart:
     get:
-      summary: Retrieve a customer's active cart
+      tags: [planned]
+      x-status: planned
+      summary: Get a customer's active cart (Build 2)
       parameters:
         - in: path
           name: id
@@ -251,7 +273,7 @@ paths:
             type: integer
       responses:
         '200':
-          description: The customer's cart, with line items
+          description: The cart with its line items
           content:
             application/json:
               schema:
@@ -261,7 +283,9 @@ paths:
 
   /customers/{id}/cart/items:
     post:
-      summary: Add an item to the customer's cart
+      tags: [planned]
+      x-status: planned
+      summary: Add an item to the cart (Build 2)
       parameters:
         - in: path
           name: id
@@ -276,7 +300,7 @@ paths:
               $ref: '#/components/schemas/CartItemInput'
       responses:
         '201':
-          description: Item added to cart
+          description: Item added
           content:
             application/json:
               schema:
@@ -285,19 +309,21 @@ paths:
           description: Requested quantity exceeds available stock
 
   /customers/{id}/cart/items/{itemId}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      - in: path
+        name: itemId
+        required: true
+        schema:
+          type: integer
     put:
-      summary: Update the quantity of a cart item
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-        - in: path
-          name: itemId
-          required: true
-          schema:
-            type: integer
+      tags: [planned]
+      x-status: planned
+      summary: Update a cart item's quantity (Build 2)
       requestBody:
         required: true
         content:
@@ -310,30 +336,23 @@ paths:
         '404':
           description: Cart item not found
     delete:
-      summary: Remove an item from the cart
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-        - in: path
-          name: itemId
-          required: true
-          schema:
-            type: integer
+      tags: [planned]
+      x-status: planned
+      summary: Remove an item from the cart (Build 2)
       responses:
         '204':
-          description: Item removed from cart
+          description: Item removed
         '404':
           description: Cart item not found
 
   /orders:
     post:
-      summary: Place a new order from a customer's cart
+      tags: [planned]
+      x-status: planned
+      summary: Place an order from a customer's cart (Build 2)
       description: >
-        Creates an order from the customer's current cart contents. Validates
-        stock for each line item and calculates the order total server-side.
+        Will validate stock for each line item and calculate the total
+        server-side.
       requestBody:
         required: true
         content:
@@ -342,7 +361,7 @@ paths:
               $ref: '#/components/schemas/OrderInput'
       responses:
         '201':
-          description: Order successfully created
+          description: Order created
           content:
             application/json:
               schema:
@@ -351,17 +370,19 @@ paths:
           description: One or more items are out of stock
 
   /orders/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
     get:
-      summary: Retrieve a specific order by ID
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+      tags: [planned]
+      x-status: planned
+      summary: Get one order (Build 2)
       responses:
         '200':
-          description: A single Order object
+          description: A single order
           content:
             application/json:
               schema:
@@ -369,13 +390,9 @@ paths:
         '404':
           description: Order not found
     patch:
-      summary: Update an order's status
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+      tags: [planned]
+      x-status: planned
+      summary: Update an order's status (Build 2)
       requestBody:
         required: true
         content:
@@ -385,17 +402,18 @@ paths:
               required: [status]
               properties:
                 status:
-                  type: string
-                  enum: [pending, packed, out_for_delivery, delivered, cancelled]
+                  $ref: '#/components/schemas/OrderStatus'
       responses:
         '200':
-          description: Order status updated
+          description: Status updated
         '404':
           description: Order not found
 
   /customers/{id}/orders:
     get:
-      summary: Retrieve a customer's order history
+      tags: [planned]
+      x-status: planned
+      summary: Get a customer's order history (Build 2)
       parameters:
         - in: path
           name: id
@@ -404,19 +422,16 @@ paths:
             type: integer
         - in: query
           name: status
-          required: false
           schema:
             type: string
-          description: Filter by order status
         - in: query
           name: page
-          required: false
           schema:
             type: integer
             default: 1
       responses:
         '200':
-          description: A JSON array of the customer's orders
+          description: The customer's orders
           content:
             application/json:
               schema:
@@ -424,33 +439,146 @@ paths:
                 items:
                   $ref: '#/components/schemas/Order'
 
+  /delivery-slots:
+    get:
+      tags: [planned]
+      x-status: planned
+      summary: List delivery slots, optionally by date/availability (Build 3)
+      parameters:
+        - in: query
+          name: date
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: available
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: A JSON array of delivery slots
+    post:
+      tags: [planned]
+      x-status: planned
+      summary: Create a delivery slot (Build 3)
+      responses:
+        '201':
+          description: Delivery slot created
+
+  /delivery-slots/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [planned]
+      x-status: planned
+      summary: Get one delivery slot (Build 3)
+      responses:
+        '200':
+          description: A single delivery slot
+        '404':
+          description: Delivery slot not found
+    put:
+      tags: [planned]
+      x-status: planned
+      summary: Update a delivery slot (Build 3)
+      responses:
+        '200':
+          description: Delivery slot updated
+        '404':
+          description: Delivery slot not found
+    delete:
+      tags: [planned]
+      x-status: planned
+      summary: Delete a delivery slot (Build 3)
+      responses:
+        '204':
+          description: Delivery slot deleted
+        '404':
+          description: Delivery slot not found
+
 components:
+  parameters:
+    ProductId:
+      in: path
+      name: id
+      required: true
+      description: The product's numeric ID
+      schema:
+        type: integer
+        minimum: 1
+      example: 101
+
+  responses:
+    ServerError:
+      description: Unexpected server or database error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              status: 500
+              message: Internal server error.
+
   schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [status, message]
+          properties:
+            status:
+              type: integer
+              example: 404
+            message:
+              type: string
+              example: Product 999999 not found.
+
     Product:
       type: object
+      required: [id, name, price, unit, stock, categoryId, categoryName]
       properties:
         id:
           type: integer
           example: 101
         name:
           type: string
-          example: "Whole Milk 2L"
+          example: Whole Milk 2L
         price:
           type: number
           format: float
           example: 4.99
         unit:
           type: string
-          example: "each"
+          example: each
         stock:
           type: integer
           example: 42
         categoryId:
           type: integer
-          example: 3
+          example: 2
+        categoryName:
+          type: string
+          example: Dairy
         imageUrl:
           type: string
-          example: "https://example.com/images/milk.jpg"
+          nullable: true
+          example: https://example.com/images/whole-milk.jpg
+
+    ProductList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
 
     ProductInput:
       type: object
@@ -475,10 +603,10 @@ components:
       properties:
         id:
           type: integer
-          example: 3
+          example: 2
         name:
           type: string
-          example: "Dairy"
+          example: Dairy
 
     CategoryInput:
       type: object
@@ -495,19 +623,19 @@ components:
           example: 7
         firstName:
           type: string
-          example: "Will"
+          example: Will
         lastName:
           type: string
-          example: "Elveus"
+          example: Elveus
         email:
           type: string
-          example: "will@example.com"
+          example: will@example.com
         address:
           type: string
-          example: "123 Rue Principale, Saint-Jerome, QC"
+          example: 123 Rue Principale, Saint-Jerome, QC
         phone:
           type: string
-          example: "450-555-0123"
+          example: 450-555-0123
 
     CustomerInput:
       type: object
@@ -572,6 +700,10 @@ components:
           format: float
           example: 14.97
 
+    OrderStatus:
+      type: string
+      enum: [pending, packed, out_for_delivery, delivered, cancelled]
+
     OrderItem:
       type: object
       properties:
@@ -596,9 +728,7 @@ components:
           type: integer
           example: 7
         status:
-          type: string
-          enum: [pending, packed, out_for_delivery, delivered, cancelled]
-          example: "pending"
+          $ref: '#/components/schemas/OrderStatus'
         items:
           type: array
           items:
@@ -609,11 +739,11 @@ components:
           example: 14.97
         deliveryAddress:
           type: string
-          example: "123 Rue Principale, Saint-Jerome, QC"
+          example: 123 Rue Principale, Saint-Jerome, QC
         createdAt:
           type: string
           format: date-time
-          example: "2026-09-22T14:30:00Z"
+          example: '2026-09-22T14:30:00Z'
 
     OrderInput:
       type: object
