@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foodwell API – Build 1</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 52rem; margin: 2rem auto; padding: 0 1rem; color: #1b1f23; }
+  h1 { font-size: 1.5rem; margin-bottom: .25rem; }
+  h2 { font-size: 1.15rem; margin-top: 2rem; }
+  p.sub { margin-top: 0; color: #555; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #ddd; }
+  th { background: #f3f4f6; }
+  input, button { font: inherit; padding: .35rem .7rem; }
+  button:focus-visible, input:focus-visible { outline: 3px solid #1a73e8; outline-offset: 2px; }
+  .status { font-family: ui-monospace, monospace; font-size: .9rem; margin: .75rem 0 .25rem; }
+  .error { color: #a40000; font-weight: 600; }
+  .empty { color: #555; font-style: italic; }
+  dl { display: grid; grid-template-columns: 9rem 1fr; gap: .25rem 1rem; margin: .5rem 0; }
+  dt { font-weight: 600; }
+  dd { margin: 0; }
+  pre { background: #f3f4f6; padding: .75rem; overflow-x: auto; font-size: .85rem; }
+</style>
+</head>
+<body>
+
+<h1>Foodwell API – Build 1</h1>
+<p class="sub">Two database-backed reads: <code>GET /api/v1/products</code> and <code>GET /api/v1/products/{id}</code>.</p>
+
+<section aria-labelledby="list-h">
+  <h2 id="list-h">Product list</h2>
+  <button id="load-list" type="button">Load products</button>
+  <div id="list-status" class="status" role="status"></div>
+  <div id="list-out"></div>
+</section>
+
+<section aria-labelledby="item-h">
+  <h2 id="item-h">Single product</h2>
+  <label for="item-id">Product ID</label>
+  <input id="item-id" type="number" min="1" value="101">
+  <button id="load-item" type="button">Get product</button>
+  <div id="item-status" class="status" role="status"></div>
+  <div id="item-out"></div>
+</section>
+
+<script>
+const API = '/api/v1';
+
+const $ = (id) => document.getElementById(id);
+
+function el(tag, text, cls) {
+  const e = document.createElement(tag);
+  if (text !== undefined) e.textContent = text;
+  if (cls) e.className = cls;
+  return e;
+}
+
+// Sends a real GET and reports status + content type; returns {status, type, body}.
+async function request(path, statusBox) {
+  statusBox.textContent = 'GET ' + API + path + ' …';
+  try {
+    const res = await fetch(API + path, { headers: { Accept: 'application/json' } });
+    const type = (res.headers.get('Content-Type') || '').split(';')[0];
+    const body = await res.json();
+    statusBox.textContent = 'GET ' + API + path + ' → ' + res.status + ' ' + type;
+    return { status: res.status, type, body };
+  } catch (err) {
+    statusBox.textContent = 'GET ' + API + path + ' → request failed';
+    return { status: 0, type: '', body: { error: { message: 'Could not reach the API: ' + err.message } } };
+  }
+}
+
+function showError(box, body) {
+  box.replaceChildren(el('p', (body.error && body.error.message) || 'Unexpected error.', 'error'));
+}
+
+async function loadList() {
+  const out = $('list-out');
+  const { status, body } = await request('/products', $('list-status'));
+  if (status !== 200) return showError(out, body);
+
+  if (body.data.length === 0) {
+    out.replaceChildren(el('p', 'No products found.', 'empty'));
+    return;
+  }
+
+  const table = el('table');
+  const head = table.createTHead().insertRow();
+  ['ID', 'Name', 'Category', 'Price', 'Stock', ''].forEach((h) => head.appendChild(el('th', h)));
+  const tbody = table.createTBody();
+  body.data.forEach((p) => {
+    const row = tbody.insertRow();
+    row.insertCell().textContent = p.id;
+    row.insertCell().textContent = p.name;
+    row.insertCell().textContent = p.categoryName;
+    row.insertCell().textContent = '$' + p.price.toFixed(2) + ' / ' + p.unit;
+    row.insertCell().textContent = p.stock;
+    const btn = el('button', 'View');
+    btn.type = 'button';
+    btn.addEventListener('click', () => { $('item-id').value = p.id; loadItem(); });
+    row.insertCell().appendChild(btn);
+  });
+  out.replaceChildren(table);
+}
+
+async function loadItem() {
+  const out = $('item-out');
+  const id = $('item-id').value.trim();
+  if (!/^\d+$/.test(id)) {
+    $('item-status').textContent = '';
+    return showError(out, { error: { message: 'Enter a whole-number product ID.' } });
+  }
+  const { status, body } = await request('/products/' + id, $('item-status'));
+  if (status !== 200) return showError(out, body);
+
+  const dl = el('dl');
+  [['ID', body.id], ['Name', body.name], ['Category', body.categoryName + ' (id ' + body.categoryId + ')'],
+   ['Price', '$' + body.price.toFixed(2) + ' / ' + body.unit], ['Stock', body.stock],
+   ['Image URL', body.imageUrl || '—']].forEach(([k, v]) => {
+    dl.appendChild(el('dt', k));
+    dl.appendChild(el('dd', String(v)));
+  });
+  out.replaceChildren(dl, el('pre', JSON.stringify(body, null, 2)));
+}
+
+$('load-list').addEventListener('click', loadList);
+$('load-item').addEventListener('click', loadItem);
+$('item-id').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadItem(); });
+</script>
+</body>
+</html>
