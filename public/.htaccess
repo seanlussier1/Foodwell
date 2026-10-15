@@ -1,0 +1,9 @@
+# Front controller: send every non-file request to index.php.
+# Requires mod_rewrite and AllowOverride All for this directory.
+Options -MultiViews -Indexes
+DirectoryIndex index.html
+
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L]
