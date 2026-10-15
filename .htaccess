@@ -1,0 +1,4 @@
+# Wamp/htdocs install: the project folder is the URL root (http://localhost/foodwell-api/).
+# Send everything into public/ so src/, database/, .env etc. are never served.
+RewriteEngine On
+RewriteRule ^(?!public/)(.*)$ public/$1 [L]
