@@ -1,0 +1,23 @@
+{
+    "name": "foodwell/api",
+    "description": "Foodwell - REST API for an online grocery store (420-511-VA)",
+    "type": "project",
+    "require": {
+        "php": ">=8.0",
+        "ext-pdo": "*",
+        "ext-pdo_mysql": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Foodwell\\": "src/"
+        }
+    },
+    "config": {
+        "process-timeout": 0
+    },
+    "scripts": {
+        "start": "php -S localhost:8080 -t public public/index.php",
+        "db:setup": "php scripts/db-setup.php",
+        "check": "php scripts/run-checks.php"
+    }
+}
