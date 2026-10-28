@@ -19,12 +19,12 @@ implement the planned API endpoints or authentication.
 ## Installation
 
 **New or disposable development database:** `composer db:setup` uses `schema.sql`
-and the existing synthetic category/product seed. It drops **all nine tables**
+and the existing synthetic category/product seed. It drops **all 14 tables**
 before recreating them. The seed also includes 4 demo accounts (2 customers, staff and admin), 2 expired/revoked sessions, 2 carts, 2 cart items, 4 delivery slots, 5 orders covering every status, and 6 order lines. All demo accounts use password `FoodwellDemo!2026`, stored as a bcrypt hash. Login is not implemented yet. Never use these demo accounts in production. Future delivery windows are relative to the UTC import date. `--empty`
 creates all tables without sample data.
 
 **Existing Build 1 database:** back it up, select it in your MariaDB client, then
-execute `database/migrations/002_full_project.sql` once. It creates only the seven
+execute `database/migrations/002_full_project.sql`, then `database/migrations/003_project_expansion.sql`, once each. A nine-table database needs only migration 003. It creates only the seven
 new tables; it does not drop or alter categories or products. Do not run it after
 the full schema or rerun it: existing table names intentionally cause an error.
 MariaDB DDL implicitly commits, so restore from backup if a migration fails partway.
@@ -44,7 +44,7 @@ erDiagram
     products o|--o{ order_items : references
 ```
 
-The old `ERD.png` depicts Build 1 only; the diagram above is the current design.
+The old `ERD.png` depicts Build 1 only. The diagram above shows the original nine-table foundation; the expansion relationships are below.
 
 ## API mapping and application rules
 
@@ -94,3 +94,30 @@ a local MariaDB account with CREATE/DROP DATABASE privileges. It defaults to
 `127.0.0.1:3306`, user `root`, empty password; override with `SCHEMA_TEST_HOST`,
 `SCHEMA_TEST_PORT`, `SCHEMA_TEST_USER`, `SCHEMA_TEST_PASS`. It does not load `.env`
 or modify the configured application database.
+
+## Expanded resources
+
+| Table | Purpose |
+|---|---|
+| customer_addresses | Customer-owned saved delivery addresses |
+| customer_favorites | Unique customer/product favorites |
+| product_reviews | Customer/product ratings and comments |
+| inventory_adjustments | Manual stock changes and actor/balance audit |
+| order_status_events | Order lifecycle events and migration baselines |
+
+```mermaid
+erDiagram
+    customers ||--o{ customer_addresses : saves
+    customers ||--o{ customer_favorites : saves
+    products ||--o{ customer_favorites : references
+    customers ||--o{ product_reviews : writes
+    products ||--o{ product_reviews : receives
+    products ||--o{ inventory_adjustments : audits
+    customers ||--o{ inventory_adjustments : performs
+    orders ||--o{ order_status_events : records
+    customers o|--o{ order_status_events : acts
+```
+
+Products now have is_active; new rows default to true. Existing product GET behavior is unchanged. Products with inventory history must be deactivated instead of deleted. Fresh schema/seed uses all 14 tables; migrations preserve existing records and add baseline events for old orders.
+
+See [the setup guide](../README.md) for install paths, actor/ownership rules and the application work still required. Aggregate capacity, stock transactions, permissions and append-only audit behavior are application responsibilities.

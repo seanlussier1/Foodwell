@@ -8,8 +8,8 @@ declare(strict_types=1);
  *   php scripts/db-setup.php foodwell_empty --empty   # schema only (empty-list fixture)
  *
  * DEVELOPMENT RESET: drops all project tables, including accounts and orders,
- * then restores the original synthetic product/category seed.
- * Existing Build 1 data: use database/migrations/002_full_project.sql instead.
+ * then loads the full synthetic project seed.
+ * Existing Build 1 data: apply migrations 002 then 003 instead; nine-table databases need only 003.
  */
 
 require dirname(__DIR__) . '/vendor/autoload.php';
