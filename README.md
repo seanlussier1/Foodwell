@@ -49,7 +49,7 @@ sudo mariadb < database/create-user.sql
 # 3. Configure the app (no secrets are committed)
 cp .env.example .env        # then edit DB_PASS to match step 2
 
-# 4. Create the schema and load the synthetic seed data (safe to re-run: it restores the seed)
+# 4. Create the schema and load the synthetic seed data (DEVELOPMENT RESET: deletes all project data)
 composer db:setup           # = php scripts/db-setup.php
 
 # 5. Run
@@ -62,25 +62,11 @@ Open **http://localhost:8080/** for the basic page (product list + single-produc
 
 ## Database
 
-```mermaid
-erDiagram
-    categories ||--o{ products : "has"
-    categories {
-        int id PK
-        varchar name UK
-    }
-    products {
-        int id PK
-        varchar name
-        decimal price
-        varchar unit
-        int stock
-        int category_id FK
-        varchar image_url
-    }
-```
+The full project schema includes categories, products, customers, authentication sessions, carts, cart items, delivery slots, orders and order items. Existing Build 1 product fields and seed data are preserved. The API status above still applies; schema support does not implement planned endpoints.
 
-Schema: [`database/schema.sql`](./database/schema.sql) · Seed (4 categories, 10 products): [`database/seed.sql`](./database/seed.sql)
+See [database design and current ERD](database/README.md) for relationships, checkout rules and installation instructions. The legacy ERD.png shows Build 1 only.
+
+**Existing Build 1 database:** back up first, then run [the additive migration](database/migrations/002_full_project.sql) once. **Development reset:** `composer db:setup` drops all project tables and restores the 4-category, 10-product seed.
 
 ## Request path
 
