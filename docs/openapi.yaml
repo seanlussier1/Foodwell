@@ -1,36 +1,44 @@
 openapi: 3.0.3
 info:
   title: Foodwell API
-  version: 1.0.0-build1
-  description: >
-    A RESTful API for an online grocery store (420-511-VA Web Services).
-
-
-    **Build 1 status:** only `GET /products` and `GET /products/{id}` are
-    implemented. Every other operation is tagged `planned`
-    (`x-status: planned`) and is documented as the target contract for
-    Build 2 or Build 3; it does not work yet.
+  version: 1.1.0-expanded-contract
+  description: 'Foodwell expanded contract: 45 operations. Only the two original product
+    GET routes are implemented. Other operations, authorization and collection controls
+    are planned; database support alone does not implement them.'
 servers:
-  - url: http://localhost/foodwell-api/api/v1
-    description: WampServer (Apache, www/foodwell-api)
-  - url: http://localhost:8080/api/v1
-    description: PHP built-in server (composer start)
+- url: http://localhost/foodwell-api/api/v1
+  description: WampServer (Apache, www/foodwell-api)
+- url: http://localhost:8080/api/v1
+  description: PHP built-in server (composer start)
 tags:
-  - name: implemented
-    description: Working in Build 1
-  - name: planned
-    description: Contract only - not implemented yet (Build 2 / Build 3)
-
+- name: implemented
+  description: Working in Build 1
+- name: planned
+  description: Contract only - not implemented yet (Build 2 / Build 3)
+- name: Sessions
+  description: Planned expanded resource
+- name: Addresses
+  description: Planned expanded resource
+- name: Favorites
+  description: Planned expanded resource
+- name: Reviews
+  description: Planned expanded resource
+- name: Inventory
+  description: Planned expanded resource
+- name: Order history
+  description: Planned expanded resource
 paths:
   /products:
     get:
-      tags: [implemented]
+      tags:
+      - implemented
       x-status: implemented
       summary: Get the list of products
-      description: >
-        Returns every product from the database, wrapped in a `data` envelope.
-        No filtering, sorting or pagination in Build 1. When there are no
-        products the response is still `200` with `{"data": []}`.
+      description: 'Returns every product from the database, wrapped in a `data` envelope.
+        No filtering, sorting or pagination in Build 1. When there are no products
+        the response is still `200` with `{"data": []}`.
+
+        '
       responses:
         '200':
           description: The product list (possibly empty)
@@ -43,30 +51,32 @@ paths:
                   summary: Seeded database
                   value:
                     data:
-                      - id: 101
-                        name: Whole Milk 2L
-                        price: 4.99
-                        unit: each
-                        stock: 42
-                        categoryId: 2
-                        categoryName: Dairy
-                        imageUrl: https://example.com/images/whole-milk.jpg
-                      - id: 104
-                        name: Gala Apples
-                        price: 2.99
-                        unit: lb
-                        stock: 120
-                        categoryId: 1
-                        categoryName: Produce
-                        imageUrl: https://example.com/images/gala-apples.jpg
+                    - id: 101
+                      name: Whole Milk 2L
+                      price: 4.99
+                      unit: each
+                      stock: 42
+                      categoryId: 2
+                      categoryName: Dairy
+                      imageUrl: https://example.com/images/whole-milk.jpg
+                    - id: 104
+                      name: Gala Apples
+                      price: 2.99
+                      unit: lb
+                      stock: 120
+                      categoryId: 1
+                      categoryName: Produce
+                      imageUrl: https://example.com/images/gala-apples.jpg
                 empty:
                   summary: No products in the database
                   value:
                     data: []
         '500':
           $ref: '#/components/responses/ServerError'
+      operationId: get__products
     post:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Add a new product (Build 2)
       requestBody:
@@ -84,12 +94,28 @@ paths:
                 $ref: '#/components/schemas/Product'
         '400':
           description: Invalid product data
-
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: post__products
+      security:
+      - BearerSession: []
+      x-access: staff_or_admin
   /products/{id}:
     parameters:
-      - $ref: '#/components/parameters/ProductId'
+    - $ref: '#/components/parameters/ProductId'
     get:
-      tags: [implemented]
+      tags:
+      - implemented
       x-status: implemented
       summary: Get one product by ID
       responses:
@@ -120,8 +146,10 @@ paths:
                   message: Product 999999 not found.
         '500':
           $ref: '#/components/responses/ServerError'
+      operationId: get__products__id_
     put:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Replace a product's details (Build 2)
       requestBody:
@@ -129,14 +157,33 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProductInput'
+              $ref: '#/components/schemas/ProductUpdate'
       responses:
         '200':
           description: Product updated
         '404':
           description: Product not found
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      description: Stock changes use inventory-adjustment resources. Deactivate products
+        with audit history instead of deleting them.
+      operationId: put__products__id_
+      security:
+      - BearerSession: []
+      x-access: staff_or_admin
     delete:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Delete a product (Build 2)
       responses:
@@ -144,10 +191,26 @@ paths:
           description: Product deleted
         '404':
           description: Product not found
-
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: delete__products__id_
+      security:
+      - BearerSession: []
+      x-access: staff_or_admin
   /categories:
     get:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Get all categories (Build 2)
       responses:
@@ -159,8 +222,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Category'
+      operationId: get__categories
+      security: []
+      x-access: public
     post:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Add a category (Build 2)
       requestBody:
@@ -172,16 +239,32 @@ paths:
       responses:
         '201':
           description: Category created
-
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: post__categories
+      security:
+      - BearerSession: []
+      x-access: staff_or_admin
   /categories/{id}:
     parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: integer
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: integer
     get:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Get one category (Build 2)
       responses:
@@ -193,8 +276,12 @@ paths:
                 $ref: '#/components/schemas/Category'
         '404':
           description: Category not found
+      operationId: get__categories__id_
+      security: []
+      x-access: public
     delete:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Delete a category (Build 2)
       responses:
@@ -202,10 +289,26 @@ paths:
           description: Category deleted
         '404':
           description: Category not found
-
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: delete__categories__id_
+      security:
+      - BearerSession: []
+      x-access: staff_or_admin
   /customers:
     post:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Register a customer (Build 2)
       requestBody:
@@ -223,16 +326,19 @@ paths:
                 $ref: '#/components/schemas/Customer'
         '400':
           description: Invalid customer data
-
+      operationId: post__customers
+      security: []
+      x-access: public
   /customers/{id}:
     parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: integer
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: integer
     get:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Get one customer (Build 2)
       responses:
@@ -244,8 +350,25 @@ paths:
                 $ref: '#/components/schemas/Customer'
         '404':
           description: Customer not found
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: get__customers__id_
+      security:
+      - BearerSession: []
+      x-access: owner_or_admin
     put:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Update a customer (Build 2)
       requestBody:
@@ -253,24 +376,40 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CustomerInput'
+              $ref: '#/components/schemas/CustomerUpdate'
       responses:
         '200':
           description: Customer updated
         '404':
           description: Customer not found
-
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: put__customers__id_
+      security:
+      - BearerSession: []
+      x-access: owner_or_admin
   /customers/{id}/cart:
     get:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Get a customer's active cart (Build 2)
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
       responses:
         '200':
           description: The cart with its line items
@@ -280,18 +419,34 @@ paths:
                 $ref: '#/components/schemas/Cart'
         '404':
           description: Customer or cart not found
-
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: get__customers__id__cart
+      security:
+      - BearerSession: []
+      x-access: owner_or_admin
   /customers/{id}/cart/items:
     post:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Add an item to the cart (Build 2)
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
       requestBody:
         required: true
         content:
@@ -307,21 +462,37 @@ paths:
                 $ref: '#/components/schemas/Cart'
         '409':
           description: Requested quantity exceeds available stock
-
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: post__customers__id__cart_items
+      security:
+      - BearerSession: []
+      x-access: owner_or_admin
   /customers/{id}/cart/items/{itemId}:
     parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: integer
-      - in: path
-        name: itemId
-        required: true
-        schema:
-          type: integer
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+    - in: path
+      name: itemId
+      required: true
+      schema:
+        type: integer
     put:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Update a cart item's quantity (Build 2)
       requestBody:
@@ -329,14 +500,31 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CartItemInput'
+              $ref: '#/components/schemas/CartQuantityInput'
       responses:
         '200':
           description: Cart item updated
         '404':
           description: Cart item not found
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: put__customers__id__cart_items__itemId_
+      security:
+      - BearerSession: []
+      x-access: owner_or_admin
     delete:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Remove an item from the cart (Build 2)
       responses:
@@ -344,15 +532,32 @@ paths:
           description: Item removed
         '404':
           description: Cart item not found
-
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: delete__customers__id__cart_items__itemId_
+      security:
+      - BearerSession: []
+      x-access: owner_or_admin
   /orders:
     post:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Place an order from a customer's cart (Build 2)
-      description: >
-        Will validate stock for each line item and calculate the total
+      description: 'Will validate stock for each line item and calculate the total
         server-side.
+
+        '
       requestBody:
         required: true
         content:
@@ -368,16 +573,32 @@ paths:
                 $ref: '#/components/schemas/Order'
         '409':
           description: One or more items are out of stock
-
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: post__orders
+      security:
+      - BearerSession: []
+      x-access: owner_or_admin
   /orders/{id}:
     parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: integer
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: integer
     get:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Get one order (Build 2)
       responses:
@@ -389,8 +610,25 @@ paths:
                 $ref: '#/components/schemas/Order'
         '404':
           description: Order not found
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: get__orders__id_
+      security:
+      - BearerSession: []
+      x-access: owner_or_admin
     patch:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Update an order's status (Build 2)
       requestBody:
@@ -399,7 +637,8 @@ paths:
           application/json:
             schema:
               type: object
-              required: [status]
+              required:
+              - status
               properties:
                 status:
                   $ref: '#/components/schemas/OrderStatus'
@@ -408,27 +647,43 @@ paths:
           description: Status updated
         '404':
           description: Order not found
-
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: patch__orders__id_
+      security:
+      - BearerSession: []
+      x-access: staff_or_admin
   /customers/{id}/orders:
     get:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Get a customer's order history (Build 2)
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-        - in: query
-          name: status
-          schema:
-            type: string
-        - in: query
-          name: page
-          schema:
-            type: integer
-            default: 1
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      - in: query
+        name: status
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
       responses:
         '200':
           description: The customer's orders
@@ -438,60 +693,145 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Order'
-
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: get__customers__id__orders
+      security:
+      - BearerSession: []
+      x-access: owner_or_admin
   /delivery-slots:
     get:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: List delivery slots, optionally by date/availability (Build 3)
       parameters:
-        - in: query
-          name: date
-          schema:
-            type: string
-            format: date
-        - in: query
-          name: available
-          schema:
-            type: boolean
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: available
+        schema:
+          type: boolean
       responses:
         '200':
-          description: A JSON array of delivery slots
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliverySlotList'
+      operationId: get__delivery_slots
+      security: []
+      x-access: public
     post:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Create a delivery slot (Build 3)
       responses:
         '201':
-          description: Delivery slot created
-
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliverySlot'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: post__delivery_slots
+      security:
+      - BearerSession: []
+      x-access: staff_or_admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliverySlotInput'
   /delivery-slots/{id}:
     parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: integer
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: integer
     get:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Get one delivery slot (Build 3)
       responses:
         '200':
-          description: A single delivery slot
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliverySlot'
         '404':
           description: Delivery slot not found
+      operationId: get__delivery_slots__id_
+      security: []
+      x-access: public
     put:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Update a delivery slot (Build 3)
       responses:
         '200':
-          description: Delivery slot updated
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliverySlot'
         '404':
           description: Delivery slot not found
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: put__delivery_slots__id_
+      security:
+      - BearerSession: []
+      x-access: staff_or_admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliverySlotInput'
     delete:
-      tags: [planned]
+      tags:
+      - planned
       x-status: planned
       summary: Delete a delivery slot (Build 3)
       responses:
@@ -499,7 +839,1119 @@ paths:
           description: Delivery slot deleted
         '404':
           description: Delivery slot not found
-
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: delete__delivery_slots__id_
+      security:
+      - BearerSession: []
+      x-access: staff_or_admin
+  /auth/sessions:
+    post:
+      tags:
+      - planned
+      - Sessions
+      x-status: planned
+      operationId: post__auth_sessions
+      summary: Log in and create a session
+      x-access: public
+      security: []
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResult'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Invalid credentials or inactive account; generic error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many login attempts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+    parameters: []
+  /auth/sessions/current:
+    get:
+      tags:
+      - planned
+      - Sessions
+      x-status: planned
+      operationId: get__auth_sessions_current
+      summary: Read current identity and expiry
+      x-access: authenticated
+      security:
+      - BearerSession: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing, expired, revoked or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    parameters: []
+    delete:
+      tags:
+      - planned
+      - Sessions
+      x-status: planned
+      operationId: delete__auth_sessions_current
+      summary: Revoke current session
+      x-access: authenticated
+      security:
+      - BearerSession: []
+      responses:
+        '204':
+          description: Success; no response body
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing, expired, revoked or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /customers/{id}/addresses:
+    get:
+      tags:
+      - planned
+      - Addresses
+      x-status: planned
+      operationId: get__customers__id__addresses
+      summary: List addresses
+      x-access: owner
+      security:
+      - BearerSession: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressList'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing, expired, revoked or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          minimum: 1
+          default: 20
+          maximum: 100
+      description: Planned bounded pagination, ordered by a stable identifier. Access
+        is checked before rows are returned.
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    post:
+      tags:
+      - planned
+      - Addresses
+      x-status: planned
+      operationId: post__customers__id__addresses
+      summary: Save an address
+      x-access: owner
+      security:
+      - BearerSession: []
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing, expired, revoked or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressInput'
+  /customers/{id}/addresses/{addressId}:
+    get:
+      tags:
+      - planned
+      - Addresses
+      x-status: planned
+      operationId: get__customers__id__addresses__addressId_
+      summary: Manage one saved address
+      x-access: owner
+      security:
+      - BearerSession: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing, expired, revoked or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    - in: path
+      name: addressId
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    patch:
+      tags:
+      - planned
+      - Addresses
+      x-status: planned
+      operationId: patch__customers__id__addresses__addressId_
+      summary: Manage one saved address
+      x-access: owner
+      security:
+      - BearerSession: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing, expired, revoked or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressPatch'
+    delete:
+      tags:
+      - planned
+      - Addresses
+      x-status: planned
+      operationId: delete__customers__id__addresses__addressId_
+      summary: Manage one saved address
+      x-access: owner
+      security:
+      - BearerSession: []
+      responses:
+        '204':
+          description: Success; no response body
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing, expired, revoked or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /customers/{id}/favorites:
+    get:
+      tags:
+      - planned
+      - Favorites
+      x-status: planned
+      operationId: get__customers__id__favorites
+      summary: List favorite products
+      x-access: owner
+      security:
+      - BearerSession: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteList'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing, expired, revoked or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          minimum: 1
+          default: 20
+          maximum: 100
+      description: Planned bounded pagination, ordered by a stable identifier. Access
+        is checked before rows are returned.
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+  /customers/{id}/favorites/{productId}:
+    put:
+      tags:
+      - planned
+      - Favorites
+      x-status: planned
+      operationId: put__customers__id__favorites__productId_
+      summary: Save or remove a favorite idempotently
+      x-access: owner
+      security:
+      - BearerSession: []
+      responses:
+        '204':
+          description: Success; no response body
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing, expired, revoked or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    - in: path
+      name: productId
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    delete:
+      tags:
+      - planned
+      - Favorites
+      x-status: planned
+      operationId: delete__customers__id__favorites__productId_
+      summary: Save or remove a favorite idempotently
+      x-access: owner
+      security:
+      - BearerSession: []
+      responses:
+        '204':
+          description: Success; no response body
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing, expired, revoked or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /products/{id}/reviews:
+    get:
+      tags:
+      - planned
+      - Reviews
+      x-status: planned
+      operationId: get__products__id__reviews
+      summary: List public product reviews
+      x-access: public
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewList'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          minimum: 1
+          default: 20
+          maximum: 100
+      description: Planned bounded pagination, ordered by a stable identifier. Access
+        is checked before rows are returned.
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    post:
+      tags:
+      - planned
+      - Reviews
+      x-status: planned
+      operationId: post__products__id__reviews
+      summary: Create the customer's review
+      x-access: customer
+      security:
+      - BearerSession: []
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing, expired, revoked or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewInput'
+  /reviews/{reviewId}:
+    get:
+      tags:
+      - planned
+      - Reviews
+      x-status: planned
+      operationId: get__reviews__reviewId_
+      summary: Read, edit or remove a review
+      x-access: public
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    parameters:
+    - in: path
+      name: reviewId
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    patch:
+      tags:
+      - planned
+      - Reviews
+      x-status: planned
+      operationId: patch__reviews__reviewId_
+      summary: Read, edit or remove a review
+      x-access: author
+      security:
+      - BearerSession: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing, expired, revoked or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewPatch'
+    delete:
+      tags:
+      - planned
+      - Reviews
+      x-status: planned
+      operationId: delete__reviews__reviewId_
+      summary: Read, edit or remove a review
+      x-access: author_or_admin
+      security:
+      - BearerSession: []
+      responses:
+        '204':
+          description: Success; no response body
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing, expired, revoked or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /products/{id}/inventory-adjustments:
+    get:
+      tags:
+      - planned
+      - Inventory
+      x-status: planned
+      operationId: get__products__id__inventory_adjustments
+      summary: List manual inventory adjustments
+      x-access: staff_or_admin
+      security:
+      - BearerSession: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryAdjustmentList'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing, expired, revoked or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          minimum: 1
+          default: 20
+          maximum: 100
+      description: Planned bounded pagination, ordered by a stable identifier. Access
+        is checked before rows are returned.
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    post:
+      tags:
+      - planned
+      - Inventory
+      x-status: planned
+      operationId: post__products__id__inventory_adjustments
+      summary: Record a manual stock adjustment atomically
+      x-access: staff_or_admin
+      security:
+      - BearerSession: []
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryAdjustment'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing, expired, revoked or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryAdjustmentInput'
+  /inventory-adjustments/{adjustmentId}:
+    get:
+      tags:
+      - planned
+      - Inventory
+      x-status: planned
+      operationId: get__inventory_adjustments__adjustmentId_
+      summary: Read an inventory adjustment
+      x-access: staff_or_admin
+      security:
+      - BearerSession: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryAdjustment'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing, expired, revoked or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    parameters:
+    - in: path
+      name: adjustmentId
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+  /orders/{id}/status-events:
+    get:
+      tags:
+      - planned
+      - Order history
+      x-status: planned
+      operationId: get__orders__id__status_events
+      summary: List immutable order status events
+      x-access: owner_or_staff_or_admin
+      security:
+      - BearerSession: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderStatusEventList'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Resource conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing, expired, revoked or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          minimum: 1
+          default: 20
+          maximum: 100
+      description: Planned bounded pagination, ordered by a stable identifier. Access
+        is checked before rows are returned.
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+        minimum: 1
 components:
   parameters:
     ProductId:
@@ -511,7 +1963,6 @@ components:
         type: integer
         minimum: 1
       example: 101
-
   responses:
     ServerError:
       description: Unexpected server or database error
@@ -523,15 +1974,17 @@ components:
             error:
               status: 500
               message: Internal server error.
-
   schemas:
     Error:
       type: object
-      required: [error]
+      required:
+      - error
       properties:
         error:
           type: object
-          required: [status, message]
+          required:
+          - status
+          - message
           properties:
             status:
               type: integer
@@ -539,10 +1992,16 @@ components:
             message:
               type: string
               example: Product 999999 not found.
-
     Product:
       type: object
-      required: [id, name, price, unit, stock, categoryId, categoryName]
+      required:
+      - id
+      - name
+      - price
+      - unit
+      - stock
+      - categoryId
+      - categoryName
       properties:
         id:
           type: integer
@@ -570,34 +2029,41 @@ components:
           type: string
           nullable: true
           example: https://example.com/images/whole-milk.jpg
-
+        isActive:
+          type: boolean
+          description: Planned catalog activation field. Existing product GET responses
+            omit it.
     ProductList:
       type: object
-      required: [data]
+      required:
+      - data
       properties:
         data:
           type: array
           items:
             $ref: '#/components/schemas/Product'
-
     ProductInput:
       type: object
-      required: [name, price, categoryId]
+      required:
+      - name
+      - price
+      - categoryId
       properties:
         name:
           type: string
         price:
           type: number
           format: float
+          minimum: 0
         unit:
           type: string
         stock:
           type: integer
+          minimum: 0
         categoryId:
           type: integer
         imageUrl:
           type: string
-
     Category:
       type: object
       properties:
@@ -607,14 +2073,13 @@ components:
         name:
           type: string
           example: Dairy
-
     CategoryInput:
       type: object
-      required: [name]
+      required:
+      - name
       properties:
         name:
           type: string
-
     Customer:
       type: object
       properties:
@@ -636,10 +2101,13 @@ components:
         phone:
           type: string
           example: 450-555-0123
-
     CustomerInput:
       type: object
-      required: [firstName, lastName, email, password]
+      required:
+      - firstName
+      - lastName
+      - email
+      - password
       properties:
         firstName:
           type: string
@@ -650,11 +2118,11 @@ components:
         password:
           type: string
           format: password
+          writeOnly: true
         address:
           type: string
         phone:
           type: string
-
     CartItem:
       type: object
       properties:
@@ -671,17 +2139,17 @@ components:
           type: number
           format: float
           example: 4.99
-
     CartItemInput:
       type: object
-      required: [productId, quantity]
+      required:
+      - productId
+      - quantity
       properties:
         productId:
           type: integer
         quantity:
           type: integer
           minimum: 1
-
     Cart:
       type: object
       properties:
@@ -699,17 +2167,21 @@ components:
           type: number
           format: float
           example: 14.97
-
     OrderStatus:
       type: string
-      enum: [pending, packed, out_for_delivery, delivered, cancelled]
-
+      enum:
+      - pending
+      - packed
+      - out_for_delivery
+      - delivered
+      - cancelled
     OrderItem:
       type: object
       properties:
         productId:
           type: integer
           example: 101
+          nullable: true
         quantity:
           type: integer
           example: 2
@@ -717,7 +2189,16 @@ components:
           type: number
           format: float
           example: 4.99
-
+        productName:
+          type: string
+          minLength: 1
+          maxLength: 150
+          readOnly: true
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 30
+          readOnly: true
     Order:
       type: object
       properties:
@@ -744,12 +2225,585 @@ components:
           type: string
           format: date-time
           example: '2026-09-22T14:30:00Z'
-
+        deliverySlotId:
+          type: integer
+          minimum: 1
+          nullable: true
     OrderInput:
       type: object
-      required: [customerId, deliveryAddress]
       properties:
         customerId:
           type: integer
+          minimum: 1
         deliveryAddress:
           type: string
+          minLength: 1
+          maxLength: 500
+        addressId:
+          type: integer
+          minimum: 1
+        deliverySlotId:
+          type: integer
+          minimum: 1
+      required:
+      - customerId
+      additionalProperties: false
+      oneOf:
+      - required:
+        - deliveryAddress
+        not:
+          required:
+          - addressId
+      - required:
+        - addressId
+        not:
+          required:
+          - deliveryAddress
+    AddressInput:
+      type: object
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 50
+        recipientName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        addressLine1:
+          type: string
+          minLength: 1
+          maxLength: 150
+        addressLine2:
+          type: string
+          maxLength: 150
+          nullable: true
+        city:
+          type: string
+          minLength: 1
+          maxLength: 100
+        province:
+          type: string
+          minLength: 1
+          maxLength: 50
+        postalCode:
+          type: string
+          minLength: 1
+          maxLength: 20
+        countryCode:
+          type: string
+          enum:
+          - CA
+          default: CA
+        phone:
+          type: string
+          maxLength: 30
+          nullable: true
+      required:
+      - label
+      - recipientName
+      - addressLine1
+      - city
+      - province
+      - postalCode
+      additionalProperties: false
+    Address:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          readOnly: true
+        label:
+          type: string
+          minLength: 1
+          maxLength: 50
+        recipientName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        addressLine1:
+          type: string
+          minLength: 1
+          maxLength: 150
+        addressLine2:
+          type: string
+          maxLength: 150
+          nullable: true
+        city:
+          type: string
+          minLength: 1
+          maxLength: 100
+        province:
+          type: string
+          minLength: 1
+          maxLength: 50
+        postalCode:
+          type: string
+          minLength: 1
+          maxLength: 20
+        countryCode:
+          type: string
+          enum:
+          - CA
+          default: CA
+        phone:
+          type: string
+          maxLength: 30
+          nullable: true
+        createdAt: &id001
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt: *id001
+        customerId:
+          type: integer
+          minimum: 1
+          readOnly: true
+      required:
+      - id
+      - label
+      - recipientName
+      - addressLine1
+      - city
+      - province
+      - postalCode
+    AddressPatch:
+      type: object
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 50
+        recipientName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        addressLine1:
+          type: string
+          minLength: 1
+          maxLength: 150
+        addressLine2:
+          type: string
+          maxLength: 150
+          nullable: true
+        city:
+          type: string
+          minLength: 1
+          maxLength: 100
+        province:
+          type: string
+          minLength: 1
+          maxLength: 50
+        postalCode:
+          type: string
+          minLength: 1
+          maxLength: 20
+        countryCode:
+          type: string
+          enum:
+          - CA
+          default: CA
+        phone:
+          type: string
+          maxLength: 30
+          nullable: true
+      additionalProperties: false
+      minProperties: 1
+    ReviewInput:
+      type: object
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          maxLength: 2000
+      required:
+      - rating
+      - comment
+      additionalProperties: false
+    Review:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          readOnly: true
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          maxLength: 2000
+        createdAt: *id001
+        updatedAt: *id001
+        productId:
+          type: integer
+          minimum: 1
+          readOnly: true
+        customerId:
+          type: integer
+          minimum: 1
+          readOnly: true
+      required:
+      - id
+      - rating
+      - comment
+    ReviewPatch:
+      type: object
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          maxLength: 2000
+      additionalProperties: false
+      minProperties: 1
+    InventoryAdjustmentInput:
+      type: object
+      properties:
+        quantityChange:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+          not:
+            enum:
+            - 0
+        reason:
+          type: string
+          enum:
+          - restock
+          - damage
+          - correction
+        note:
+          type: string
+          maxLength: 500
+          nullable: true
+      required:
+      - quantityChange
+      - reason
+      additionalProperties: false
+    InventoryAdjustment:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          readOnly: true
+        productId:
+          type: integer
+          minimum: 1
+          readOnly: true
+        actorId:
+          type: integer
+          minimum: 1
+          readOnly: true
+        quantityChange:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+          not:
+            enum:
+            - 0
+        reason:
+          type: string
+          enum:
+          - restock
+          - damage
+          - correction
+        note:
+          type: string
+          maxLength: 500
+          nullable: true
+        stockBefore:
+          type: integer
+          minimum: 0
+          readOnly: true
+        stockAfter:
+          type: integer
+          minimum: 0
+          readOnly: true
+        createdAt: *id001
+      required:
+      - id
+      - productId
+      - actorId
+      - quantityChange
+      - stockBefore
+      - stockAfter
+      - reason
+      - createdAt
+    Favorite:
+      type: object
+      properties:
+        productId:
+          type: integer
+          minimum: 1
+          readOnly: true
+        createdAt: *id001
+        product:
+          $ref: '#/components/schemas/Product'
+      required:
+      - productId
+      - createdAt
+      - product
+    OrderStatusEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          readOnly: true
+        orderId:
+          type: integer
+          minimum: 1
+          readOnly: true
+        previousStatus:
+          type: string
+          enum:
+          - pending
+          - packed
+          - out_for_delivery
+          - delivered
+          - cancelled
+          - null
+          nullable: true
+        newStatus:
+          type: string
+          enum:
+          - pending
+          - packed
+          - out_for_delivery
+          - delivered
+          - cancelled
+        changedBy:
+          type: integer
+          minimum: 1
+          nullable: true
+          readOnly: true
+        source:
+          type: string
+          enum:
+          - application
+          - migration_baseline
+          readOnly: true
+        createdAt: *id001
+      required:
+      - id
+      - orderId
+      - previousStatus
+      - newStatus
+      - changedBy
+      - source
+      - createdAt
+    LoginInput:
+      type: object
+      properties:
+        email:
+          type: string
+          minLength: 1
+          maxLength: 254
+          format: email
+        password:
+          type: string
+          minLength: 1
+          maxLength: 255
+          format: password
+          writeOnly: true
+      required:
+      - email
+      - password
+      additionalProperties: false
+    Session:
+      type: object
+      properties:
+        customer:
+          $ref: '#/components/schemas/Customer'
+        expiresAt: *id001
+      required:
+      - customer
+      - expiresAt
+    LoginResult:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          minLength: 1
+          maxLength: 255
+          readOnly: true
+        tokenType:
+          type: string
+          enum:
+          - Bearer
+        expiresAt: *id001
+        customer:
+          $ref: '#/components/schemas/Customer'
+      required:
+      - accessToken
+      - tokenType
+      - expiresAt
+      - customer
+    CustomerUpdate:
+      type: object
+      required:
+      - firstName
+      - lastName
+      - email
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+      additionalProperties: false
+    ProductUpdate:
+      type: object
+      required:
+      - name
+      - price
+      - categoryId
+      properties:
+        name:
+          type: string
+        price:
+          type: number
+          format: float
+          minimum: 0
+        unit:
+          type: string
+        categoryId:
+          type: integer
+        imageUrl:
+          type: string
+        isActive:
+          type: boolean
+      additionalProperties: false
+    DeliverySlotInput:
+      type: object
+      properties:
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        capacity:
+          type: integer
+          minimum: 1
+        isActive:
+          type: boolean
+          default: true
+      required:
+      - startsAt
+      - endsAt
+      - capacity
+      additionalProperties: false
+    DeliverySlot:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          readOnly: true
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        capacity:
+          type: integer
+          minimum: 1
+        isActive:
+          type: boolean
+          default: true
+        createdAt: *id001
+        updatedAt: *id001
+        availableCapacity:
+          type: integer
+          minimum: 0
+          readOnly: true
+      required:
+      - id
+      - startsAt
+      - endsAt
+      - capacity
+    CartQuantityInput:
+      type: object
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+      required:
+      - quantity
+      additionalProperties: false
+    AddressList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Address'
+      required:
+      - data
+    ReviewList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Review'
+      required:
+      - data
+    FavoriteList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Favorite'
+      required:
+      - data
+    InventoryAdjustmentList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventoryAdjustment'
+      required:
+      - data
+    OrderStatusEventList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderStatusEvent'
+      required:
+      - data
+    DeliverySlotList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeliverySlot'
+      required:
+      - data
+  securitySchemes:
+    BearerSession:
+      type: http
+      scheme: bearer
+      description: Planned opaque session token. No JWT assumption. Server stores
+        only its SHA-256 digest.

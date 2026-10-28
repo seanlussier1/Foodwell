@@ -63,4 +63,18 @@ INSERT INTO order_items (id, order_id, product_id, product_name, unit, quantity,
     (1005, 903, 107, 'Sourdough Loaf', 'each', 1, 5.50),
     (1006, 904, 110, 'Chickpeas 540ml', 'each', 1, 1.89);
 
+
+-- Expanded project examples. Stock balances keep the original catalog intact.
+INSERT INTO customer_addresses (id,customer_id,label,recipient_name,address_line1,city,province,postal_code)
+VALUES (1,7,'Home','Alex Demo','123 Demo Street','Montreal','QC','H1A 1A1'),
+       (2,8,'Home','Sam Demo','456 Sample Avenue','Montreal','QC','H1A 1A2');
+INSERT INTO customer_favorites (customer_id,product_id) VALUES (7,101),(7,109),(8,107);
+INSERT INTO product_reviews (product_id,customer_id,rating,comment)
+VALUES (101,7,5,'Demo review: fresh and useful.'),(107,8,4,'Demo review: good bread.');
+INSERT INTO inventory_adjustments (product_id,actor_id,quantity_change,stock_before,stock_after,reason,note)
+VALUES (109,9,5,35,40,'restock','Demo restock; the seeded balance is already 40.');
+-- Existing sample orders have a baseline: do not invent past transitions.
+INSERT INTO order_status_events (order_id,new_status,source)
+SELECT id,status,'migration_baseline' FROM orders;
+
 COMMIT;
