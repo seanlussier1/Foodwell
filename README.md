@@ -1,95 +1,136 @@
 # Foodwell API
 
-## Project Description
+Foodwell is a PHP/MariaDB REST API for an online grocery store. Customers browse products, manage carts and place delivery orders; staff manage stock and fulfillment.
 
-Foodwell is a RESTful Web service for an online grocery store that lets customers browse products, manage a shopping cart, and place orders for delivery. Store staff can manage inventory and update order status, while administrators oversee the product catalog and user accounts. The service is built around resource-oriented endpoints for products, categories, customers, carts, and orders, with a checkout flow that validates stock and calculates totals server-side. It gives a small grocery business a clean, well-documented API that a web or mobile client can consume to sell groceries online without custom integration work for every client.
+## Current status
 
-## Team Members
+The database has **14 tables** and the [OpenAPI contract](docs/openapi.yaml) documents **45 operations**. Only `GET /api/v1/products` and `GET /api/v1/products/{id}` currently work in PHP. All other operations are marked planned. Creating tables does not implement authentication or the remaining endpoints.
 
-| Name | Role / Responsibilities |
-|---|---|
-| Will Kerdy Elveus | Backend — Products & Categories endpoints, database schema |
-| Sean Lussier | Backend — Customers & Authentication |
-| Mohamed Amine | Backend — Cart & Order endpoints, checkout logic |
+The expanded resources include sessions, saved addresses, favorites, reviews, manual inventory adjustments and order status history.
 
-## Tech Stack
+## Team responsibilities
 
-PHP 8+, Apache, MariaDB, Composer, PDO, OpenAPI 3.0. Planned: PHPUnit, Postman/Newman.
-
-## Build 1 status
-
-Build 1 = scaffolding + **GET one item** + **GET a list**, both database-backed, with a basic page and OpenAPI.
-
-| Method | URI | Status |
+| Member | Features | Shared work |
 |---|---|---|
-| GET | `/api/v1/products` | implemented |
-| GET | `/api/v1/products/{id}` | implemented |
-| POST / PUT / DELETE | `/api/v1/products[/{id}]` | planned (Build 2) |
-| GET / POST / DELETE | `/api/v1/categories[/{id}]` | planned (Build 2) |
-| POST / GET / PUT | `/api/v1/customers[/{id}]` | planned (Build 2) |
-| GET / POST / PUT / DELETE | `/api/v1/customers/{id}/cart[/items[/{itemId}]]` | planned (Build 2) |
-| POST / GET / PATCH | `/api/v1/orders[/{id}]`, `/api/v1/customers/{id}/orders` | planned (Build 2) |
-| GET / POST / PUT / DELETE | `/api/v1/delivery-slots[/{id}]` | planned (Build 3) |
+| Will (@Wlszn) | Products, inventory adjustments, delivery slots | Response formats and documentation review |
+| Sean (@seanlussier1) | Customers, sessions, carts, favorites | Authentication helpers and external integration |
+| Mohamed Amine (@MohAmine2006) | Categories, checkout, orders, addresses, reviews, order history | Errors, logging and transactions |
 
-Not implemented in Build 1 (assigned to Build 2/3 on the project board): filtering, sorting, pagination, create/update/delete, validation middleware, content negotiation, authentication/authorization.
+Each owner supplies database changes, validation, permissions, tests, OpenAPI and a client demonstration. Will reviews Sean; Sean reviews Mohamed; Mohamed reviews Will.
 
-Full contract: [`docs/openapi.yaml`](./docs/openapi.yaml) — paste into the [Swagger Editor](https://editor.swagger.io). Operations tagged `planned` are not working yet.
+[Project board](https://github.com/users/seanlussier1/projects/5). Use All work, Bugs, Build 2 and Build 3. Bugs need reproduction steps, expected/actual behavior and retest evidence.
 
-## Getting Started
+## Requirements
 
-**Requirements:** PHP 8+ (with `pdo_mysql`), MariaDB, Composer, Apache (optional for dev; the PHP built-in server also works).
+- PHP 8+ with PDO and `pdo_mysql`.
+- MariaDB, Composer, and Git.
+- WampServer on Windows, or an equivalent PHP/MariaDB installation. Apache is optional when using the PHP development server.
 
-```bash
-# 1. Install dependencies (generates the autoloader)
+Run commands from the Foodwell repository folder. Confirm `php --version` and `composer --version` work in your terminal. Start WampServer and wait for its icon to turn green.
+
+## First-time setup on Windows / Wamp
+
+### 1. Get the code and dependencies
+
+For a new checkout:
+
+```powershell
+git clone https://github.com/seanlussier1/Foodwell.git
+cd Foodwell
 composer install
-
-# 2. Create the database user (run once as a MariaDB admin)
-sudo mariadb < database/create-user.sql
-
-# 3. Configure the app (no secrets are committed)
-cp .env.example .env        # then edit DB_PASS to match step 2
-
-# 4. Create the schema and load the synthetic seed data (DEVELOPMENT RESET: deletes all project data)
-composer db:setup           # = php scripts/db-setup.php
-
-# 5. Run
-composer start              # http://localhost:8080
 ```
 
-Open **http://localhost:8080/** for the basic page (product list + single-product lookup).
+If you already have the project, open its folder and run `composer install`. These instructions describe the expanded version; use the branch containing this change until it is merged into main.
 
-**Apache instead of the built-in server:** point the virtual host's `DocumentRoot` at `public/`, enable `mod_rewrite`, and set `AllowOverride All` for that directory so `public/.htaccess` can route `/api/v1/...` to `index.php`.
+### 2. Create a local database account
 
-## Database
+Open phpMyAdmin, sign in as a MariaDB administrator, and import `database/create-user.sql`. Review/change its development password before importing. The script grants access to `foodwell` and the isolated `foodwell_empty` fixture.
 
-The full project schema includes categories, products, customers, authentication sessions, carts, cart items, delivery slots, orders and order items. Existing Build 1 product fields and seed data are preserved. The API status above still applies; schema support does not implement planned endpoints.
+If the `foodwell` account already exists, `CREATE USER IF NOT EXISTS` does not reset its password. Use the account's actual password in the next step.
 
-See [database design and current ERD](database/README.md) for relationships, checkout rules and installation instructions. The legacy ERD.png shows Build 1 only.
+### 3. Configure the connection
 
-**Existing Build 1 database:** back up first, then run [the additive migration](database/migrations/002_full_project.sql) once. **Development reset:** `composer db:setup` drops all project tables and restores the 4-category, 10-product seed.
-
-## Request path
-
-`public/index.html` → `GET /api/v1/products[/{id}]` → `public/index.php` (front controller) → `Http\Router` → `Controllers\ProductController` → `Repositories\ProductRepository` (PDO, prepared statements) → MariaDB → JSON → page.
-
-## Build 1 checks
-
-```bash
-composer check              # = php scripts/run-checks.php
+```powershell
+Copy-Item .env.example .env
 ```
 
-Re-seeds the main database, builds an isolated empty database (`foodwell_empty`), starts two throwaway servers, and prints expected vs. actual for:
+Edit `.env` to match your machine:
 
-1. `GET /products/{id}` existing item → 200, JSON, matches the DB row
-2. `GET /products/999999` → 404 with a JSON error body
-3. `GET /products` → 200, item count equals DB rows, first item equals the item response
-4. `GET /products` against the empty database → 200 `{"data":[]}`
+```dotenv
+DB_HOST=127.0.0.1
+DB_PORT=3307
+DB_NAME=foodwell
+DB_USER=foodwell
+DB_PASS=change_me
+APP_BASE_PATH=
+```
 
-The empty-list fixture is a separate database, so the real seed is never touched; running `composer db:setup` always restores it.
+This Wamp installation uses MariaDB port **3307**. Other machines may use **3306**; check your MariaDB settings. `change_me` matches the unedited development account script; replace it if you changed the password. Never commit `.env`.
 
-## Build 1 handoff
+Leave `APP_BASE_PATH` empty for `composer start`. The template uses portable defaults, so adjust the port before connecting.
 
-- **Submitted commit (SHA):** `TODO`
-- **Pages:** `public/index.html` (list + detail, error and empty states)
-- **Owners / reviewers:** `TODO` (see GitHub Project board)
-- **Board:** `TODO link` — Build 2 / Build 3 tasks: filtering, sorting, pagination; create/update/delete; categories, customers, carts, orders; validation, structured errors, logging; content negotiation; external-service composition; authentication/authorization; PHPUnit/Newman suite.
+### 4. Choose a fresh installation or an upgrade
+
+**Fresh or disposable development database:**
+
+```powershell
+composer db:setup
+```
+
+**This deletes all project tables in DB_NAME and reloads synthetic data.** Confirm the database name and back up any records you need before running it.
+
+The seed creates 4 categories, 10 products, 4 demo accounts, 2 inactive sessions, 2 carts, 2 cart items, 4 delivery slots, 5 orders, 6 order items, 2 addresses, 3 favorites, 2 reviews, 1 inventory adjustment and 5 order baseline events. All demo accounts use `FoodwellDemo!2026`, stored as a password hash. Login is still planned. These accounts are only for local demonstrations.
+
+**Existing database with records to preserve:** back up first, select that database in phpMyAdmin, then use its Import tab:
+
+| Existing schema | Import in order |
+|---|---|
+| Original two-table Build 1 | `database/migrations/002_full_project.sql`, then `database/migrations/003_project_expansion.sql` |
+| Nine-table foundation | Only `database/migrations/003_project_expansion.sql` |
+| Expanded 14-table schema | No migration needed |
+
+Run each migration once. Do not import `schema.sql` or the full seed over existing data. MariaDB schema changes commit automatically; restore your backup if an upgrade fails partway. Migration 003 adds baseline events for existing order states without inventing their earlier history.
+
+### 5. Start and check the application
+
+```powershell
+composer start
+```
+
+Open [the product page](http://localhost:8080/), load the product list, then look up product `101`. In phpMyAdmin, select `foodwell` to inspect the 14 tables and seeded records. Newly planned endpoints will not work until their PHP implementation is added.
+
+For Apache instead, set the site DocumentRoot to `public/`, enable `mod_rewrite`, and allow the supplied `.htaccess`. If using an Apache subfolder URL, set `APP_BASE_PATH` to that URL prefix, such as `/foodwell-api`.
+
+## Verification
+
+**Isolated database checks:**
+
+```powershell
+$env:SCHEMA_TEST_PORT = '3307'
+$env:SCHEMA_TEST_USER = 'root'
+php scripts/check-schema.php
+```
+
+The test account needs CREATE/DROP DATABASE privileges. It defaults to an empty password; set `SCHEMA_TEST_PASS` locally if needed. The checks do not load `.env` or modify its configured application database. They create a random temporary database and remove it afterward.
+
+The expanded schema passed 72 checks covering migrations, data preservation, fresh/upgraded definitions, seed relationships, constraints and existing product repository response compatibility. The 45-operation document also passed OpenAPI 3.0 validation. These are foundation checks, not evidence that planned endpoints work.
+
+**Original API checks:**
+
+```powershell
+composer check
+```
+
+This resets the configured application database to the synthetic seed and resets `foodwell_empty`, then starts temporary servers to check item 200, item 404, populated list 200 and empty list 200. Back up data first. Do not run this against a database containing records you need to preserve.
+
+## Database and implementation rules
+
+[Database design](database/README.md) explains keys and relationships. The old `database/ERD.png` depicts Build 1 only.
+
+- Address selection must verify ownership and copy the delivery address into the order.
+- Cart/checkout totals and stock are calculated server-side in a transaction.
+- Manual stock changes write an audit record with the actor and before/after balances. Products with audit history are deactivated instead of deleted.
+- Order changes append status events atomically; cancellation restores stock only once.
+- Session validation, roles, ownership checks and immutable audit API behavior still require application code.
+
+Request path: browser → `public/index.php` → router → controller → repository → MariaDB → response.

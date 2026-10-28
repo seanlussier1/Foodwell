@@ -42,3 +42,5 @@ POST    /delivery-slots
 GET     /delivery-slots/{id}
 PUT     /delivery-slots/{id}
 DELETE  /delivery-slots/{id}
+
+Expanded resources (planned application routes): see docs/openapi.yaml for all 45 operations and README.md for setup. Includes sessions, saved addresses, favorites, reviews, inventory adjustments and order status events.
