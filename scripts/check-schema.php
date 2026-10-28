@@ -11,6 +11,12 @@ $schema = file_get_contents($root . '/database/schema.sql');
 $seed = file_get_contents($root . '/database/seed.sql');
 $catalogSeed = substr($seed, 0, strpos($seed, '-- Full project demo data')) . "\nCOMMIT;\n";
 $migration = file_get_contents($root . '/database/migrations/002_full_project.sql');
+$expansion = file_get_contents($root . '/database/migrations/003_project_expansion.sql');
+$legacySchema = substr($schema, 0, strpos($schema, 'CREATE TABLE customer_addresses'));
+$legacySchema = preg_replace('/^    (is_active BOOLEAN NOT NULL DEFAULT TRUE,|CONSTRAINT chk_products_active CHECK \(is_active IN \(0, 1\)\),)\R/m', '', $legacySchema, 1);
+// Only remove the product activation column; other tables already use is_active.
+$legacySchema = str_replace('    CONSTRAINT chk_products_active CHECK (is_active IN (0, 1)),', '', $legacySchema);
+$legacySeed = substr($seed, 0, strpos($seed, '-- Expanded project examples.')) . "\nCOMMIT;\n";
 $db = 'foodwell_schema_test_' . bin2hex(random_bytes(6));
 $created = false;
 $checks = 0;
@@ -27,33 +33,82 @@ function rejects(PDO $pdo, string $sql, int $expectedCode, string $message): voi
     }
     throw new RuntimeException("Expected rejection: $message");
 }
+function definitions(PDO $pdo): array {
+    $result = [];
+    foreach ($pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN) as $table) {
+        $ddl = $pdo->query("SHOW CREATE TABLE `$table`")->fetch(PDO::FETCH_NUM)[1];
+        $lines = explode("\n", preg_replace('/ AUTO_INCREMENT=\d+/', '', $ddl));
+        $lines = array_map(fn($line) => rtrim(trim($line), ','), $lines);
+        sort($lines);
+        $result[$table] = $lines;
+    }
+    ksort($result);
+    return $result;
+}
 try {
     $pdo->exec("CREATE DATABASE `$db`");
     $created = true;
     $pdo->exec("USE `$db`");
     // Original Build 1 definitions are deliberately preserved verbatim.
-    $start = strpos($schema, 'CREATE TABLE categories');
-    $end = strpos($schema, '-- Customer,');
-    $pdo->exec(substr($schema, $start, $end - $start));
+    $start = strpos($legacySchema, 'CREATE TABLE categories');
+    $end = strpos($legacySchema, '-- Customer,');
+    $pdo->exec(substr($legacySchema, $start, $end - $start));
     $pdo->exec($catalogSeed);
-    $before = $pdo->query('SELECT * FROM products ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
+    $before = $pdo->query('SELECT id,name,price,unit,stock,category_id,image_url FROM products ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
     $pdo->exec($migration);
     verify($pdo->query('SELECT * FROM products ORDER BY id')->fetchAll(PDO::FETCH_ASSOC) === $before,
         'Migration preserves every seeded product field');
     verify((int) $pdo->query('SELECT COUNT(*) FROM categories')->fetchColumn() === 4,
         'Migration preserves categories');
     verify(count($pdo->query('SHOW TABLES')->fetchAll()) === 9, 'Migration creates all nine tables');
+    $pdo->exec($legacySchema);
+    $pdo->exec($legacySeed);
+    $oldRows = [];
+    foreach ($pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN) as $table) {
+        $oldRows[$table] = $pdo->query("SELECT * FROM `$table` ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
+    }
+    $pdo->exec($expansion);
+    foreach ($oldRows as $table => $rows) {
+        $current = $pdo->query("SELECT * FROM `$table` ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
+        if ($table === 'products') {
+            foreach ($current as &$product) { unset($product['is_active']); }
+            unset($product);
+        }
+        verify($current === $rows, "Expansion preserves existing $table records");
+    }
+    verify((int) $pdo->query("SELECT COUNT(*) FROM order_status_events WHERE source='migration_baseline'")->fetchColumn() === 5,
+        'Migration labels existing order states as baseline events');
+    $upgraded = definitions($pdo);
     $pdo->exec($schema);
+    verify(definitions($pdo) === $upgraded, 'Fresh and migrated table definitions agree');
     $pdo->exec($seed);
-    verify($pdo->query('SELECT * FROM products ORDER BY id')->fetchAll(PDO::FETCH_ASSOC) === $before,
+    verify($pdo->query('SELECT id,name,price,unit,stock,category_id,image_url FROM products ORDER BY id')->fetchAll(PDO::FETCH_ASSOC) === $before,
         'Full seed preserves unchanged Build 1 catalog');
     $expectedCounts = ['categories' => 4, 'products' => 10, 'customers' => 4,
         'auth_sessions' => 2, 'carts' => 2, 'cart_items' => 2,
-        'delivery_slots' => 4, 'orders' => 5, 'order_items' => 6];
+        'delivery_slots' => 4, 'orders' => 5, 'order_items' => 6,
+        'customer_addresses' => 2, 'customer_favorites' => 3, 'product_reviews' => 2,
+        'inventory_adjustments' => 1, 'order_status_events' => 5];
     foreach ($expectedCounts as $table => $count) {
         verify((int) $pdo->query("SELECT COUNT(*) FROM `$table`")->fetchColumn() === $count,
             "Seed contains $count $table records");
     }
+    require_once $root . '/src/Repositories/ProductRepository.php';
+    $products = new \Foodwell\Repositories\ProductRepository($pdo);
+    verify(count($products->findAll()) === 10, 'Existing product repository reads expanded schema');
+    verify(array_keys($products->findById(101)) === ['id','name','price','unit','stock','categoryId','categoryName','imageUrl'],
+        'Existing product response fields remain unchanged');
+    rejects($pdo, 'UPDATE products SET is_active=2 WHERE id=101', 4025, 'Invalid activation flag rejected');
+    rejects($pdo, "INSERT INTO customer_addresses (customer_id,label,recipient_name,address_line1,city,province,postal_code,country_code)
+        VALUES (7,'Test','Demo','Street','City','Province','Code','US')", 4025, 'Non-Canadian saved address rejected');
+    $pdo->beginTransaction();
+    $pdo->exec("INSERT INTO inventory_adjustments (product_id,actor_id,quantity_change,stock_before,stock_after,reason)
+        VALUES (101,9,-2,42,40,'damage')");
+    verify((int) $pdo->query('SELECT COUNT(*) FROM inventory_adjustments WHERE quantity_change=-2')->fetchColumn() === 1,
+        'Signed subtraction accepts a valid negative stock adjustment');
+    $pdo->rollBack();
+    rejects($pdo, "INSERT INTO order_status_events (order_id,previous_status,new_status,changed_by)
+        VALUES (900,'pending','pending',9)", 4025, 'Unchanged status event rejected');
     foreach ($pdo->query('SELECT password_hash FROM customers') as $customer) {
         verify(password_verify('FoodwellDemo!2026', $customer['password_hash']),
             'Demo password verifies against stored hash');
@@ -77,6 +132,29 @@ try {
     verify((int) $pdo->query('SELECT COUNT(*) FROM carts c WHERE NOT EXISTS
         (SELECT 1 FROM cart_items i WHERE i.cart_id=c.id)')->fetchColumn() === 1,
         'Seed includes an empty cart');
+    rejects($pdo, 'INSERT INTO customer_favorites (customer_id,product_id) VALUES (7,101)', 1062,
+        'Duplicate favorite rejected');
+    rejects($pdo, "INSERT INTO product_reviews (product_id,customer_id,rating,comment) VALUES (101,8,6,'Bad')", 4025,
+        'Rating outside one to five rejected');
+    rejects($pdo, "INSERT INTO product_reviews (product_id,customer_id,rating,comment) VALUES (101,7,4,'Duplicate')", 1062,
+        'Duplicate customer review rejected');
+    rejects($pdo, "INSERT INTO inventory_adjustments (product_id,actor_id,quantity_change,stock_before,stock_after,reason) VALUES (101,9,-2,1,0,'damage')", 4025,
+        'Inconsistent stock adjustment rejected');
+    rejects($pdo, "INSERT INTO inventory_adjustments (product_id,actor_id,quantity_change,stock_before,stock_after,reason) VALUES (101,9,0,1,1,'correction')", 4025,
+        'Zero stock adjustment rejected');
+    rejects($pdo, 'DELETE FROM products WHERE id=109', 1451, 'Inventory audit product protected');
+    rejects($pdo, 'DELETE FROM customers WHERE id=9', 1451, 'Inventory actor protected');
+    $addressBefore = $pdo->query('SELECT delivery_address FROM orders WHERE id=900')->fetchColumn();
+    $pdo->exec("UPDATE customer_addresses SET address_line1='Changed address' WHERE id=1");
+    verify($pdo->query('SELECT delivery_address FROM orders WHERE id=900')->fetchColumn() === $addressBefore,
+        'Saved address edits preserve historical order address');
+    $pdo->exec('DELETE FROM products WHERE id=101');
+    verify((int) $pdo->query('SELECT COUNT(*) FROM customer_favorites WHERE product_id=101')->fetchColumn() === 0,
+        'Product deletion removes favorites');
+    verify((int) $pdo->query('SELECT COUNT(*) FROM product_reviews WHERE product_id=101')->fetchColumn() === 0,
+        'Product deletion removes reviews');
+    rejects($pdo, "INSERT INTO order_status_events (order_id,new_status,source) VALUES (900,'packed','application')", 4025,
+        'Application status events require an actor');
     // Isolate destructive constraint checks from the demo records.
     $pdo->exec($schema);
     $pdo->exec($catalogSeed);
@@ -117,7 +195,7 @@ try {
     verify($line['product_id'] === null && $line['product_name'] === 'Whole Milk 2L'
         && $line['unit_price'] === '4.99', 'Purchased details survive catalog deletion');
     $pdo->exec($schema);
-    verify(count($pdo->query('SHOW TABLES')->fetchAll()) === 9,
+    verify(count($pdo->query('SHOW TABLES')->fetchAll()) === 14,
         'Development reset succeeds with related order and customer records');
     verify((int) $pdo->query('SELECT COUNT(*) FROM products')->fetchColumn() === 0,
         'Schema-only empty fixture remains supported');
