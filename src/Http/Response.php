@@ -16,9 +16,13 @@ final class Response
     }
 
     /** Standard error body: {"error": {"status": 404, "message": "..."}} */
-    public static function error(int $status, string $message, array $headers = []): void
+    public static function error(int $status, string $message, array $headers = [], array $details = []): void
     {
-        self::json($status, ['error' => ['status' => $status, 'message' => $message]], $headers); 
+        $error = ['status' => $status, 'message' => $message];
+        if ($details !== []) {
+            $error['details'] = $details;
+        }
+        self::json($status, ['error' => $error], $headers);
         // Call the json method to send a standardized error response
     }
 }
