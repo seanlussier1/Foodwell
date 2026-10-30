@@ -25,11 +25,13 @@ if (!is_file($autoload)) {
 require $autoload;
 
 use Foodwell\Controllers\ProductController;
+use Foodwell\Controllers\CustomerController;
 use Foodwell\Database;
 use Foodwell\Env;
 use Foodwell\Http\Response;
 use Foodwell\Http\Router;
 use Foodwell\Repositories\ProductRepository;
+use Foodwell\Repositories\CustomerRepository;
 
 Env::load(dirname(__DIR__) . '/.env');
 
@@ -43,10 +45,15 @@ const API_PREFIX = '/api/v1';
 
 try {
     $products = new ProductController(new ProductRepository(Database::connection()));
+    $customers = new CustomerController(new CustomerRepository(Database::connection()));
 
     $router = new Router();
     $router->get(API_PREFIX . '/products',       [$products, 'index']);
     $router->get(API_PREFIX . '/products/{id}',  [$products, 'show']);
+    $router->post(API_PREFIX . '/customers', [$customers, 'register']);
+    $router->get(API_PREFIX . '/customers', [$customers, 'index']);
+    $router->get(API_PREFIX . '/customers/{id}', [$customers, 'show']);
+    $router->put(API_PREFIX . '/customers/{id}', [$customers, 'update']);
 
     $router->dispatch($_SERVER['REQUEST_METHOD'], $path);
 } catch (Throwable $e) {
