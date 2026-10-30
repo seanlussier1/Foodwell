@@ -209,29 +209,36 @@ paths:
       security:
       - BearerSession: []
       x-access: staff_or_admin
-  /categories:
+   /categories:
     get:
       tags:
-      - planned
-      x-status: planned
-      summary: Get all categories (Build 2)
+      - implemented
+      x-status: implemented
+      summary: Get all categories
       responses:
         '200':
-          description: A JSON array of categories
+          description: The category list (possibly empty)
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Category'
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: get__categories
       security: []
       x-access: public
     post:
       tags:
-      - planned
-      x-status: planned
-      summary: Add a category (Build 2)
+      - implemented
+      x-status: implemented
+      summary: Add a category
       requestBody:
         required: true
         content:
@@ -241,22 +248,39 @@ paths:
       responses:
         '201':
           description: Category created
-        '401':
-          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          description: Malformed JSON or the request body is not a JSON object
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '403':
-          description: Permission denied
+        '409':
+          description: A category with this name already exists
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '415':
+          description: The request Content-Type must be application/json
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Category name validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: post__categories
-      security:
-      - BearerSession: []
-      x-access: staff_or_admin
+      security: []
+      x-access: public
   /categories/{id}:
     parameters:
     - in: path
@@ -266,47 +290,65 @@ paths:
         type: integer
     get:
       tags:
-      - planned
-      x-status: planned
-      summary: Get one category (Build 2)
+      - implemented
+      x-status: implemented
+      summary: Get one category by ID
       responses:
         '200':
-          description: A single category
+          description: The category
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Category'
         '404':
           description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: get__categories__id_
       security: []
       x-access: public
     delete:
       tags:
-      - planned
-      x-status: planned
-      summary: Delete a category (Build 2)
+      - implemented
+      x-status: implemented
+      summary: Delete a category
       responses:
-        '204':
-          description: Category deleted
+        '200':
+          description: Category deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                - data
+                properties:
+                  message:
+                    type: string
+                    example: Category deleted successfully.
+                  data:
+                    $ref: '#/components/schemas/Category'
         '404':
           description: Category not found
-        '401':
-          description: Authentication required
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '403':
-          description: Permission denied
+        '409':
+          description: Cannot delete a category that still has products
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: delete__categories__id_
-      security:
-      - BearerSession: []
-      x-access: staff_or_admin
+      security: []
+      x-access: public
   /customers:
     post:
       tags:
