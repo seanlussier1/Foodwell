@@ -2,9 +2,10 @@ openapi: 3.0.3
 info:
   title: Foodwell API
   version: 1.1.0-expanded-contract
-  description: 'Foodwell expanded contract: 45 operations. Only the two original product
-    GET routes are implemented. Other operations, authorization and collection controls
-    are planned; database support alone does not implement them.'
+  description: 'Foodwell expanded contract: 46 operations. Product GET routes and customer
+    registration are implemented. Customer collection/profile GET and profile PUT have local-demo
+    implementations only. Authentication, role/ownership enforcement, shared negotiation and
+    other operations remain planned.'
 servers:
 - url: http://localhost/foodwell-api/api/v1
   description: WampServer (Apache, www/foodwell-api)
@@ -12,7 +13,7 @@ servers:
   description: PHP built-in server (composer start)
 tags:
 - name: implemented
-  description: Working in Build 1
+  description: Working routes; see each operation for its implementation scope
 - name: planned
   description: Contract only - not implemented yet (Build 2 / Build 3)
 - name: Sessions
@@ -35,8 +36,8 @@ paths:
       x-status: implemented
       summary: Get the list of products
       description: 'Returns every product from the database, wrapped in a `data` envelope.
-        No filtering, sorting or pagination in Build 1. When there are no products
-        the response is still `200` with `{"data": []}`.
+        No filtering, sorting or pagination in Build 1. When there are no products the response
+        is still `200` with `{"data": []}`.
 
         '
       responses:
@@ -175,8 +176,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-      description: Stock changes use inventory-adjustment resources. Deactivate products
-        with audit history instead of deleting them.
+      description: Stock changes use inventory-adjustment resources. Deactivate products with
+        audit history instead of deleting them.
       operationId: put__products__id_
       security:
       - BearerSession: []
@@ -308,15 +309,18 @@ paths:
   /customers:
     post:
       tags:
-      - planned
-      x-status: planned
-      summary: Register a customer (Build 2)
+      - implemented
+      x-status: implemented
+      summary: Register a customer
+      description: JSON registration only. Email is trimmed and lowercased. Passwords are
+        hashed; role and activation are assigned by the server. Unknown fields are rejected.
+        Profile reads/updates and sessions remain planned.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CustomerInput'
+              $ref: '#/components/schemas/CustomerRegistrationInput'
       responses:
         '201':
           description: Customer created
@@ -325,10 +329,105 @@ paths:
               schema:
                 $ref: '#/components/schemas/Customer'
         '400':
-          description: Invalid customer data
+          description: Malformed JSON or a body other than a JSON object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: An account with this normalized email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: Missing or unsupported Content-Type (application/json required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422': &id003
+          description: Invalid registration fields; no customer is created
+          content: &id001
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      status:
+                        type: integer
+                        example: 422
+                      message:
+                        type: string
+                        example: Validation failed.
+                      details:
+                        type: object
+                        additionalProperties:
+                          type: string
       operationId: post__customers
       security: []
       x-access: public
+    get:
+      tags:
+      - implemented
+      x-status: local-demo
+      operationId: get__customers
+      summary: Filter and paginate customers (local demo)
+      description: Requires APP_CUSTOMER_PROFILE_DEMO=1 and loopback access; otherwise 403.
+        Intended staff/admin authorization is not implemented. Returns customer-role accounts
+        only, ordered by ID ascending. Both filters combine with AND. Empty and beyond-final
+        pages return 200 with empty data. Unknown or array-valued query parameters are rejected.
+        No customer listing authentication is claimed.
+      security:
+      - BearerSession: []
+      x-access: staff_or_admin
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+          maximum: 2147483647
+        description: Positive decimal integer; no signs, leading zeroes or fractions
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 100
+      - in: query
+        name: search
+        schema:
+          type: string
+          maxLength: 100
+        description: Trimmed case-insensitive literal substring in first or last name; blank
+          means no name filter
+      - in: query
+        name: isActive
+        schema:
+          type: boolean
+        description: Accepts exactly true or false; omit for both activation states
+      responses:
+        '200':
+          description: Filtered customer collection, including empty results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerCollection'
+        '400':
+          description: Invalid pagination, filters or unknown query parameters; error.details
+            identifies fields
+          content: *id001
+        '403':
+          description: Local demo disabled or request not from loopback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /customers/{id}:
     parameters:
     - in: path
@@ -338,9 +437,9 @@ paths:
         type: integer
     get:
       tags:
-      - planned
-      x-status: planned
-      summary: Get one customer (Build 2)
+      - implemented
+      x-status: local-demo
+      summary: Get a customer profile (local demo)
       responses:
         '200':
           description: A single customer
@@ -349,28 +448,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/Customer'
         '404':
-          description: Customer not found
-        '401':
-          description: Authentication required
-          content:
+          description: Customer ID not found or outside the supported ID range
+          content: &id002
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Permission denied
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: Local demo is disabled or client is not loopback; future owner/admin
+            enforcement remains planned
+          content: *id002
       operationId: get__customers__id_
       security:
       - BearerSession: []
       x-access: owner_or_admin
+      description: 'Requires APP_CUSTOMER_PROFILE_DEMO=1 and a loopback client address. Otherwise
+        returns 403. This is a local synthetic-data demo without authentication; owner/admin
+        session enforcement is planned under #45/#46. BearerSession below documents the intended
+        future access contract, not implemented security.'
     put:
       tags:
-      - planned
-      x-status: planned
-      summary: Update a customer (Build 2)
+      - implemented
+      x-status: local-demo
+      summary: Update a customer profile (local demo)
       requestBody:
         required: true
         content:
@@ -379,25 +478,38 @@ paths:
               $ref: '#/components/schemas/CustomerUpdate'
       responses:
         '200':
-          description: Customer updated
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
         '404':
-          description: Customer not found
-        '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: Customer ID not found or outside the supported ID range
+          content: *id002
         '403':
-          description: Permission denied
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: Local demo is disabled or client is not loopback; future owner/admin
+            enforcement remains planned
+          content: *id002
+        '400':
+          description: Malformed JSON or non-object body
+          content: *id002
+        '409':
+          description: Normalized email belongs to another account
+          content: *id002
+        '415':
+          description: Missing or unsupported Content-Type; application/json required
+          content: *id002
+        '422': *id003
       operationId: put__customers__id_
       security:
       - BearerSession: []
       x-access: owner_or_admin
+      description: 'Requires APP_CUSTOMER_PROFILE_DEMO=1 and a loopback client address. Otherwise
+        returns 403. This is a local synthetic-data demo without authentication; owner/admin
+        session enforcement is planned under #45/#46. BearerSession below documents the intended
+        future access contract, not implemented security. Replaces profile fields; omitted
+        address/phone become null. Password, role and activation cannot be changed. Missing
+        required fields are invalid.'
   /customers/{id}/cart:
     get:
       tags:
@@ -554,8 +666,7 @@ paths:
       - planned
       x-status: planned
       summary: Place an order from a customer's cart (Build 2)
-      description: 'Will validate stock for each line item and calculate the total
-        server-side.
+      description: 'Will validate stock for each line item and calculate the total server-side.
 
         '
       requestBody:
@@ -1063,8 +1174,8 @@ paths:
           minimum: 1
           default: 20
           maximum: 100
-      description: Planned bounded pagination, ordered by a stable identifier. Access
-        is checked before rows are returned.
+      description: Planned bounded pagination, ordered by a stable identifier. Access is checked
+        before rows are returned.
     parameters:
     - in: path
       name: id
@@ -1344,8 +1455,8 @@ paths:
           minimum: 1
           default: 20
           maximum: 100
-      description: Planned bounded pagination, ordered by a stable identifier. Access
-        is checked before rows are returned.
+      description: Planned bounded pagination, ordered by a stable identifier. Access is checked
+        before rows are returned.
     parameters:
     - in: path
       name: id
@@ -1502,8 +1613,8 @@ paths:
           minimum: 1
           default: 20
           maximum: 100
-      description: Planned bounded pagination, ordered by a stable identifier. Access
-        is checked before rows are returned.
+      description: Planned bounded pagination, ordered by a stable identifier. Access is checked
+        before rows are returned.
     parameters:
     - in: path
       name: id
@@ -1764,8 +1875,8 @@ paths:
           minimum: 1
           default: 20
           maximum: 100
-      description: Planned bounded pagination, ordered by a stable identifier. Access
-        is checked before rows are returned.
+      description: Planned bounded pagination, ordered by a stable identifier. Access is checked
+        before rows are returned.
     parameters:
     - in: path
       name: id
@@ -1943,8 +2054,8 @@ paths:
           minimum: 1
           default: 20
           maximum: 100
-      description: Planned bounded pagination, ordered by a stable identifier. Access
-        is checked before rows are returned.
+      description: Planned bounded pagination, ordered by a stable identifier. Access is checked
+        before rows are returned.
     parameters:
     - in: path
       name: id
@@ -2031,8 +2142,8 @@ components:
           example: https://example.com/images/whole-milk.jpg
         isActive:
           type: boolean
-          description: Planned catalog activation field. Existing product GET responses
-            omit it.
+          description: Planned catalog activation field. Existing product GET responses omit
+            it.
     ProductList:
       type: object
       required:
@@ -2097,10 +2208,49 @@ components:
           example: will@example.com
         address:
           type: string
+          nullable: true
           example: 123 Rue Principale, Saint-Jerome, QC
         phone:
           type: string
+          nullable: true
           example: 450-555-0123
+    CustomerRegistrationInput:
+      type: object
+      additionalProperties: false
+      required:
+      - firstName
+      - lastName
+      - email
+      - password
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Trimmed; must not be blank
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Trimmed; must not be blank
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          description: Trimmed and lowercased before storage
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          description: 8 to 72 bytes, without null characters; not trimmed
+        address:
+          type: string
+          nullable: true
+          maxLength: 500
+        phone:
+          type: string
+          nullable: true
+          maxLength: 30
     CustomerInput:
       type: object
       required:
@@ -2351,11 +2501,11 @@ components:
           type: string
           maxLength: 30
           nullable: true
-        createdAt: &id001
+        createdAt: &id004
           type: string
           format: date-time
           readOnly: true
-        updatedAt: *id001
+        updatedAt: *id004
         customerId:
           type: integer
           minimum: 1
@@ -2438,8 +2588,8 @@ components:
         comment:
           type: string
           maxLength: 2000
-        createdAt: *id001
-        updatedAt: *id001
+        createdAt: *id004
+        updatedAt: *id004
         productId:
           type: integer
           minimum: 1
@@ -2528,7 +2678,7 @@ components:
           type: integer
           minimum: 0
           readOnly: true
-        createdAt: *id001
+        createdAt: *id004
       required:
       - id
       - productId
@@ -2545,7 +2695,7 @@ components:
           type: integer
           minimum: 1
           readOnly: true
-        createdAt: *id001
+        createdAt: *id004
         product:
           $ref: '#/components/schemas/Product'
       required:
@@ -2592,7 +2742,7 @@ components:
           - application
           - migration_baseline
           readOnly: true
-        createdAt: *id001
+        createdAt: *id004
       required:
       - id
       - orderId
@@ -2624,7 +2774,7 @@ components:
       properties:
         customer:
           $ref: '#/components/schemas/Customer'
-        expiresAt: *id001
+        expiresAt: *id004
       required:
       - customer
       - expiresAt
@@ -2640,7 +2790,7 @@ components:
           type: string
           enum:
           - Bearer
-        expiresAt: *id001
+        expiresAt: *id004
         customer:
           $ref: '#/components/schemas/Customer'
       required:
@@ -2657,14 +2807,29 @@ components:
       properties:
         firstName:
           type: string
+          minLength: 1
+          maxLength: 100
+          description: Trimmed; must not be blank
         lastName:
           type: string
+          minLength: 1
+          maxLength: 100
+          description: Trimmed; must not be blank
         email:
           type: string
+          format: email
+          maxLength: 254
+          description: Trimmed and lowercased
         address:
           type: string
+          nullable: true
+          maxLength: 500
+          description: Trimmed; blank or omitted values become null
         phone:
           type: string
+          nullable: true
+          maxLength: 30
+          description: Trimmed; blank or omitted values become null
       additionalProperties: false
     ProductUpdate:
       type: object
@@ -2727,8 +2892,8 @@ components:
         isActive:
           type: boolean
           default: true
-        createdAt: *id001
-        updatedAt: *id001
+        createdAt: *id004
+        updatedAt: *id004
         availableCapacity:
           type: integer
           minimum: 0
@@ -2801,9 +2966,62 @@ components:
             $ref: '#/components/schemas/DeliverySlot'
       required:
       - data
+    CustomerListItem:
+      allOf:
+      - $ref: '#/components/schemas/Customer'
+      - type: object
+        required:
+        - isActive
+        properties:
+          isActive:
+            type: boolean
+    CustomerCollection:
+      type: object
+      required:
+      - metadata
+      - data
+      properties:
+        metadata:
+          type: object
+          required:
+          - page
+          - limit
+          - total
+          - totalPages
+          - next
+          - previous
+          properties:
+            page:
+              type: integer
+              minimum: 1
+              maximum: 2147483647
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+            total:
+              type: integer
+              minimum: 0
+              description: Matching customer-role accounts, excluding staff/admin
+            totalPages:
+              type: integer
+              minimum: 0
+            next:
+              type: string
+              nullable: true
+              description: Relative URL preserving filters and limit, or null
+            previous:
+              type: string
+              nullable: true
+              description: Relative URL; beyond-final pages link back to final page; null
+                when empty or first page
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerListItem'
   securitySchemes:
     BearerSession:
       type: http
       scheme: bearer
-      description: Planned opaque session token. No JWT assumption. Server stores
-        only its SHA-256 digest.
+      description: Planned opaque session token. No JWT assumption. Server stores only its
+        SHA-256 digest.
