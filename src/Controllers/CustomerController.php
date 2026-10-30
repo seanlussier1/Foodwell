@@ -108,6 +108,24 @@ final class CustomerController
         Response::json(200, $customer);
     }
 
+    /** PATCH supports deactivation only, not arbitrary profile or role changes. */
+    public function deactivate(array $params): void
+    {
+        if (!$this->allowLocalDemo()) { return; }
+        $id = $this->profileId($params);
+        if ($id === null) { return; }
+        $input = $this->readJson();
+        if ($input === null) { return; }
+        if (count($input) !== 1 || !array_key_exists('isActive', $input) || $input['isActive'] !== false) {
+            Response::error(422, 'Validation failed.', [], ['isActive' => 'Send exactly {"isActive": false} to deactivate a customer.']);
+            return;
+        }
+        $customer = $this->customers->deactivate($id);
+        if ($customer === null) { Response::error(404, 'Customer not found.'); return; }
+        if (isset($customer['restricted'])) { Response::error(403, 'Only customer-role accounts can be deactivated here.'); return; }
+        Response::json(200, $customer);
+    }
+
     /** Until #45/#46, profile access is a deliberately local-only demonstration. */
     private function allowLocalDemo(): bool
     {

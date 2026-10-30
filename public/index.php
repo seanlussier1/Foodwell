@@ -30,6 +30,7 @@ use Foodwell\Database;
 use Foodwell\Env;
 use Foodwell\Http\Response;
 use Foodwell\Http\Router;
+use Foodwell\Http\Cors;
 use Foodwell\Repositories\ProductRepository;
 use Foodwell\Repositories\CustomerRepository;
 
@@ -43,6 +44,30 @@ if ($base !== '' && str_starts_with($path, $base . '/')) {
 
 const API_PREFIX = '/api/v1';
 
+// The Wamp root rewrite intentionally hides repository folders. Expose only
+// these three client assets, not the /client directory or arbitrary files.
+if ($path === '/client' && !str_ends_with((string) parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/')) {
+    header('Location: ' . $base . '/client/', true, 302);
+    return;
+}
+$clientAssets = [
+    '/client' => ['index.html', 'text/html; charset=utf-8'],
+    '/client/index.html' => ['index.html', 'text/html; charset=utf-8'],
+    '/client/styles.css' => ['styles.css', 'text/css; charset=utf-8'],
+    '/client/app.js' => ['app.js', 'text/javascript; charset=utf-8'],
+];
+if (isset($clientAssets[$path])) {
+    [$file, $contentType] = $clientAssets[$path];
+    header('Content-Type: ' . $contentType);
+    header('X-Content-Type-Options: nosniff');
+    readfile(dirname(__DIR__) . '/client/' . $file);
+    return;
+}
+
+if (str_starts_with($path, API_PREFIX . '/') || $path === API_PREFIX) {
+    if (!Cors::handle()) { return; }
+}
+
 try {
     $products = new ProductController(new ProductRepository(Database::connection()));
     $customers = new CustomerController(new CustomerRepository(Database::connection()));
@@ -54,6 +79,7 @@ try {
     $router->get(API_PREFIX . '/customers', [$customers, 'index']);
     $router->get(API_PREFIX . '/customers/{id}', [$customers, 'show']);
     $router->put(API_PREFIX . '/customers/{id}', [$customers, 'update']);
+    $router->patch(API_PREFIX . '/customers/{id}', [$customers, 'deactivate']);
 
     $router->dispatch($_SERVER['REQUEST_METHOD'], $path);
 } catch (Throwable $e) {

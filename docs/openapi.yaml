@@ -2,10 +2,11 @@ openapi: 3.0.3
 info:
   title: Foodwell API
   version: 1.1.0-expanded-contract
-  description: 'Foodwell expanded contract: 46 operations. Product GET routes and customer
-    registration are implemented. Customer collection/profile GET and profile PUT have local-demo
-    implementations only. Authentication, role/ownership enforcement, shared negotiation and
-    other operations remain planned.'
+  description: 'Foodwell expanded contract: 47 operations. Product GET routes and customer
+    registration are implemented. Customer collection/profile GET, profile PUT and deactivation
+    PATCH have local-demo implementations only. Authentication, role/ownership enforcement
+    and shared content negotiation remain planned. The /client dashboard consumes customer
+    operations.'
 servers:
 - url: http://localhost/foodwell-api/api/v1
   description: WampServer (Apache, www/foodwell-api)
@@ -510,6 +511,48 @@ paths:
         future access contract, not implemented security. Replaces profile fields; omitted
         address/phone become null. Password, role and activation cannot be changed. Missing
         required fields are invalid.'
+    patch:
+      tags:
+      - implemented
+      x-status: local-demo
+      operationId: patch__customers__id_
+      summary: Deactivate a customer (local demo)
+      description: Requires explicit local demo flag and loopback address. Intended staff/admin
+        enforcement remains planned. Only customer-role accounts can be deactivated. Profile/history
+        records are retained and existing sessions are revoked atomically. Repeated deactivation
+        returns 200. No reactivation or arbitrary field patching is supported.
+      security:
+      - BearerSession: []
+      x-access: staff_or_admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerDeactivationInput'
+      responses:
+        '200':
+          description: Deactivated customer; isActive is false
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerListItem'
+        '400':
+          description: Malformed or non-object JSON
+          content: &id004
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Demo disabled, non-loopback request, or target is staff/admin
+          content: *id004
+        '404':
+          description: Customer not found
+          content: *id004
+        '415':
+          description: Missing or unsupported Content-Type; application/json required
+          content: *id004
+        '422': *id003
   /customers/{id}/cart:
     get:
       tags:
@@ -2501,11 +2544,11 @@ components:
           type: string
           maxLength: 30
           nullable: true
-        createdAt: &id004
+        createdAt: &id005
           type: string
           format: date-time
           readOnly: true
-        updatedAt: *id004
+        updatedAt: *id005
         customerId:
           type: integer
           minimum: 1
@@ -2588,8 +2631,8 @@ components:
         comment:
           type: string
           maxLength: 2000
-        createdAt: *id004
-        updatedAt: *id004
+        createdAt: *id005
+        updatedAt: *id005
         productId:
           type: integer
           minimum: 1
@@ -2678,7 +2721,7 @@ components:
           type: integer
           minimum: 0
           readOnly: true
-        createdAt: *id004
+        createdAt: *id005
       required:
       - id
       - productId
@@ -2695,7 +2738,7 @@ components:
           type: integer
           minimum: 1
           readOnly: true
-        createdAt: *id004
+        createdAt: *id005
         product:
           $ref: '#/components/schemas/Product'
       required:
@@ -2742,7 +2785,7 @@ components:
           - application
           - migration_baseline
           readOnly: true
-        createdAt: *id004
+        createdAt: *id005
       required:
       - id
       - orderId
@@ -2774,7 +2817,7 @@ components:
       properties:
         customer:
           $ref: '#/components/schemas/Customer'
-        expiresAt: *id004
+        expiresAt: *id005
       required:
       - customer
       - expiresAt
@@ -2790,7 +2833,7 @@ components:
           type: string
           enum:
           - Bearer
-        expiresAt: *id004
+        expiresAt: *id005
         customer:
           $ref: '#/components/schemas/Customer'
       required:
@@ -2892,8 +2935,8 @@ components:
         isActive:
           type: boolean
           default: true
-        createdAt: *id004
-        updatedAt: *id004
+        createdAt: *id005
+        updatedAt: *id005
         availableCapacity:
           type: integer
           minimum: 0
@@ -3019,9 +3062,30 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CustomerListItem'
+    CustomerDeactivationInput:
+      type: object
+      additionalProperties: false
+      required:
+      - isActive
+      properties:
+        isActive:
+          type: boolean
+          enum:
+          - false
+          description: Only false is supported; this endpoint cannot reactivate accounts
   securitySchemes:
     BearerSession:
       type: http
       scheme: bearer
       description: Planned opaque session token. No JWT assumption. Server stores only its
         SHA-256 digest.
+x-cors:
+  configuration: 'CORS_ALLOWED_ORIGINS: comma-separated allowed browser origins; same-origin
+    requests also accepted'
+  defaultOrigins:
+  - http://localhost:8081
+  - http://127.0.0.1:8081
+  preflight: OPTIONS returns 204 before database access; supports GET, POST, PUT, PATCH, OPTIONS
+    and Accept, Content-Type, Authorization headers. Disallowed origins return 403; unsupported
+    preflight methods 405; unsupported preflight headers 400. No credentialed cross-origin
+    cookies.

@@ -64,6 +64,33 @@ final class CustomerRepository
         return ['total' => $total, 'data' => $data];
     }
 
+    /** Retain history and revoke sessions atomically; repeated deactivation is safe. */
+    public function deactivate(int $id): ?array
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $lock = $this->pdo->prepare('SELECT role FROM customers WHERE id = :id FOR UPDATE');
+            $lock->execute(['id' => $id]);
+            $row = $lock->fetch();
+            if ($row === false) { $this->pdo->rollBack(); return null; }
+            if ($row['role'] !== 'customer') {
+                $this->pdo->rollBack();
+                return ['restricted' => true];
+            }
+            $update = $this->pdo->prepare('UPDATE customers SET is_active = 0 WHERE id = :id AND is_active = 1');
+            $update->execute(['id' => $id]);
+            $sessions = $this->pdo->prepare('UPDATE auth_sessions SET revoked_at = CURRENT_TIMESTAMP WHERE customer_id = :id AND revoked_at IS NULL');
+            $sessions->execute(['id' => $id]);
+            $customer = $this->findById($id);
+            $customer['isActive'] = false;
+            $this->pdo->commit();
+            return $customer;
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
+            throw $e;
+        }
+    }
+
     /** PUT replaces profile fields only; missing nullable fields become null. */
     public function updateProfile(int $id, array $input): ?array
     {
