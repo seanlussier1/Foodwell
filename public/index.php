@@ -26,6 +26,7 @@ require $autoload;
 
 use Foodwell\Controllers\ProductController;
 use Foodwell\Controllers\CustomerController;
+use Foodwell\Controllers\CategoryController;
 use Foodwell\Database;
 use Foodwell\Env;
 use Foodwell\Http\Response;
@@ -33,6 +34,7 @@ use Foodwell\Http\Router;
 use Foodwell\Http\Cors;
 use Foodwell\Repositories\ProductRepository;
 use Foodwell\Repositories\CustomerRepository;
+use Foodwell\Repositories\CategoryRepository;
 
 Env::load(dirname(__DIR__) . '/.env');
 
@@ -71,6 +73,7 @@ if (str_starts_with($path, API_PREFIX . '/') || $path === API_PREFIX) {
 try {
     $products = new ProductController(new ProductRepository(Database::connection()));
     $customers = new CustomerController(new CustomerRepository(Database::connection()));
+    $categories = new CategoryController(new CategoryRepository(Database::connection()));
 
     $router = new Router();
     $router->get(API_PREFIX . '/products',       [$products, 'index']);
@@ -80,6 +83,10 @@ try {
     $router->get(API_PREFIX . '/customers/{id}', [$customers, 'show']);
     $router->put(API_PREFIX . '/customers/{id}', [$customers, 'update']);
     $router->patch(API_PREFIX . '/customers/{id}', [$customers, 'deactivate']);
+    $router->get(API_PREFIX . '/categories', [$categories, 'index']);
+    $router->get(API_PREFIX . '/categories/{id}', [$categories, 'show']);
+    $router->post(API_PREFIX . '/categories', [$categories, 'store']);
+    $router->delete(API_PREFIX . '/categories/{id}', [$categories, 'destroy']);
 
     $router->dispatch($_SERVER['REQUEST_METHOD'], $path);
 } catch (Throwable $e) {
