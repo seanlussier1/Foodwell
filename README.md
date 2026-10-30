@@ -4,7 +4,7 @@ Foodwell is a PHP/MariaDB REST API for an online grocery store. Customers browse
 
 ## Current status
 
-The database has **14 tables** and the [OpenAPI contract](docs/openapi.yaml) documents **46 operations**. Product list/item GET and customer registration work in PHP. Customer collection GET and profile GET/PUT work as an explicitly enabled local demo; authentication and role/owner/admin enforcement remain planned. Other operations remain planned. The additional collection GET extends the previous 45-operation foundation.
+The database has **14 tables** and the [OpenAPI contract](docs/openapi.yaml) documents **47 operations**. Product list/item GET and customer registration work in PHP. Customer collection GET, profile GET/PUT and deactivation PATCH work as an explicitly enabled local demo; authentication and role/owner/admin enforcement remain planned. Other operations remain planned. Collection GET and deactivation PATCH extend the previous 45-operation foundation.
 
 Customer registration accepts JSON with `firstName`, `lastName`, `email`, `password`, and optional nullable `address`/`phone`. Names are trimmed (1-100 characters); email is trimmed and lowercased (maximum 254 characters). Passwords are 8-72 bytes, are not trimmed, and are stored using bcrypt. Registration always creates an active customer; caller-supplied roles, activation and other unknown fields are rejected. Responses never include passwords or hashes. Successful creation returns 201; malformed/non-object JSON returns 400, duplicate email 409, unsupported/missing Content-Type 415 and invalid fields 422 with `error.details`. JSON is the only implemented customer format. Login and the customer dashboard remain planned.
 
@@ -18,7 +18,15 @@ For synthetic local testing, add `APP_CUSTOMER_PROFILE_DEMO=1` to `.env` and acc
 
 Collection success responses contain `metadata` (`page`, `limit`, `total`, `totalPages`, `next`, `previous`) and a `data` array of profiles with `isActive`. Navigation URLs are relative, preserve both filters and limit, and retain Apache subfolder prefixes. Empty matches return 200 with zero totalPages and null links. Beyond-final pages return empty data with a previous link back to the final page when matches exist. The shared content negotiation/global error work (#33/#32) is still pending integration; do not claim customer 406 handling is implemented.
 
-Run `php scripts/check-registration.php` for 93 isolated registration/profile/collection HTTP and database checks. Like the schema checks below, this uses `SCHEMA_TEST_HOST`, `SCHEMA_TEST_PORT`, `SCHEMA_TEST_USER` and `SCHEMA_TEST_PASS`, creates temporary databases and removes them afterward. It does not load or reset the application database. Optional `FOODWELL_TEST_ROOT` points these checks at another copy of the same application.
+`PATCH /api/v1/customers/{id}` accepts exactly `{"isActive": false}` in the local demo. It deactivates only customer-role accounts, retains profile/history records and revokes existing sessions atomically. Repeated requests return 200. Staff/admin targets return 403, missing IDs 404, invalid fields 422, malformed JSON 400 and unsupported Content-Type 415. Reactivation is not implemented. Intended staff/admin authorization remains planned.
+
+### Lab 7 customer client
+
+With Wamp running and the local demo enabled, open `http://localhost/foodwell-api/client/`. Or run `php -S localhost:8081 -t client` from the repository root and visit `http://localhost:8081` to demonstrate cross-origin consumption. Expand API connection if the base URL differs. The client has filtered pagination, registration/profile forms, client validation, backend field-error feedback and a per-customer deactivation button. See [client instructions](client/README.md). Products/categories remain the other owners' client work.
+
+API CORS middleware accepts same-origin requests and configured `CORS_ALLOWED_ORIGINS` (default: `http://localhost:8081,http://127.0.0.1:8081`). OPTIONS returns 204 before connecting to the database; allowed methods are GET/POST/PUT/PATCH/OPTIONS and allowed headers are Accept/Content-Type/Authorization. Disallowed origins return 403; unsupported preflight methods/headers are rejected. Allowed origins receive CORS headers on errors too. No cross-origin cookie credentials are enabled. CORS does not enforce identity or ownership.
+
+Run `php scripts/check-registration.php` for 122 isolated registration/profile/collection/deactivation/CORS HTTP and database checks. Like the schema checks below, this uses `SCHEMA_TEST_HOST`, `SCHEMA_TEST_PORT`, `SCHEMA_TEST_USER` and `SCHEMA_TEST_PASS`, creates temporary databases and removes them afterward. It does not load or reset the application database. Optional `FOODWELL_TEST_ROOT` points these checks at another copy of the same application.
 
 The expanded resources include sessions, saved addresses, favorites, reviews, manual inventory adjustments and order status history.
 

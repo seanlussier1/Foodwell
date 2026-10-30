@@ -22,15 +22,16 @@ function check(bool $condition, string $message): void {
     ++$checks;
     echo "PASS: $message\n";
 }
-function request(int $port, string $method, string $path, ?string $body = null, string $type = 'application/json'): array {
+function request(int $port, string $method, string $path, ?string $body = null, string $type = 'application/json', array $headers = [], bool $api = true): array {
     $context = stream_context_create(['http' => [
         'method' => $method, 'ignore_errors' => true, 'timeout' => 5,
-        'header' => "Content-Type: $type\r\nAccept: application/json\r\n",
+        'header' => "Content-Type: $type\r\nAccept: application/json\r\n" . implode("\r\n", $headers),
         'content' => $body ?? '',
     ]]);
-    $raw = file_get_contents("http://127.0.0.1:$port/api/v1$path", false, $context);
+    $prefix = $api ? '/api/v1' : '';
+    $raw = file_get_contents("http://127.0.0.1:$port$prefix$path", false, $context);
     preg_match('/\s(\d{3})\s/', $http_response_header[0], $match);
-    return [(int) $match[1], json_decode((string) $raw, true), $raw];
+    return [(int) $match[1], json_decode((string) $raw, true), $raw, $http_response_header];
 }
 try {
     foreach ([true, false] as $seeded) {
@@ -60,7 +61,7 @@ try {
         }
         $server = proc_open([PHP_BINARY, '-d', 'display_errors=0', '-d', 'log_errors=1', '-d', "error_log=$errorLog", '-S', "127.0.0.1:$serverPort", '-t', "$root/public", $router],
             [0 => ['file', $null, 'r'], 1 => ['file', $null, 'w'], 2 => ['file', $serverLog, 'w']], $pipes, $root,
-            array_merge(getenv(), ['DB_HOST' => $host, 'DB_PORT' => $port, 'DB_NAME' => $db, 'DB_USER' => $user, 'DB_PASS' => $pass, 'APP_BASE_PATH' => '', 'APP_CUSTOMER_PROFILE_DEMO' => $seeded ? '1' : '0']));
+            array_merge(getenv(), ['DB_HOST' => $host, 'DB_PORT' => $port, 'DB_NAME' => $db, 'DB_USER' => $user, 'DB_PASS' => $pass, 'APP_BASE_PATH' => '', 'APP_CUSTOMER_PROFILE_DEMO' => $seeded ? '1' : '0', 'CORS_ALLOWED_ORIGINS' => 'http://localhost:8081,http://127.0.0.1:8081']));
         if (!is_resource($server)) { throw new RuntimeException('Cannot start test server.'); }
         $servers[] = $server;
         $ready = false;
@@ -70,6 +71,18 @@ try {
             usleep(100000);
         }
         check($ready, 'Temporary server starts');
+        [$clientStatus, , $clientHtml] = request($serverPort, 'GET', '/client/', null, 'application/json', [], false);
+        check($clientStatus === 200 && str_contains($clientHtml, 'Customer workspace'), 'Front controller serves the client HTML');
+        [$clientStatus, , $clientJs] = request($serverPort, 'GET', '/client/app.js', null, 'application/json', [], false);
+        check($clientStatus === 200 && str_contains($clientJs, 'loadCustomers'), 'Front controller serves only explicitly mapped client assets');
+        $origin = ['Origin: http://localhost:8081'];
+        [$corsStatus, , $corsBody, $corsHeaders] = request($serverPort, 'OPTIONS', '/customers', null, 'application/json', array_merge($origin, ['Access-Control-Request-Method: PATCH', 'Access-Control-Request-Headers: Content-Type']));
+        check($corsStatus === 204 && $corsBody === '' && in_array('Access-Control-Allow-Origin: http://localhost:8081', $corsHeaders, true), 'OPTIONS supports allowed origin without entering resource handlers');
+        check(in_array('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, OPTIONS', $corsHeaders, true), 'Preflight advertises the implemented write methods');
+        [$badOrigin, , , $badHeaders] = request($serverPort, 'GET', '/customers', null, 'application/json', ['Origin: https://not-allowed.example']);
+        check($badOrigin === 403 && !in_array('Access-Control-Allow-Origin: https://not-allowed.example', $badHeaders, true), 'Unknown browser origin is rejected without permissive CORS headers');
+        check(request($serverPort, 'OPTIONS', '/customers', null, 'application/json', array_merge($origin, ['Access-Control-Request-Method: DELETE']))[0] === 405, 'Unsupported preflight method is rejected');
+        check(request($serverPort, 'OPTIONS', '/customers', null, 'application/json', array_merge($origin, ['Access-Control-Request-Headers: X-Unknown']))[0] === 400, 'Unsupported preflight header is rejected');
         [$status, $body] = request($serverPort, 'GET', '/products');
         if ($status !== 200 || !isset($body['data']) || count($body['data']) !== ($seeded ? 10 : 0)) {
             echo 'Product response: HTTP ' . $status . '; ' . json_encode($body) . "\n";
@@ -81,6 +94,7 @@ try {
             check(request($serverPort, 'GET', '/customers')[0] === 403, 'Customer collection requires explicit local demo opt-in');
             check(request($serverPort, 'GET', '/customers/7')[0] === 403, 'Profile reads are disabled without explicit demo opt-in');
             check(request($serverPort, 'PUT', '/customers/7', '{}')[0] === 403, 'Profile writes are disabled without explicit demo opt-in');
+            check(request($serverPort, 'PATCH', '/customers/7', '{"isActive":false}')[0] === 403, 'Deactivation requires explicit demo opt-in');
             continue;
         }
         [$status, $body] = request($serverPort, 'GET', '/products/101');
@@ -194,6 +208,28 @@ try {
         check(request($serverPort, 'GET', '/customers?search=%25')[1]['metadata']['total'] === 0, 'Search treats percent as literal text, not a wildcard');
         check(request($serverPort, 'GET', '/customers?search=' . rawurlencode("' OR 1=1 --"))[1]['metadata']['total'] === 0, 'Search input is parameterized rather than interpreted as SQL');
         check(request($serverPort, 'GET', '/customers?limit=100&page=2147483647')[0] === 200, 'Largest valid page avoids offset overflow');
+        [$corsStatus, , , $corsHeaders] = request($serverPort, 'GET', '/customers?page=0', null, 'application/json', $origin);
+        check($corsStatus === 400 && in_array('Access-Control-Allow-Origin: http://localhost:8081', $corsHeaders, true), 'Allowed browser origin can read structured API errors');
+        $deactivateId = $fixtureIds[0];
+        $session = $pdo->prepare("INSERT INTO auth_sessions(customer_id,token_hash,expires_at) VALUES(:id,:hash,DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 1 DAY))");
+        $session->execute(['id' => $deactivateId, 'hash' => hash('sha256', 'synthetic-session-token')]);
+        $sessionId = (int) $pdo->lastInsertId();
+        $beforeDeactivate = $pdo->query("SELECT * FROM customers WHERE id=$deactivateId")->fetch();
+        foreach (['{}', '{"isActive":true}', '{"isActive":"false"}', '{"isActive":false,"role":"admin"}'] as $invalidPatch) {
+            check(request($serverPort, 'PATCH', "/customers/$deactivateId", $invalidPatch)[0] === 422, 'Deactivation rejects unsupported or privileged patch fields');
+        }
+        check($pdo->query("SELECT * FROM customers WHERE id=$deactivateId")->fetch() === $beforeDeactivate, 'Rejected PATCH requests preserve account data');
+        [$patchStatus, $patched] = request($serverPort, 'PATCH', "/customers/$deactivateId", '{"isActive":false}', 'application/json', $origin);
+        check($patchStatus === 200 && $patched['id'] === $deactivateId && $patched['isActive'] === false, 'PATCH deactivates a customer and returns safe state');
+        $afterDeactivate = $pdo->query("SELECT * FROM customers WHERE id=$deactivateId")->fetch();
+        check((int) $afterDeactivate['is_active'] === 0 && $afterDeactivate['password_hash'] === $beforeDeactivate['password_hash'] && $afterDeactivate['email'] === $beforeDeactivate['email'], 'Deactivation retains profile and password data');
+        check($pdo->query("SELECT revoked_at FROM auth_sessions WHERE id=$sessionId")->fetchColumn() !== null, 'Deactivation revokes existing sessions');
+        check(request($serverPort, 'PATCH', "/customers/$deactivateId", '{"isActive":false}')[0] === 200, 'Repeated deactivation remains successful');
+        check(request($serverPort, 'PATCH', '/customers/999999', '{"isActive":false}')[0] === 404, 'Deactivation of missing customer returns 404');
+        $staffId = (int) $pdo->query("SELECT id FROM customers WHERE role='staff' LIMIT 1")->fetchColumn();
+        check(request($serverPort, 'PATCH', "/customers/$staffId", '{"isActive":false}')[0] === 403, 'Customer deactivation cannot disable staff accounts');
+        check(request($serverPort, 'PATCH', "/customers/$deactivateId", '{')[0] === 400, 'PATCH rejects malformed JSON');
+        check(request($serverPort, 'PATCH', "/customers/$deactivateId", '{}', 'text/plain')[0] === 415, 'PATCH rejects unsupported request media');
     }
     echo "$checks checks passed. Application database was not used.\n";
 } finally {

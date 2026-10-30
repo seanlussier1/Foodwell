@@ -24,6 +24,11 @@ final class Router
         $this->add('PUT', $pattern, $handler);
     }
 
+    public function patch(string $pattern, callable $handler): void
+    {
+        $this->add('PATCH', $pattern, $handler);
+    }
+
     private function add(string $method, string $pattern, callable $handler): void
     {
         $regex = '#^' . preg_replace('#\{(\w+)\}#', '(?P<$1>\d+)', $pattern) . '$#';
