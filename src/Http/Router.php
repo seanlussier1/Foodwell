@@ -29,6 +29,12 @@ final class Router
         $this->add('PATCH', $pattern, $handler);
     }
 
+    /** Register a DELETE route. */
+    public function delete(string $pattern, callable $handler): void
+    {
+        $this->add('DELETE', $pattern, $handler);
+    }
+
     private function add(string $method, string $pattern, callable $handler): void
     {
         $regex = '#^' . preg_replace('#\{(\w+)\}#', '(?P<$1>\d+)', $pattern) . '$#';
