@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Foodwell | Customer workspace</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="masthead"><a class="brand" href="./">foodwell<span>TEAM WORKSPACE</span></a><span class="badge">Local demonstration</span></header>
+  <main>
+    <div class="intro"><p class="eyebrow">CUSTOMER MANAGEMENT</p><h1>A clear view of your customers.</h1><p>Find accounts, update profiles, and keep the customer list organized.</p></div>
+    <p class="notice">Use synthetic accounts. This local demo does not enforce login or account ownership.</p>
+    <details class="connection"><summary>API connection</summary><form id="connection-form"><label for="api-url">API base URL</label><div class="inline"><input id="api-url" type="url" required><button type="submit">Connect</button></div><p>Wamp: http://localhost/foodwell-api/api/v1 &nbsp;|&nbsp; PHP server: http://localhost:8080/api/v1</p></form></details>
+    <div id="feedback" class="feedback" role="status" aria-live="polite" hidden><strong id="feedback-title"></strong><ul id="feedback-details"></ul></div>
+    <div class="workspace">
+      <section class="panel directory" aria-labelledby="directory-title">
+        <div class="section-head"><div><p class="eyebrow">DIRECTORY</p><h2 id="directory-title">Customers</h2></div><button id="new-customer" class="secondary" type="button">+ New customer</button></div>
+        <form id="filters" class="filters">
+          <label>Search names<input id="search" type="search" placeholder="First or last name" maxlength="100"></label>
+          <label>Status<select id="active-filter"><option value="">All statuses</option><option value="true">Active</option><option value="false">Inactive</option></select></label>
+          <label>Per page<select id="page-size"><option value="2">2</option><option value="5">5</option><option value="10">10</option></select></label>
+          <button type="submit">Apply filters</button>
+        </form>
+        <p id="list-summary" class="muted" role="status">Loading customers…</p>
+        <div class="table-wrap"><table><thead><tr><th>Customer</th><th>Status</th><th>Actions</th></tr></thead><tbody id="customers"></tbody></table></div>
+        <div class="pagination"><button id="previous" class="secondary" type="button" disabled>← Previous</button><span id="page-label">Page 1</span><button id="next" class="secondary" type="button" disabled>Next →</button></div>
+      </section>
+      <section class="panel editor" aria-labelledby="editor-title">
+        <p class="eyebrow" id="form-mode">NEW ACCOUNT</p><h2 id="editor-title">Register a customer</h2>
+        <p id="editor-help" class="muted">Create a synthetic account to try the complete workflow.</p>
+        <form id="customer-form" novalidate>
+          <div class="name-fields"><label>First name<input id="first-name" autocomplete="given-name"></label><label>Last name<input id="last-name" autocomplete="family-name"></label></div>
+          <label>Email<input id="email" type="email" autocomplete="email"></label>
+          <label id="password-label">Password<input id="password" type="password" autocomplete="new-password"><small>Use 8–72 bytes. Passwords are never shown in the directory.</small></label>
+          <label>Address <span class="optional">optional</span><input id="address" autocomplete="street-address"></label>
+          <label>Phone <span class="optional">optional</span><input id="phone" type="tel" autocomplete="tel"></label>
+          <div class="form-actions"><button id="save" type="submit">Create customer</button><button id="cancel-edit" class="secondary" type="button" hidden>Cancel edit</button></div>
+        </form>
+      </section>
+    </div>
+    <footer>Foodwell · Customers workspace · Lab 7 client application</footer>
+  </main>
+</body>
+</html>
