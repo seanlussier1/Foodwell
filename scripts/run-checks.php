@@ -53,13 +53,13 @@ function startServer(int $port, string $db, string $root): mixed
     exit(1);
 }
 
-$main  = startServer(8090, Env::get('DB_NAME', 'foodwell'), $root);
+$main = startServer(8090, Env::get('DB_NAME', 'foodwell'), $root);
 $empty = startServer(8091, EMPTY_DB, $root);
 
 /** @return array{0:int,1:string,2:string} status, content-type, body */
 function get(string $url): array
 {
-    $ctx  = stream_context_create(['http' => ['method' => 'GET', 'ignore_errors' => true]]);
+    $ctx = stream_context_create(['http' => ['method' => 'GET', 'ignore_errors' => true]]);
     $body = (string) @file_get_contents($url, false, $ctx);
     $status = 0;
     $type = '';
@@ -105,7 +105,7 @@ $record(
 );
 
 // Check 3: populated list 200 (and it agrees with the item + the DB)
-[$st, $ct, $body] = get('http://127.0.0.1:8090/api/v1/products');
+[$st, $ct, $body] = get('http://127.0.0.1:8090/api/v1/products?limit=100');
 $list = json_decode($body, true);
 $n = is_array($list['data'] ?? null) ? count($list['data']) : -1;
 $first = $list['data'][0] ?? [];
@@ -118,11 +118,13 @@ $record(
 
 // Check 4: empty list 200 in the same shape
 [$st, $ct, $body] = get('http://127.0.0.1:8091/api/v1/products');
+$emptyList = json_decode($body, true);
 $record(
     'GET /products (empty DB)',
-    '200, {"data":[]}',
+    '200, {"meta":{..."total":0,"totalPages":0...},"data":[]}',
     "$st, " . $body,
-    $st === 200 && json_decode($body, true) === ['data' => []]
+    $st === 200 && ($emptyList['data'] ?? null) === []
+    && ($emptyList['meta']['total'] ?? null) === 0 && ($emptyList['meta']['totalPages'] ?? null) === 0
 );
 
 proc_terminate($main);
