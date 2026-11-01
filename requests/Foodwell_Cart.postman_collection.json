@@ -1,0 +1,255 @@
+{
+  "info": {
+    "name": "Foodwell - Cart handoff demo (#35)",
+    "description": "Run requests in order against synthetic local data with APP_CART_DEMO=1. Creates a new demo customer and captures IDs automatically. Product 101 must be active with at least 3 units; stock is not decremented. Requests change the configured development database. No checkout is performed.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost/foodwell-api/api/v1"
+    },
+    {
+      "key": "customerId",
+      "value": ""
+    },
+    {
+      "key": "cartItemId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1 - Create synthetic customer",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/customers",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"firstName\": \"Cart\",\n  \"lastName\": \"Demo\",\n  \"email\": \"cart.demo.{{$timestamp}}@example.com\",\n  \"password\": \"ExamplePassword2026!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Created\", () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) pm.collectionVariables.set(\"customerId\",pm.response.json().id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 - View empty cart",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/cart"
+      }
+    },
+    {
+      "name": "3 - Add product 101",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/cart/items",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": 101,\n  \"quantity\": 2\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Added\", () => pm.response.to.have.status(201));",
+              "if ([200,201].includes(pm.response.code)) { const item = pm.response.json().items.find(i=>i.productId===101); if(item) pm.collectionVariables.set(\"cartItemId\",item.id); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4 - Read persisted cart",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/cart"
+      }
+    },
+    {
+      "name": "5 - Set line quantity to 3",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/cart/items/{{cartItemId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"quantity\": 3\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "6 - Read updated cart",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/cart"
+      }
+    },
+    {
+      "name": "7 - Reject excessive quantity (seed stock is below this)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/cart/items/{{cartItemId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"quantity\": 1000000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "8 - Read unchanged cart after rejection",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/cart"
+      }
+    },
+    {
+      "name": "9 - Reject zero quantity",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/cart/items/{{cartItemId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"quantity\": 0\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "10 - Remove the demo line",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/cart/items/{{cartItemId}}"
+      }
+    },
+    {
+      "name": "11 - View retained empty cart",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/cart"
+      }
+    }
+  ]
+}
