@@ -1,6 +1,36 @@
 <?php
 declare(strict_types=1);
 
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
+ini_set('log_errors', '1');
+
+$requestId = bin2hex(random_bytes(16));
+$_SERVER['FOODWELL_REQUEST_ID'] = $requestId;
+header('X-Request-ID: ' . $requestId);
+
+set_error_handler(static function (
+    int $severity,
+    string $message,
+    string $file,
+    int $line
+): bool {
+    if (!(error_reporting() & $severity)) {
+        return false;
+    }
+
+    error_log(json_encode([
+        'level' => 'warning',
+        'message' => 'PHP warning or notice',
+        'severity' => $severity,
+        'file' => basename($file),
+        'line' => $line,
+        'requestId' => $_SERVER['FOODWELL_REQUEST_ID'] ?? null,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+
+    return true;
+});
+
 $path = rtrim((string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH), '/') ?: '/';
 
 // PHP built-in server (`composer start`): serve static files and the home page directly.
@@ -19,7 +49,13 @@ $autoload = dirname(__DIR__) . '/vendor/autoload.php';
 if (!is_file($autoload)) {
     http_response_code(500);
     header('Content-Type: application/json');
-    echo '{"error":{"status":500,"message":"Dependencies missing. Run: composer install"}}';
+    echo json_encode([
+        'error' => [
+            'status' => 500,
+            'message' => 'Dependencies missing. Run: composer install',
+            'requestId' => $requestId,
+        ],
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     return;
 }
 require $autoload;
@@ -90,6 +126,12 @@ try {
 
     $router->dispatch($_SERVER['REQUEST_METHOD'], $path);
 } catch (Throwable $e) {
-    error_log($e->getMessage());
+    error_log(json_encode([
+        'level' => 'error',
+        'message' => 'Unhandled exception',
+        'requestId' => $requestId,
+        'exception' => get_class($e),
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+
     Response::error(500, 'Internal server error.');
 }
