@@ -9,9 +9,12 @@ final class Response
     {
         http_response_code($status); // Set the HTTP status code ex: 200, 404, 500
         header('Content-Type: application/json; charset=utf-8'); // Set the Content-Type header to indicate JSON response
+        header('X-Content-Type-Options: nosniff');
+
         foreach ($headers as $name => $value) {
             header("$name: $value"); // Set any additional headers provided in the $headers array
         }
+
         echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);  // Output the JSON-encoded payload
     }
 
@@ -19,9 +22,17 @@ final class Response
     public static function error(int $status, string $message, array $headers = [], array $details = []): void
     {
         $error = ['status' => $status, 'message' => $message];
+
         if ($details !== []) {
             $error['details'] = $details;
         }
+
+        $requestId = $_SERVER['FOODWELL_REQUEST_ID'] ?? null;
+
+        if (is_string($requestId) && $requestId !== '') {
+            $error['requestId'] = $requestId;
+        }
+
         self::json($status, ['error' => $error], $headers);
         // Call the json method to send a standardized error response
     }
