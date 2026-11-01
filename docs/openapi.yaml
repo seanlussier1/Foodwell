@@ -2,11 +2,11 @@ openapi: 3.0.3
 info:
   title: Foodwell API
   version: 1.1.0-expanded-contract
-  description: 'Foodwell expanded contract: 47 operations. Product GET, category reads/writes
-    and customer registration are implemented. Customer management routes are local demos
-    only. Category writes currently have no role checks. Bearer security and x-access specify
-    intended permissions, not current enforcement; see x-security-design and per-operation
-    x-current-access. Authentication and role/ownership enforcement remain planned.'
+  description: 'Foodwell expanded contract: 47 operations. Product GET, category operations
+    and customer registration are implemented. Customer management and cart operations are
+    explicitly enabled local demos only. Authentication and role/ownership enforcement remain
+    planned. Category writes currently have no role checks. Cart edits do not reserve stock;
+    checkout remains separate work.'
 servers:
 - url: http://localhost/foodwell-api/api/v1
   description: WampServer (Apache, www/foodwell-api)
@@ -638,8 +638,8 @@ paths:
   /customers/{id}/cart:
     get:
       tags:
-      - planned
-      x-status: planned
+      - implemented
+      x-status: local-demo
       summary: Get a customer's active cart (Build 2)
       parameters:
       - in: path
@@ -649,36 +649,37 @@ paths:
           type: integer
       responses:
         '200':
-          description: The cart with its line items
-          content:
+          description: Current cart, possibly empty
+          content: &id006
             application/json:
               schema:
                 $ref: '#/components/schemas/Cart'
         '404':
-          description: Customer or cart not found
-        '401':
-          description: Authentication required
-          content:
+          description: Customer, product or scoped cart item does not exist, as applicable
+          content: &id005
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Permission denied
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: Local demo disabled, non-loopback caller, or target account inactive/non-customer
+          content: *id005
       operationId: get__customers__id__cart
       security:
       - BearerSession: []
       x-access: owner_or_admin
-      x-current-access: not-implemented
+      x-current-access: local-demo-only
       x-security-enforcement: planned
+      description: 'Requires APP_CART_DEMO=1 and a loopback client address. This is not authentication
+        or owner/admin enforcement. The path customer must exist, be active and have the customer
+        role. All cart-item IDs are scoped to that customer cart. Prices/subtotals are server-calculated
+        from the current catalog; cart edits do not reserve stock. Session ownership checks
+        remain #45/#46 work. GET is read-only. An account without a persisted cart receives
+        an empty cart with id=null; no cart row is created.'
   /customers/{id}/cart/items:
     post:
       tags:
-      - planned
-      x-status: planned
+      - implemented
+      x-status: local-demo
       summary: Add an item to the cart (Build 2)
       parameters:
       - in: path
@@ -694,31 +695,41 @@ paths:
               $ref: '#/components/schemas/CartItemInput'
       responses:
         '201':
-          description: Item added
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Cart'
+          description: New product line added; creates the reusable cart if needed
+          content: *id006
         '409':
-          description: Requested quantity exceeds available stock
-        '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: Product inactive, unavailable stock, or combined quantity exceeds the
+            per-line maximum; no cart change is committed
+          content: *id005
         '403':
-          description: Permission denied
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: Local demo disabled, non-loopback caller, or target account inactive/non-customer
+          content: *id005
+        '404':
+          description: Customer, product or scoped cart item does not exist, as applicable
+          content: *id005
+        '200':
+          description: Updated cart; POST increased an existing product line
+          content: *id006
+        '400':
+          description: Malformed JSON or body is not an object
+          content: *id005
+        '415':
+          description: Missing or unsupported Content-Type; application/json required
+          content: *id005
+        '422': *id003
       operationId: post__customers__id__cart_items
       security:
       - BearerSession: []
       x-access: owner_or_admin
-      x-current-access: not-implemented
+      x-current-access: local-demo-only
       x-security-enforcement: planned
+      description: 'Requires APP_CART_DEMO=1 and a loopback client address. This is not authentication
+        or owner/admin enforcement. The path customer must exist, be active and have the customer
+        role. All cart-item IDs are scoped to that customer cart. Prices/subtotals are server-calculated
+        from the current catalog; cart edits do not reserve stock. Session ownership checks
+        remain #45/#46 work. POST adds quantity to an existing line; the combined quantity
+        must pass stock checks. POST is not idempotent and must not be blindly retried after
+        an uncertain response.'
   /customers/{id}/cart/items/{itemId}:
     parameters:
     - in: path
@@ -733,8 +744,8 @@ paths:
         type: integer
     put:
       tags:
-      - planned
-      x-status: planned
+      - implemented
+      x-status: local-demo
       summary: Update a cart item's quantity (Build 2)
       requestBody:
         required: true
@@ -744,55 +755,64 @@ paths:
               $ref: '#/components/schemas/CartQuantityInput'
       responses:
         '200':
-          description: Cart item updated
+          description: Updated cart with absolute quantity
+          content: *id006
         '404':
-          description: Cart item not found
-        '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: Customer, product or scoped cart item does not exist, as applicable
+          content: *id005
         '403':
-          description: Permission denied
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: Local demo disabled, non-loopback caller, or target account inactive/non-customer
+          content: *id005
+        '400':
+          description: Malformed JSON or body is not an object
+          content: *id005
+        '415':
+          description: Missing or unsupported Content-Type; application/json required
+          content: *id005
+        '422': *id003
+        '409':
+          description: Product inactive, unavailable stock, or combined quantity exceeds the
+            per-line maximum; no cart change is committed
+          content: *id005
       operationId: put__customers__id__cart_items__itemId_
       security:
       - BearerSession: []
       x-access: owner_or_admin
-      x-current-access: not-implemented
+      x-current-access: local-demo-only
       x-security-enforcement: planned
+      description: 'Requires APP_CART_DEMO=1 and a loopback client address. This is not authentication
+        or owner/admin enforcement. The path customer must exist, be active and have the customer
+        role. All cart-item IDs are scoped to that customer cart. Prices/subtotals are server-calculated
+        from the current catalog; cart edits do not reserve stock. Session ownership checks
+        remain #45/#46 work. PUT replaces the line quantity; it cannot change the product.
+        Repeating an unchanged valid PUT succeeds.'
     delete:
       tags:
-      - planned
-      x-status: planned
+      - implemented
+      x-status: local-demo
       summary: Remove an item from the cart (Build 2)
       responses:
         '204':
-          description: Item removed
+          description: Item removed; no response body
         '404':
-          description: Cart item not found
-        '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: Customer, product or scoped cart item does not exist, as applicable
+          content: *id005
         '403':
-          description: Permission denied
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: Local demo disabled, non-loopback caller, or target account inactive/non-customer
+          content: *id005
       operationId: delete__customers__id__cart_items__itemId_
       security:
       - BearerSession: []
       x-access: owner_or_admin
-      x-current-access: not-implemented
+      x-current-access: local-demo-only
       x-security-enforcement: planned
+      description: 'Requires APP_CART_DEMO=1 and a loopback client address. This is not authentication
+        or owner/admin enforcement. The path customer must exist, be active and have the customer
+        role. All cart-item IDs are scoped to that customer cart. Prices/subtotals are server-calculated
+        from the current catalog; cart edits do not reserve stock. Session ownership checks
+        remain #45/#46 work. DELETE returns 204 without a response body. Repeating removal
+        of a missing item returns 404. Inactive/out-of-stock product lines may still be removed.
+        An emptied cart row is retained for reuse.'
   /orders:
     post:
       tags:
@@ -2480,6 +2500,34 @@ components:
           type: number
           format: float
           example: 4.99
+          readOnly: true
+        productName:
+          type: string
+          readOnly: true
+        unit:
+          type: string
+          readOnly: true
+        lineTotal:
+          type: number
+          readOnly: true
+          example: 9.98
+        availableStock:
+          type: integer
+          minimum: 0
+          readOnly: true
+        isActive:
+          type: boolean
+          readOnly: true
+      required:
+      - id
+      - productId
+      - productName
+      - unit
+      - quantity
+      - unitPrice
+      - lineTotal
+      - availableStock
+      - isActive
     CartItemInput:
       type: object
       required:
@@ -2488,15 +2536,21 @@ components:
       properties:
         productId:
           type: integer
+          minimum: 1
+          maximum: 4294967295
         quantity:
           type: integer
           minimum: 1
+          maximum: 1000000
+      additionalProperties: false
     Cart:
       type: object
       properties:
         id:
           type: integer
           example: 30
+          nullable: true
+          description: Null for a customer without a persisted cart; GET does not create rows
         customerId:
           type: integer
           example: 7
@@ -2507,7 +2561,26 @@ components:
         subtotal:
           type: number
           format: float
-          example: 14.97
+          example: 12.97
+          description: Current catalog prices calculated server-side using database decimal
+            arithmetic; not a checkout price guarantee
+        itemCount:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Number of distinct product lines
+        totalQuantity:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Sum of line quantities
+      required:
+      - id
+      - customerId
+      - items
+      - subtotal
+      - itemCount
+      - totalQuantity
     OrderStatus:
       type: string
       enum:
@@ -2692,11 +2765,11 @@ components:
           type: string
           maxLength: 30
           nullable: true
-        createdAt: &id005
+        createdAt: &id007
           type: string
           format: date-time
           readOnly: true
-        updatedAt: *id005
+        updatedAt: *id007
         customerId:
           type: integer
           minimum: 1
@@ -2779,8 +2852,8 @@ components:
         comment:
           type: string
           maxLength: 2000
-        createdAt: *id005
-        updatedAt: *id005
+        createdAt: *id007
+        updatedAt: *id007
         productId:
           type: integer
           minimum: 1
@@ -2869,7 +2942,7 @@ components:
           type: integer
           minimum: 0
           readOnly: true
-        createdAt: *id005
+        createdAt: *id007
       required:
       - id
       - productId
@@ -2886,7 +2959,7 @@ components:
           type: integer
           minimum: 1
           readOnly: true
-        createdAt: *id005
+        createdAt: *id007
         product:
           $ref: '#/components/schemas/Product'
       required:
@@ -2933,7 +3006,7 @@ components:
           - application
           - migration_baseline
           readOnly: true
-        createdAt: *id005
+        createdAt: *id007
       required:
       - id
       - orderId
@@ -2965,7 +3038,7 @@ components:
       properties:
         customer:
           $ref: '#/components/schemas/Customer'
-        expiresAt: *id005
+        expiresAt: *id007
       required:
       - customer
       - expiresAt
@@ -2981,7 +3054,7 @@ components:
           type: string
           enum:
           - Bearer
-        expiresAt: *id005
+        expiresAt: *id007
         customer:
           $ref: '#/components/schemas/Customer'
       required:
@@ -3083,8 +3156,8 @@ components:
         isActive:
           type: boolean
           default: true
-        createdAt: *id005
-        updatedAt: *id005
+        createdAt: *id007
+        updatedAt: *id007
         availableCapacity:
           type: integer
           minimum: 0
@@ -3100,6 +3173,7 @@ components:
         quantity:
           type: integer
           minimum: 1
+          maximum: 1000000
       required:
       - quantity
       additionalProperties: false
@@ -3235,10 +3309,9 @@ x-cors:
   defaultOrigins:
   - http://localhost:8081
   - http://127.0.0.1:8081
-  preflight: OPTIONS returns 204 before database access; supports GET, POST, PUT, PATCH, OPTIONS
-    and Accept, Content-Type, Authorization headers. Disallowed origins return 403; unsupported
-    preflight methods 405; unsupported preflight headers 400. No credentialed cross-origin
-    cookies.
+  preflight: OPTIONS returns 204 before database access; supports GET, POST, PUT, PATCH, DELETE,
+    OPTIONS and Accept, Content-Type, Authorization headers. Disallowed origins return 403;
+    unsupported preflight methods 405; unsupported preflight headers 400.
 x-security-design:
   status: draft-pending-Will-and-Mohamed-review
   document: SECURITY_DESIGN.md

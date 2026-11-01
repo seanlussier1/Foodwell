@@ -78,10 +78,10 @@ try {
         $origin = ['Origin: http://localhost:8081'];
         [$corsStatus, , $corsBody, $corsHeaders] = request($serverPort, 'OPTIONS', '/customers', null, 'application/json', array_merge($origin, ['Access-Control-Request-Method: PATCH', 'Access-Control-Request-Headers: Content-Type']));
         check($corsStatus === 204 && $corsBody === '' && in_array('Access-Control-Allow-Origin: http://localhost:8081', $corsHeaders, true), 'OPTIONS supports allowed origin without entering resource handlers');
-        check(in_array('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, OPTIONS', $corsHeaders, true), 'Preflight advertises the implemented write methods');
+        check(in_array('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS', $corsHeaders, true), 'Preflight advertises the implemented write methods');
         [$badOrigin, , , $badHeaders] = request($serverPort, 'GET', '/customers', null, 'application/json', ['Origin: https://not-allowed.example']);
         check($badOrigin === 403 && !in_array('Access-Control-Allow-Origin: https://not-allowed.example', $badHeaders, true), 'Unknown browser origin is rejected without permissive CORS headers');
-        check(request($serverPort, 'OPTIONS', '/customers', null, 'application/json', array_merge($origin, ['Access-Control-Request-Method: DELETE']))[0] === 405, 'Unsupported preflight method is rejected');
+        check(request($serverPort, 'OPTIONS', '/customers', null, 'application/json', array_merge($origin, ['Access-Control-Request-Method: TRACE']))[0] === 405, 'Unsupported preflight method is rejected');
         check(request($serverPort, 'OPTIONS', '/customers', null, 'application/json', array_merge($origin, ['Access-Control-Request-Headers: X-Unknown']))[0] === 400, 'Unsupported preflight header is rejected');
         [$status, $body] = request($serverPort, 'GET', '/products');
         if ($status !== 200 || !isset($body['data']) || count($body['data']) !== ($seeded ? 10 : 0)) {

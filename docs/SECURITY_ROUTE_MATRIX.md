@@ -71,13 +71,15 @@ Resource owner: **Sean**.
 
 Resource owner: **Sean**.
 
+Cart implementation status was updated for #35 on top of main `0c3613d`. These routes now use the separate `APP_CART_DEMO=1` setting and loopback access. They check the target account and cart/item relationships, but do not authenticate the caller or enforce the intended owner/admin policy. See [the checkout handoff](CART_CHECKOUT_HANDOFF.md). The other rows retain the earlier reviewed snapshot described above.
+
 | Method | Path | Who should be allowed | What works today | Important check |
 |---|---|---|---|---|
 
-| GET | `/customers/{id}/cart` | Owner or administrator | Not implemented yet | Check that the cart belongs to the customer and the item belongs to that cart. |
-| POST | `/customers/{id}/cart/items` | Owner or administrator | Not implemented yet | Check that the cart belongs to the customer and the item belongs to that cart. |
-| PUT | `/customers/{id}/cart/items/{itemId}` | Owner or administrator | Not implemented yet | Check that the cart belongs to the customer and the item belongs to that cart. |
-| DELETE | `/customers/{id}/cart/items/{itemId}` | Owner or administrator | Not implemented yet | Check that the cart belongs to the customer and the item belongs to that cart. |
+| GET | `/customers/{id}/cart` | Owner or administrator | Working local demo | Check that the cart belongs to the customer and the item belongs to that cart. |
+| POST | `/customers/{id}/cart/items` | Owner or administrator | Working local demo | Check that the cart belongs to the customer and the item belongs to that cart. |
+| PUT | `/customers/{id}/cart/items/{itemId}` | Owner or administrator | Working local demo | Check that the cart belongs to the customer and the item belongs to that cart. |
+| DELETE | `/customers/{id}/cart/items/{itemId}` | Owner or administrator | Working local demo | Check that the cart belongs to the customer and the item belongs to that cart. |
 
 
 ## Orders and status history
