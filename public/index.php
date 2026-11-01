@@ -118,6 +118,7 @@ require $autoload;
 
 use Foodwell\Controllers\ProductController;
 use Foodwell\Controllers\CustomerController;
+use Foodwell\Controllers\CartController;
 use Foodwell\Controllers\CategoryController;
 use Foodwell\Database;
 use Foodwell\Env;
@@ -126,6 +127,7 @@ use Foodwell\Http\Router;
 use Foodwell\Http\Cors;
 use Foodwell\Repositories\ProductRepository;
 use Foodwell\Repositories\CustomerRepository;
+use Foodwell\Repositories\CartRepository;
 use Foodwell\Repositories\CategoryRepository;
 
 Env::load(dirname(__DIR__) . '/.env');
@@ -166,6 +168,7 @@ try {
     $products = new ProductController(new ProductRepository(Database::connection()));
     $customers = new CustomerController(new CustomerRepository(Database::connection()));
     $categories = new CategoryController(new CategoryRepository(Database::connection()));
+    $carts = new CartController(new CartRepository(Database::connection()));
 
     $router = new Router();
     $router->get(API_PREFIX . '/products',       [$products, 'index']);
@@ -175,6 +178,10 @@ try {
     $router->get(API_PREFIX . '/customers/{id}', [$customers, 'show']);
     $router->put(API_PREFIX . '/customers/{id}', [$customers, 'update']);
     $router->patch(API_PREFIX . '/customers/{id}', [$customers, 'deactivate']);
+    $router->get(API_PREFIX . '/customers/{id}/cart', [$carts, 'show']);
+    $router->post(API_PREFIX . '/customers/{id}/cart/items', [$carts, 'add']);
+    $router->put(API_PREFIX . '/customers/{id}/cart/items/{itemId}', [$carts, 'update']);
+    $router->delete(API_PREFIX . '/customers/{id}/cart/items/{itemId}', [$carts, 'remove']);
     $router->get(API_PREFIX . '/categories', [$categories, 'index']);
     $router->get(API_PREFIX . '/categories/{id}', [$categories, 'show']);
     $router->post(API_PREFIX . '/categories', [$categories, 'store']);

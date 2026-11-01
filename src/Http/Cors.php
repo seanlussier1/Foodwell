@@ -23,7 +23,7 @@ final class Cors
             header('Access-Control-Allow-Origin: ' . $origin);
         }
         if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'OPTIONS') { return true; }
-        $methods = ['GET', 'POST', 'PUT', 'PATCH', 'OPTIONS'];
+        $methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
         $requestedMethod = $_SERVER['HTTP_ACCESS_CONTROL_REQUEST_METHOD'] ?? '';
         if ($requestedMethod !== '' && !in_array($requestedMethod, $methods, true)) {
             Response::error(405, 'Requested cross-origin method is not supported.', ['Allow' => implode(', ', $methods)]);
