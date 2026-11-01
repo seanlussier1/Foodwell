@@ -30,6 +30,10 @@ Run `php scripts/check-registration.php` for 122 isolated registration/profile/c
 
 The expanded resources include sessions, saved addresses, favorites, reviews, manual inventory adjustments and order status history.
 
+## Security preparation
+
+The [security design](docs/SECURITY_DESIGN.md) and [47-operation permission matrix](docs/SECURITY_ROUTE_MATRIX.md) define intended roles, ownership, account administration and opaque-session behavior for #63. They distinguish intended permissions from current public/local-demo access and link Build 3 enforcement to #40/#45/#46/#47. The draft still requires Will's and Mohamed's resource-rule reviews; this documentation does not implement login or authorization. Category writes currently have no role checks and customer management is a local demo. Link the final reviewed design/commit from the #64 Build 2 manifest before marking #63 Done.
+
 ## Team responsibilities
 
 | Member | Features | Shared work |
