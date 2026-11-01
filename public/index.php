@@ -31,6 +31,62 @@ set_error_handler(static function (
     return true;
 });
 
+register_shutdown_function(static function () use ($requestId): void {
+    $error = error_get_last();
+
+    if ($error === null) {
+        return;
+    }
+
+    $fatalErrors = [
+        E_ERROR,
+        E_PARSE,
+        E_CORE_ERROR,
+        E_COMPILE_ERROR,
+        E_USER_ERROR,
+        E_RECOVERABLE_ERROR,
+    ];
+
+    if (!in_array($error['type'], $fatalErrors, true)) {
+        return;
+    }
+
+    error_log(json_encode([
+        'level' => 'critical',
+        'message' => 'Fatal PHP error',
+        'requestId' => $requestId,
+        'severity' => $error['type'],
+        'file' => basename($error['file']),
+        'line' => $error['line'],
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+
+    $path = (string) parse_url(
+        $_SERVER['REQUEST_URI'] ?? '/',
+        PHP_URL_PATH
+    );
+
+    $isApiRequest = $path === '/api/v1'
+        || str_starts_with($path, '/api/v1/');
+
+    if (
+        $isApiRequest
+        && !headers_sent()
+        && http_response_code() < 400
+    ) {
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+        header('X-Content-Type-Options: nosniff');
+
+        echo json_encode([
+            'error' => [
+                'status' => 500,
+                'message' => 'Internal server error.',
+                'requestId' => $requestId,
+            ],
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+});
+
 $path = rtrim((string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH), '/') ?: '/';
 
 // PHP built-in server (`composer start`): serve static files and the home page directly.
