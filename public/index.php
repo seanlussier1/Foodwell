@@ -171,8 +171,7 @@ try {
     $carts = new CartController(new CartRepository(Database::connection()));
 
     $router = new Router();
-    $router->get(API_PREFIX . '/products',       [$products, 'index']);
-    $router->get(API_PREFIX . '/products/{id}',  [$products, 'show']);
+    
     $router->post(API_PREFIX . '/customers', [$customers, 'register']);
     $router->get(API_PREFIX . '/customers', [$customers, 'index']);
     $router->get(API_PREFIX . '/customers/{id}', [$customers, 'show']);
@@ -182,10 +181,17 @@ try {
     $router->post(API_PREFIX . '/customers/{id}/cart/items', [$carts, 'add']);
     $router->put(API_PREFIX . '/customers/{id}/cart/items/{itemId}', [$carts, 'update']);
     $router->delete(API_PREFIX . '/customers/{id}/cart/items/{itemId}', [$carts, 'remove']);
+
     $router->get(API_PREFIX . '/categories', [$categories, 'index']);
     $router->get(API_PREFIX . '/categories/{id}', [$categories, 'show']);
     $router->post(API_PREFIX . '/categories', [$categories, 'store']);
     $router->delete(API_PREFIX . '/categories/{id}', [$categories, 'destroy']);
+
+    $router->get(API_PREFIX . '/products',       [$products, 'index']);
+    $router->get(API_PREFIX . '/products/{id}',  [$products, 'show']);
+    $router->post(API_PREFIX . '/products', [$products, 'store']);
+    $router->put(API_PREFIX . '/products/{id}', [$products, 'update']);
+    $router->delete(API_PREFIX . '/products/{id}', [$products, 'destroy']);
 
     $router->dispatch($_SERVER['REQUEST_METHOD'], $path);
 } catch (Throwable $e) {

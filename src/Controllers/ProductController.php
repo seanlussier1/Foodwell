@@ -5,6 +5,9 @@ namespace Foodwell\Controllers;
 
 use Foodwell\Http\Response;
 use Foodwell\Repositories\ProductRepository;
+use Foodwell\Validation\ProductInput;
+use JsonException;
+use PDOException;
 
 final class ProductController
 {
@@ -68,6 +71,95 @@ final class ProductController
             return;
         }
         Response::json(200, $product);
+    }
+
+    public function store(array $params = []): void
+    {
+        $input = $this->readJson();
+        if ($input === null) {
+            return;
+        }
+
+        $result = ProductInput::validate($input, true);
+        $errors = $this->withCategoryCheck($result);
+        if ($errors !== []) {
+            Response::error(422, 'Validation failed.', [], $errors);
+            return;
+        }
+
+        try {
+            $product = $this->products->create($result['data']);
+        } catch (PDOException $e) {
+            if ($this->isMissingCategory($e)) {
+                return;
+            }
+            throw $e;
+        }
+
+        Response::json(201, $product, ['Location' => $this->itemPath($product['id'])]);
+    }
+
+    public function update(array $params): void
+    {
+        $id = (int) $params['id'];
+        $current = $this->products->findById($id);
+        if ($current === null) {
+            Response::error(404, "Product $id not found.");
+            return;
+        }
+
+        $input = $this->readJson();
+        if ($input === null) { return; }
+
+        $result = ProductInput::validate($input, false);
+        $errors = $this->withCategoryCheck($result);
+        if ($errors !== []) {
+            Response::error(422, 'Validation failed.', [], $errors);
+            return;
+        }
+
+        // isActive left out of the body = keep the current value.
+        $data = $result['data'] + ['isActive' => $current['isActive']];
+
+        try {
+            $product = $this->products->update($id, $data);
+        } catch (PDOException $e) {
+            if ($this->isMissingCategory($e)) { return; }
+            throw $e;
+        }
+
+        Response::json(200, $product);
+    }
+
+    public function destroy(array $params): void
+    {
+        $id = (int) $params['id'];
+        if ($this->products->findById($id) === null) {
+            Response::error(404, "Product $id not found.");
+            return;
+        }
+
+        $conflict = "Product $id has inventory history and cannot be deleted. "
+                  . 'Deactivate it instead with PUT and "isActive": false.';
+
+        // Check first for a clear message...
+        if ($this->products->hasInventoryHistory($id)) {
+            Response::error(409, $conflict);
+            return;
+        }
+
+        // ...and still catch the database's refusal if history appears in between.
+        try {
+            $this->products->delete($id);
+        } catch (PDOException $e) {
+            if (($e->errorInfo[1] ?? null) === 1451) { // 1451: row still referenced (FK RESTRICT)
+                Response::error(409, $conflict);
+                return;
+            }
+            throw $e;
+        }
+
+        http_response_code(204); // success, no body
     }
 
     private function readListQuery(array $get): array
@@ -138,6 +230,51 @@ final class ProductController
         $params['limit'] = $query['limit'];
 
         return $path . '?' . http_build_query($params);
+    }
+
+    private function withCategoryCheck(array $result): array
+    {
+        $errors = $result['errors'];
+        if (isset($result['data']['categoryId'])
+            && !$this->products->categoryExists($result['data']['categoryId'])) {
+            $errors['categoryId'] = 'This category does not exist.';
+        }
+        return $errors;
+    }
+
+     private function isMissingCategory(PDOException $e): bool
+    {
+        if (($e->errorInfo[1] ?? null) !== 1452) {
+            return false;
+        }
+        Response::error(422, 'Validation failed.', [], ['categoryId' => 'This category does not exist.']);
+        return true;
+    }
+
+    private function itemPath(int $id): string
+    {
+        $path = rtrim((string) parse_url($_SERVER['REQUEST_URI'] ?? '/api/v1/products', PHP_URL_PATH), '/');
+        return $path . '/' . $id;
+    }
+
+     private function readJson(): ?array
+    {
+        $type = strtolower(trim(explode(';', $_SERVER['CONTENT_TYPE'] ?? '')[0]));
+        if ($type !== 'application/json') {
+            Response::error(415, 'This operation requires Content-Type: application/json.');
+            return null;
+        }
+        try {
+            $input = json_decode((string) file_get_contents('php://input'), false, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $e) {
+            Response::error(400, 'Malformed JSON body.');
+            return null;
+        }
+        if (!$input instanceof \stdClass) {
+            Response::error(400, 'The request body must be a JSON object.');
+            return null;
+        }
+        return (array) $input;
     }
 }
 
