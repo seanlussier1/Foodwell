@@ -46,9 +46,9 @@ Suppose customer 7 is signed in and requests customer 8's cart. **Authentication
 
 ## 1. Documents covered and how they connect
 
-The [route matrix](SECURITY_ROUTE_MATRIX.md) covers all 47 method/path operations currently documented in [OpenAPI](openapi.yaml). It separates intended permissions from actual implementation. `x-access` and `security` describe the target contract; `x-current-access` records the current boundary, and `x-security-enforcement` states whether the target private-access rules are enforced.
+The [route matrix](SECURITY_ROUTE_MATRIX.md) covers all 48 method/path operations currently documented in [OpenAPI](openapi.yaml). It separates intended permissions from actual implementation. `x-access` and `security` describe the target contract; `x-current-access` records the current boundary, and `x-security-enforcement` states whether the target private-access rules are enforced.
 
-This snapshot is based on main commit `c55cacd` (customer PRs #70/#72 and category PR #73). Later routes must update both the matrix and OpenAPI. No category PUT or external composite endpoint is currently agreed in this contract; add its access policy when that route is scheduled. No route is implicitly public because its policy is missing.
+This snapshot is based on main commit `c55cacd` (customer PRs #70/#72 and category PR #73). Later routes must update both the matrix and OpenAPI. Category PUT is not currently agreed in this contract. The public /delivery-options composite route is added under #37, with prefix-only external disclosure and no booking side effects; see DELIVERY_AREA_INTEGRATION.md. It does not change the private-route permission rules. No route is implicitly public because its policy is missing.
 
 ## 2. Current Build 2 limitations: what is and is not enforced
 
@@ -157,7 +157,7 @@ Minimum security case set: anonymous public read; valid owner access; valid othe
 
 ## 8. What the team must review before #63 is complete
 
-- [x] Draft covers all 47 agreed operations and distinguishes current access from intended enforcement.
+- [x] Draft covers all 48 agreed operations and distinguishes current access from intended enforcement.
 - [x] Roles, ownership, administration, opaque sessions, expiry/revocation, inactive accounts, login throttling and logging are specified.
 - [x] Linked from README/OpenAPI and local B2 handoff notes; #64 still needs the final reviewed commit link in its submitted manifest.
 - [ ] Will reviews catalog/slots/inventory permissions, customer policy and session assumptions.
