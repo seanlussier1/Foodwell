@@ -119,6 +119,7 @@ require $autoload;
 use Foodwell\Controllers\ProductController;
 use Foodwell\Controllers\CustomerController;
 use Foodwell\Controllers\CartController;
+use Foodwell\Controllers\DeliveryOptionController;
 use Foodwell\Controllers\CategoryController;
 use Foodwell\Database;
 use Foodwell\Env;
@@ -128,6 +129,8 @@ use Foodwell\Http\Cors;
 use Foodwell\Repositories\ProductRepository;
 use Foodwell\Repositories\CustomerRepository;
 use Foodwell\Repositories\CartRepository;
+use Foodwell\Repositories\DeliveryOptionRepository;
+use Foodwell\Services\PostalAreaClient;
 use Foodwell\Repositories\CategoryRepository;
 
 Env::load(dirname(__DIR__) . '/.env');
@@ -151,6 +154,8 @@ $clientAssets = [
     '/client/index.html' => ['index.html', 'text/html; charset=utf-8'],
     '/client/styles.css' => ['styles.css', 'text/css; charset=utf-8'],
     '/client/app.js' => ['app.js', 'text/javascript; charset=utf-8'],
+    '/client/delivery.html' => ['delivery.html', 'text/html; charset=utf-8'],
+    '/client/delivery.js' => ['delivery.js', 'text/javascript; charset=utf-8'],
 ];
 if (isset($clientAssets[$path])) {
     [$file, $contentType] = $clientAssets[$path];
@@ -169,6 +174,10 @@ try {
     $customers = new CustomerController(new CustomerRepository(Database::connection()));
     $categories = new CategoryController(new CategoryRepository(Database::connection()));
     $carts = new CartController(new CartRepository(Database::connection()));
+    $deliveryOptions = new DeliveryOptionController(
+        new PostalAreaClient(dirname(__DIR__) . '/var/postal-cache', 86400, Env::get('POSTAL_CA_BUNDLE', '')),
+        new DeliveryOptionRepository(Database::connection())
+    );
 
     $router = new Router();
     
@@ -182,6 +191,7 @@ try {
     $router->put(API_PREFIX . '/customers/{id}/cart/items/{itemId}', [$carts, 'update']);
     $router->delete(API_PREFIX . '/customers/{id}/cart/items/{itemId}', [$carts, 'remove']);
 
+    $router->get(API_PREFIX . '/delivery-options', [$deliveryOptions, 'index']);
     $router->get(API_PREFIX . '/categories', [$categories, 'index']);
     $router->get(API_PREFIX . '/categories/{id}', [$categories, 'show']);
     $router->post(API_PREFIX . '/categories', [$categories, 'store']);
