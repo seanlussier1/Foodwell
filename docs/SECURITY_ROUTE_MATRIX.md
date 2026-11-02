@@ -1,6 +1,6 @@
 # Foodwell route permissions (#63)
 
-Draft for Will and Mohamed to review, November 1, 2026. This file lists all 47 API operations and their intended access rules. Read the [security plan](SECURITY_DESIGN.md) for the full rules, explanations and implementation tasks. No endpoint or permission check is implemented by this document.
+Draft for Will and Mohamed to review, November 1, 2026. This file lists all 48 API operations and their intended access rules. Read the [security plan](SECURITY_DESIGN.md) for the full rules, explanations and implementation tasks. No endpoint or permission check is implemented by this document.
 
 ## How to read the tables
 
@@ -174,7 +174,15 @@ Resource owner: **Will**.
 | GET | `/inventory-adjustments/{adjustmentId}` | Staff or administrator | Not implemented yet | Record the signed-in actor; existing audit entries cannot be edited/deleted. |
 
 
-## Shared handling outside these 47 operations
+## Delivery-area lookup
+
+Resource owner: **Sean**. Added for #37 on top of main `06c2b84`. This public operation accepts a postal code but sends only its prefix externally, offers available windows without making a booking and exposes no customer/order identities. Demo modes require explicit local settings; normal live lookup is public.
+
+| Method | Path | Who should be allowed | What works today | Important check |
+|---|---|---|---|---|
+| GET | `/delivery-options` | Public | Working; public access | Validate postal syntax, fixed upstream host and payload; keep unknown coverage distinct from invalid address and retain source labels. |
+
+## Shared handling outside these 48 operations
 
 OPTIONS is the browser's CORS preflight check. The existing code checks allowed origins, methods and headers. Preflight must not require a login token or return private data. This transport handling is not an extra domain operation in the count above.
 

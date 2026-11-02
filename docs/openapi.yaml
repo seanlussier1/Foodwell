@@ -2,11 +2,10 @@ openapi: 3.0.3
 info:
   title: Foodwell API
   version: 1.1.0-expanded-contract
-  description: 'Foodwell expanded contract: 47 operations. Product GET, category operations
-    and customer registration are implemented. Customer management and cart operations are
-    explicitly enabled local demos only. Authentication and role/ownership enforcement remain
-    planned. Category writes currently have no role checks. Cart edits do not reserve stock;
-    checkout remains separate work.'
+  description: 'Foodwell contract: 48 operations. Delivery-area options combine Zippopotam.us/GeoNames
+    prefix data with configured Foodwell service areas and database slot availability. Customer/cart
+    management remain local demos; intended role/ownership enforcement is still planned. See
+    per-operation implementation/access metadata.'
 servers:
 - url: http://localhost/foodwell-api/api/v1
   description: WampServer (Apache, www/foodwell-api)
@@ -2274,6 +2273,55 @@ paths:
       schema:
         type: integer
         minimum: 1
+  /delivery-options:
+    get:
+      operationId: get__delivery_options
+      tags:
+      - implemented
+      x-status: implemented
+      x-access: public
+      x-current-access: public
+      x-security-enforcement: not-required
+      security: []
+      summary: Look up a Canadian postal area and Foodwell delivery options
+      description: 'Public read-only composite response: Zippopotam.us/GeoNames prefix lookup
+        plus Foodwell configured service prefixes and future active slots with remaining capacity.
+        Only the first three characters are sent externally. Full-address/full-code validity
+        is not verified. No booking is made. Provider failures/unknown coverage return 200
+        with status=partial, eligible=null and no offered slots. Input errors return 400.
+        area.source identifies live, cached or explicit local-demo data. See DELIVERY_AREA_INTEGRATION.md
+        for attribution, bounded requests, caching, configuration and PHP/JS consumer coverage.'
+      parameters:
+      - in: query
+        name: postalCode
+        required: true
+        description: Canadian syntax; trim/uppercase and accept A1A1A1 or A1A 1A1. Arrays/unknown
+          parameters rejected. Syntax alone does not prove the full code exists.
+        schema:
+          type: string
+          minLength: 6
+          maxLength: 7
+        example: H3N 1X1
+      responses:
+        '200':
+          description: Complete delivery-area result or explicit partial provider fallback
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryAreaOptions'
+        '400':
+          description: Missing, invalid, array-valued or unsupported query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
 components:
   parameters:
     ProductId:
@@ -3295,6 +3343,151 @@ components:
           enum:
           - false
           description: Only false is supported; this endpoint cannot reactivate accounts
+    DeliveryAreaOptions:
+      type: object
+      required:
+      - status
+      - postalCode
+      - area
+      - delivery
+      - sources
+      - notice
+      - warnings
+      properties:
+        status:
+          type: string
+          enum:
+          - complete
+          - partial
+        postalCode:
+          type: string
+          example: H3N 1X1
+        area:
+          type: object
+          required:
+          - prefix
+          - lookupStatus
+          - places
+          - source
+          - fetchedAt
+          properties:
+            prefix:
+              type: string
+              example: H3N
+            lookupStatus:
+              type: string
+              enum:
+              - found
+              - not-found
+              - unavailable
+            places:
+              type: array
+              maxItems: 50
+              items:
+                type: object
+                required:
+                - name
+                - province
+                - provinceCode
+                properties:
+                  name:
+                    type: string
+                  province:
+                    type: string
+                  provinceCode:
+                    type: string
+            source:
+              type: string
+              enum:
+              - live
+              - cache
+              - demo
+              - unavailable
+            fetchedAt:
+              type: string
+              format: date-time
+              nullable: true
+        delivery:
+          type: object
+          required:
+          - eligible
+          - status
+          - slots
+          - bookingConfirmed
+          properties:
+            eligible:
+              type: boolean
+              nullable: true
+              description: Null when coverage/provider failure prevents confirmation
+            status:
+              type: string
+              enum:
+              - available
+              - no-slots
+              - outside-area
+              - unknown
+            slots:
+              type: array
+              maxItems: 10
+              items:
+                type: object
+                required:
+                - id
+                - startsAt
+                - endsAt
+                - remainingCapacity
+                properties:
+                  id:
+                    type: integer
+                  startsAt:
+                    type: string
+                    format: date-time
+                  endsAt:
+                    type: string
+                    format: date-time
+                  remainingCapacity:
+                    type: integer
+                    minimum: 1
+            bookingConfirmed:
+              type: boolean
+              enum:
+              - false
+        sources:
+          type: object
+          required:
+          - internal
+          - external
+          - providerUrl
+          - dataUrl
+          - licenseUrl
+          properties:
+            internal:
+              type: string
+            external:
+              type: string
+            providerUrl:
+              type: string
+              format: uri
+            dataUrl:
+              type: string
+              format: uri
+            licenseUrl:
+              type: string
+              format: uri
+        notice:
+          type: string
+        warnings:
+          type: array
+          items:
+            type: object
+            required:
+            - code
+            - message
+            properties:
+              code:
+                type: string
+              message:
+                type: string
   securitySchemes:
     BearerSession:
       type: http
