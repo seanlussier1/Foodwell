@@ -101,6 +101,7 @@ try {
         check($status === 200 && $body['id'] === 101, 'Original product item remains available');
         check(request($serverPort, 'GET', '/products/999999')[0] === 404, 'Unknown product remains 404');
         check(request($serverPort, 'PUT', '/products/101')[0] === 405, 'Existing method rejection remains 405');
+        check(request($serverPort, 'PATCH', '/products/101')[0] === 405, 'Existing method rejection remains 405');
         $before = (int) $pdo->query('SELECT COUNT(*) FROM customers')->fetchColumn();
         $input = ['firstName' => '  Sean  ', 'lastName' => ' Example ', 'email' => '  LAB.CUSTOMER@EXAMPLE.COM ', 'password' => 'ExamplePassword2026!', 'address' => '  Demo address  ', 'phone' => null];
         [$status, $body, $raw] = request($serverPort, 'POST', '/customers', json_encode($input), 'application/json; charset=utf-8');
