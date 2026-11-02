@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Foodwell | Delivery area</title><link rel="stylesheet" href="styles.css"><script src="delivery.js" defer></script></head>
+<body>
+<header class="masthead"><a class="brand" href="./">foodwell<span>DELIVERY OPTIONS</span></a><a href="./">Customer workspace</a></header>
+<main>
+  <div class="intro"><p class="eyebrow">BEFORE YOU ORDER</p><h1>Do we deliver to your area?</h1><p>Enter a Canadian postal code to see your area and the delivery windows currently available.</p></div>
+  <p class="notice">This checks the postal area only. It does not verify a street address or every character of a full postal code, and it does not reserve a delivery slot.</p>
+  <details class="connection"><summary>API connection</summary><form id="delivery-connection"><label for="delivery-api">API base URL</label><div class="inline"><input id="delivery-api" type="url" required><button type="submit">Connect</button></div></form></details>
+  <div class="workspace delivery-layout">
+    <section class="panel"><p class="eyebrow">YOUR POSTAL AREA</p><h2>Check delivery options</h2>
+      <form id="postal-form" novalidate><label for="postal-code">Canadian postal code</label><div class="inline"><input id="postal-code" autocomplete="postal-code" placeholder="H3N 1X1" maxlength="7"><button id="check-delivery" type="submit">Check area</button></div></form>
+      <p class="muted">Foodwell uses its configured service-area prefixes to determine area eligibility. Availability is checked again at checkout.</p>
+      <div id="delivery-feedback" class="feedback" role="status" aria-live="polite" hidden></div>
+      <p class="muted">Area information: <a href="https://www.zippopotam.us/" target="_blank" rel="noopener">Zippopotam.us</a>, using <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a> data under <a href="https://www.geonames.org/export/" target="_blank" rel="noopener">CC BY terms</a>. No accuracy or coverage guarantee.</p>
+    </section>
+    <section class="panel" aria-labelledby="delivery-title"><p class="eyebrow">AREA + FOODWELL AVAILABILITY</p><h2 id="delivery-title">Your delivery options</h2><div id="delivery-result"><p class="muted">Check a postal code to see the area and delivery windows.</p></div></section>
+  </div>
+  <footer>Foodwell · Postal-area lookup · Area eligibility is not a confirmed address or booking</footer>
+</main></body></html>
