@@ -120,6 +120,7 @@ use Foodwell\Controllers\ProductController;
 use Foodwell\Controllers\CustomerController;
 use Foodwell\Controllers\CartController;
 use Foodwell\Controllers\CategoryController;
+use Foodwell\Controllers\OrderController;
 use Foodwell\Database;
 use Foodwell\Env;
 use Foodwell\Http\Response;
@@ -129,6 +130,7 @@ use Foodwell\Repositories\ProductRepository;
 use Foodwell\Repositories\CustomerRepository;
 use Foodwell\Repositories\CartRepository;
 use Foodwell\Repositories\CategoryRepository;
+use Foodwell\Repositories\OrderRepository;
 
 Env::load(dirname(__DIR__) . '/.env');
 
@@ -169,6 +171,7 @@ try {
     $customers = new CustomerController(new CustomerRepository(Database::connection()));
     $categories = new CategoryController(new CategoryRepository(Database::connection()));
     $carts = new CartController(new CartRepository(Database::connection()));
+    $orders = new OrderController(new OrderRepository(Database::connection()));
 
     $router = new Router();
     $router->get(API_PREFIX . '/products',       [$products, 'index']);
@@ -186,6 +189,8 @@ try {
     $router->get(API_PREFIX . '/categories/{id}', [$categories, 'show']);
     $router->post(API_PREFIX . '/categories', [$categories, 'store']);
     $router->delete(API_PREFIX . '/categories/{id}', [$categories, 'destroy']);
+    $router->post(API_PREFIX . '/orders', [$orders, 'create']);
+    $router->get(API_PREFIX . '/orders/{id}', [$orders, 'show']);
 
     $router->dispatch($_SERVER['REQUEST_METHOD'], $path);
 } catch (Throwable $e) {
@@ -194,6 +199,9 @@ try {
         'message' => 'Unhandled exception',
         'requestId' => $requestId,
         'exception' => get_class($e),
+        'errorMessage' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
     Response::error(500, 'Internal server error.');
