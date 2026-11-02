@@ -4,7 +4,7 @@ Foodwell is a PHP/MariaDB REST API for an online grocery store. Customers browse
 
 ## Current status
 
-The database has **14 tables** and the [OpenAPI contract](docs/openapi.yaml) documents **47 operations**. Product list/item GET, category operations and customer registration work in PHP. Customer management and cart operations work as explicitly enabled local demos; authentication and role/owner/admin enforcement remain planned. Category writes currently have no role checks. Other operations, including checkout, remain planned.
+The database has **14 tables** and the [OpenAPI contract](docs/openapi.yaml) documents **48 operations**. Product list/item GET, category operations, customer registration and the public delivery-area lookup work in PHP. Customer management and cart operations work as explicitly enabled local demos; authentication and role/owner/admin enforcement remain planned. Category writes currently have no role checks. Other operations, including checkout, remain planned.
 
 Customer registration accepts JSON with `firstName`, `lastName`, `email`, `password`, and optional nullable `address`/`phone`. Names are trimmed (1-100 characters); email is trimmed and lowercased (maximum 254 characters). Passwords are 8-72 bytes, are not trimmed, and are stored using bcrypt. Registration always creates an active customer; caller-supplied roles, activation and other unknown fields are rejected. Responses never include passwords or hashes. Successful creation returns 201; malformed/non-object JSON returns 400, duplicate email 409, unsupported/missing Content-Type 415 and invalid fields 422 with `error.details`. JSON is the only implemented customer format. Login remains planned; the local customer dashboard is described below.
 
@@ -40,9 +40,17 @@ Import [the saved Postman demonstration](requests/Foodwell_Cart.postman_collecti
 
 Run `php scripts/check-cart.php` with the same SCHEMA_TEST settings as above: 79 checks cover persistence, rollback, stock, item scoping, repeated requests and concurrent additions in temporary databases. No schema reset/migration is needed for these endpoints if the existing 14-table foundation is installed.
 
+### Delivery-area integration (#37)
+
+Open `http://localhost/foodwell-api/client/delivery.html` to look up a Canadian postal area and current Foodwell delivery windows. The public `GET /api/v1/delivery-options?postalCode=H3N%201X1` combines Zippopotam.us/GeoNames area data with configured service prefixes and existing slot/order capacity. It does not verify a full address or reserve a slot, and requires no database migration. Example prefixes H3N/H3S/H3R are classroom demo rules, not a real store delivery promise.
+
+PHP consumption: `php scripts/delivery-client.php "H3N 1X1"` calls the same composite API. PHP cURL is required. On Windows, configure `POSTAL_CA_BUNDLE` in `.env` if PHP lacks a trusted CA bundle; never disable TLS verification. See [provider/setup/failure details](docs/DELIVERY_AREA_INTEGRATION.md) for attribution, caching, data sources and explicit local demo modes.
+
+Run `php scripts/check-delivery.php` with the SCHEMA_TEST settings above: 62 checks use temporary databases and labeled doubles. Add `--live` for 69 checks including real provider calls (working HTTPS required). Provider failure gives a clearly marked partial response with unknown eligibility, rather than invented location or slot data. Live/cached/demo results are labeled separately.
+
 ## Security preparation
 
-The [security design](docs/SECURITY_DESIGN.md) and [47-operation permission matrix](docs/SECURITY_ROUTE_MATRIX.md) define intended roles, ownership, account administration and opaque-session behavior for #63. They distinguish intended permissions from current public/local-demo access and link Build 3 enforcement to #40/#45/#46/#47. The draft still requires Will's and Mohamed's resource-rule reviews; this documentation does not implement login or authorization. Category writes currently have no role checks and customer management is a local demo. Link the final reviewed design/commit from the #64 Build 2 manifest before marking #63 Done.
+The [security design](docs/SECURITY_DESIGN.md) and [48-operation permission matrix](docs/SECURITY_ROUTE_MATRIX.md) define intended roles, ownership, account administration and opaque-session behavior for #63. They distinguish intended permissions from current public/local-demo access and link Build 3 enforcement to #40/#45/#46/#47. The draft still requires Will's and Mohamed's resource-rule reviews; this documentation does not implement login or authorization. Category writes currently have no role checks and customer management is a local demo. Link the final reviewed design/commit from the #64 Build 2 manifest before marking #63 Done.
 
 ## Team responsibilities
 
@@ -58,7 +66,7 @@ Each owner supplies database changes, validation, permissions, tests, OpenAPI an
 
 ## Requirements
 
-- PHP 8+ with PDO and `pdo_mysql`.
+- PHP 8+ with PDO, `pdo_mysql` and cURL for the external lookup/consumer.
 - MariaDB, Composer, and Git.
 - WampServer on Windows, or an equivalent PHP/MariaDB installation. Apache is optional when using the PHP development server.
 
