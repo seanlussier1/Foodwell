@@ -152,6 +152,8 @@ $clientAssets = [
     '/client/app.js' => ['app.js', 'text/javascript; charset=utf-8'],
     '/client/delivery.html' => ['delivery.html', 'text/html; charset=utf-8'],
     '/client/delivery.js' => ['delivery.js', 'text/javascript; charset=utf-8'],
+    '/client/products.html' => ['products.html', 'text/html; charset=utf-8'],
+    '/client/products.js' => ['products.js', 'text/javascript; charset=utf-8'],
 ];
 if (isset($clientAssets[$path])) {
     [$file, $contentType] = $clientAssets[$path];
