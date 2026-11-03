@@ -9,12 +9,7 @@ $requestId = bin2hex(random_bytes(16));
 $_SERVER['FOODWELL_REQUEST_ID'] = $requestId;
 header('X-Request-ID: ' . $requestId);
 
-set_error_handler(static function (
-    int $severity,
-    string $message,
-    string $file,
-    int $line
-): bool {
+set_error_handler(static function (int $severity, string $message, string $file, int $line): bool {
     if (!(error_reporting() & $severity)) {
         return false;
     }
@@ -126,6 +121,7 @@ use Foodwell\Env;
 use Foodwell\Http\Response;
 use Foodwell\Http\Router;
 use Foodwell\Http\Cors;
+use Foodwell\Http\Negotiation;
 use Foodwell\Repositories\ProductRepository;
 use Foodwell\Repositories\CustomerRepository;
 use Foodwell\Repositories\CartRepository;
@@ -166,7 +162,9 @@ if (isset($clientAssets[$path])) {
 }
 
 if (str_starts_with($path, API_PREFIX . '/') || $path === API_PREFIX) {
-    if (!Cors::handle()) { return; }
+    if (!Cors::handle()) {
+        return;
+    }
 }
 
 try {
@@ -180,7 +178,7 @@ try {
     );
 
     $router = new Router();
-    
+
     $router->post(API_PREFIX . '/customers', [$customers, 'register']);
     $router->get(API_PREFIX . '/customers', [$customers, 'index']);
     $router->get(API_PREFIX . '/customers/{id}', [$customers, 'show']);
@@ -197,8 +195,10 @@ try {
     $router->post(API_PREFIX . '/categories', [$categories, 'store']);
     $router->delete(API_PREFIX . '/categories/{id}', [$categories, 'destroy']);
 
-    $router->get(API_PREFIX . '/products',       [$products, 'index']);
-    $router->get(API_PREFIX . '/products/{id}',  [$products, 'show']);
+    $productFormats = [Negotiation::JSON, Negotiation::XML, Negotiation::YAML];
+
+    $router->get(API_PREFIX . '/products', [$products, 'index'], $productFormats);
+    $router->get(API_PREFIX . '/products/{id}', [$products, 'show'], $productFormats);
     $router->post(API_PREFIX . '/products', [$products, 'store']);
     $router->put(API_PREFIX . '/products/{id}', [$products, 'update']);
     $router->delete(API_PREFIX . '/products/{id}', [$products, 'destroy']);

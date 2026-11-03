@@ -45,7 +45,7 @@ final class ProductController
         $total = $result['total'];
         $totalPages = (int) ceil($total / $limit); // 0 when there are no matches
 
-        Response::json(200, [
+        Response::send(200, [
             'meta' => [
                 'page' => $page,
                 'limit' => $limit,
@@ -57,7 +57,7 @@ final class ProductController
                     : null,
             ],
             'data' => $result['items'],
-        ]);
+        ], [], 'products', 'product');
     }
 
     /** GET /api/v1/products/{id} -> 200 Product | 404 error */
@@ -70,7 +70,7 @@ final class ProductController
             Response::error(404, "Product $id not found.");
             return;
         }
-        Response::json(200, $product);
+        Response::send(200, $product, [], 'product');
     }
 
     public function store(array $params = []): void
@@ -109,7 +109,9 @@ final class ProductController
         }
 
         $input = $this->readJson();
-        if ($input === null) { return; }
+        if ($input === null) {
+            return;
+        }
 
         $result = ProductInput::validate($input, false);
         $errors = $this->withCategoryCheck($result);
@@ -124,7 +126,9 @@ final class ProductController
         try {
             $product = $this->products->update($id, $data);
         } catch (PDOException $e) {
-            if ($this->isMissingCategory($e)) { return; }
+            if ($this->isMissingCategory($e)) {
+                return;
+            }
             throw $e;
         }
 
@@ -140,7 +144,7 @@ final class ProductController
         }
 
         $conflict = "Product $id has inventory history and cannot be deleted. "
-                  . 'Deactivate it instead with PUT and "isActive": false.';
+            . 'Deactivate it instead with PUT and "isActive": false.';
 
         // Check first for a clear message...
         if ($this->products->hasInventoryHistory($id)) {
@@ -235,14 +239,16 @@ final class ProductController
     private function withCategoryCheck(array $result): array
     {
         $errors = $result['errors'];
-        if (isset($result['data']['categoryId'])
-            && !$this->products->categoryExists($result['data']['categoryId'])) {
+        if (
+            isset($result['data']['categoryId'])
+            && !$this->products->categoryExists($result['data']['categoryId'])
+        ) {
             $errors['categoryId'] = 'This category does not exist.';
         }
         return $errors;
     }
 
-     private function isMissingCategory(PDOException $e): bool
+    private function isMissingCategory(PDOException $e): bool
     {
         if (($e->errorInfo[1] ?? null) !== 1452) {
             return false;
@@ -257,7 +263,7 @@ final class ProductController
         return $path . '/' . $id;
     }
 
-     private function readJson(): ?array
+    private function readJson(): ?array
     {
         $type = strtolower(trim(explode(';', $_SERVER['CONTENT_TYPE'] ?? '')[0]));
         if ($type !== 'application/json') {
