@@ -9,36 +9,36 @@ final class Router
     private array $routes = [];
 
     /** Register a GET route. "{id}" matches a run of digits. */
-    public function get(string $pattern, callable $handler): void
+    public function get(string $pattern, callable $handler, array $produces = [Negotiation::JSON]): void
     {
-        $this->add('GET', $pattern, $handler);
+        $this->add('GET', $pattern, $handler, $produces);
     }
 
-    public function post(string $pattern, callable $handler): void
+    public function post(string $pattern, callable $handler, array $produces = [Negotiation::JSON]): void
     {
-        $this->add('POST', $pattern, $handler);
+        $this->add('POST', $pattern, $handler, $produces);
     }
 
-    public function put(string $pattern, callable $handler): void
+    public function put(string $pattern, callable $handler, array $produces = [Negotiation::JSON]): void
     {
-        $this->add('PUT', $pattern, $handler);
+        $this->add('PUT', $pattern, $handler, $produces);
     }
 
-    public function patch(string $pattern, callable $handler): void
+    public function patch(string $pattern, callable $handler, array $produces = [Negotiation::JSON]): void
     {
-        $this->add('PATCH', $pattern, $handler);
+        $this->add('PATCH', $pattern, $handler, $produces);
     }
 
     /** Register a DELETE route. */
-    public function delete(string $pattern, callable $handler): void
+    public function delete(string $pattern, callable $handler, array $produces = [Negotiation::JSON]): void
     {
-        $this->add('DELETE', $pattern, $handler);
+        $this->add('DELETE', $pattern, $handler, $produces);
     }
 
-    private function add(string $method, string $pattern, callable $handler): void
+    private function add(string $method, string $pattern, callable $handler, array $produces = [Negotiation::JSON]): void
     {
         $regex = '#^' . preg_replace('#\{(\w+)\}#', '(?P<$1>\d+)', $pattern) . '$#';
-        $this->routes[] = ['method' => $method, 'regex' => $regex, 'handler' => $handler];
+        $this->routes[] = ['method' => $method, 'regex' => $regex, 'handler' => $handler, 'produces' => $produces];
     }
 
     public function dispatch(string $method, string $path): void
@@ -49,6 +49,14 @@ final class Router
                 continue;
             }
             if ($route['method'] === $method) {
+                header('Vary: Accept', false);
+                $format = Negotiation::choose((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), $route['produces']);
+                if ($format === null) {
+                    Response::error(406, 'Not acceptable. This route can return: ' . implode(', ', $route['produces']) . '.');
+                    return;
+                }
+                Response::useFormat($format);
+
                 $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
                 ($route['handler'])($params);
                 return;
