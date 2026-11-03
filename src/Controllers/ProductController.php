@@ -45,7 +45,7 @@ final class ProductController
         $total = $result['total'];
         $totalPages = (int) ceil($total / $limit); // 0 when there are no matches
 
-        Response::json(200, [
+        Response::send(200, [
             'meta' => [
                 'page' => $page,
                 'limit' => $limit,
@@ -57,7 +57,7 @@ final class ProductController
                     : null,
             ],
             'data' => $result['items'],
-        ]);
+        ], [], 'products', 'product');
     }
 
     /** GET /api/v1/products/{id} -> 200 Product | 404 error */
@@ -70,7 +70,7 @@ final class ProductController
             Response::error(404, "Product $id not found.");
             return;
         }
-        Response::json(200, $product);
+        Response::send(200, $product, [], 'product');
     }
 
     public function store(array $params = []): void
