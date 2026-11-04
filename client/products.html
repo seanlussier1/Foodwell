@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Foodwell | Product catalog</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="products.js" defer></script>
+  </head>
+  <body>
+    <header class="masthead">
+      <a class="brand" href="./">foodwell<span>TEAM WORKSPACE</span></a>
+      <nav class="top-nav">
+        <a href="./">Customers</a
+        ><a href="products.html" aria-current="page">Products</a
+        ><a href="delivery.html">Check delivery area</a>
+      </nav>
+      <span class="badge">Local demonstration</span>
+    </header>
+    <main>
+      <div class="intro">
+        <p class="eyebrow">CATALOG MANAGEMENT</p>
+        <h1>Keep the shelves up to date.</h1>
+        <p>
+          Browse the catalog, add products, update prices and retire items you
+          no longer sell.
+        </p>
+      </div>
+      <p class="notice">
+        Use synthetic products. Product writes have no login or role check yet
+        (planned for Build 3).
+      </p>
+
+      <details class="connection">
+        <summary>API connection</summary>
+        <form id="connection-form">
+          <label for="api-url">API base URL</label>
+          <div class="inline">
+            <input id="api-url" type="url" required /><button type="submit">
+              Connect
+            </button>
+          </div>
+          <p>
+            Wamp: http://localhost/foodwell-api/api/v1 &nbsp;|&nbsp; PHP server:
+            http://localhost:8080/api/v1
+          </p>
+        </form>
+      </details>
+      <!-- One message area for success, validation, conflict and network errors -->
+      <div
+        id="feedback"
+        class="feedback"
+        role="status"
+        aria-live="polite"
+        hidden
+      >
+        <strong id="feedback-title"></strong>
+        <ul id="feedback-details"></ul>
+        <code id="feedback-request" class="request-line"></code>
+      </div>
+      <div class="workspace">
+        <!-- (a) Paginated + filtered collection -->
+        <section class="panel" aria-labelledby="catalog-title">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">CATALOG</p>
+              <h2 id="catalog-title">Products</h2>
+            </div>
+            <button id="new-product" class="secondary" type="button">
+              + New product
+            </button>
+          </div>
+          <form id="filters" class="filters product-filters">
+            <label
+              >Search names<input
+                id="search"
+                type="search"
+                placeholder="e.g. milk"
+                maxlength="100"
+            /></label>
+            <label
+              >Category<select id="category-filter">
+                <option value="">All categories</option>
+              </select></label
+            >
+            <label
+              >Sort<select id="sort">
+                <option value="">Default (ID order)</option>
+                <option value="name">Name A–Z</option>
+                <option value="-name">Name Z–A</option>
+                <option value="price">Price low → high</option>
+                <option value="-price">Price high → low</option>
+              </select></label
+            >
+            <label
+              >Per page<select id="page-size">
+                <option value="3">3</option>
+                <option value="5" selected>5</option>
+                <option value="10">10</option>
+              </select></label
+            >
+            <button type="submit">Apply filters</button>
+          </form>
+          <p id="list-summary" class="muted" role="status">Loading products…</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Price</th>
+                  <th>Stock</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="products"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <button id="previous" class="secondary" type="button" disabled>
+              ← Previous</button
+            ><span id="page-label">Page 1</span
+            ><button id="next" class="secondary" type="button" disabled>
+              Next →
+            </button>
+          </div>
+        </section>
+        <!-- (b) Create (POST) / edit (PUT) form -->
+        <section class="panel editor" aria-labelledby="editor-title">
+          <p class="eyebrow" id="form-mode">NEW PRODUCT</p>
+          <h2 id="editor-title">Add a product</h2>
+          <p id="editor-help" class="muted">
+            Stock entered here is the opening balance.
+          </p>
+          <form id="product-form" novalidate>
+            <label
+              >Name<input id="name" maxlength="200" autocomplete="off" /><small
+                class="field-error"
+                data-field="name"
+              ></small
+            ></label>
+            <div class="name-fields">
+              <label
+                >Price ($)<input
+                  id="price"
+                  inputmode="decimal"
+                  placeholder="3.49" /><small
+                  class="field-error"
+                  data-field="price"
+                ></small
+              ></label>
+              <label
+                >Unit <span class="optional">optional</span
+                ><input id="unit" placeholder="each" maxlength="40" /><small
+                  class="field-error"
+                  data-field="unit"
+                ></small
+              ></label>
+            </div>
+            <div class="name-fields">
+              <label id="stock-label"
+                >Opening stock <span class="optional">optional</span
+                ><input id="stock" inputmode="numeric" placeholder="0" /><small
+                  id="stock-help"
+                  >Changed later only through inventory adjustments.</small
+                ><small class="field-error" data-field="stock"></small
+              ></label>
+              <label
+                >Category<select id="category">
+                  <option value="">Choose…</option></select
+                ><small class="field-error" data-field="categoryId"></small
+              ></label>
+            </div>
+            <label
+              >Image URL <span class="optional">optional</span
+              ><input
+                id="image-url"
+                inputmode="url"
+                placeholder="https://…" /><small
+                class="field-error"
+                data-field="imageUrl"
+              ></small
+            ></label>
+            <label class="check"
+              ><input id="skip-checks" type="checkbox" /> Skip browser checks
+              (send the data as typed to see the server's 422)</label
+            >
+            <div class="form-actions">
+              <button id="save" type="submit">Create product</button
+              ><button id="cancel-edit" class="secondary" type="button" hidden>
+                Cancel edit
+              </button>
+            </div>
+          </form>
+          <!-- #33 demo: the same product in each format -->
+          <div class="format-preview">
+            <p class="eyebrow">RESPONSE FORMATS</p>
+            <form id="format-form" class="inline">
+              <label class="grow"
+                >Product ID<input
+                  id="format-id"
+                  inputmode="numeric"
+                  value="101"
+              /></label>
+              <label
+                >Accept<select id="format-type">
+                  <option>application/json</option>
+                  <option>application/xml</option>
+                  <option>application/yaml</option>
+                  <option>text/html</option>
+                </select></label
+              >
+              <button type="submit" class="secondary">View</button>
+            </form>
+            <code id="format-status" class="request-line"></code>
+            <pre id="format-output" hidden></pre>
+          </div>
+        </section>
+      </div>
+      <footer>Foodwell · Product catalog · Lab 7 client application</footer>
+    </main>
+  </body>
+</html>
