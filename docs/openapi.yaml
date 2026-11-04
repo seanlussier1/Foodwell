@@ -2,11 +2,10 @@ openapi: 3.0.3
 info:
   title: Foodwell API
   version: 1.1.0-expanded-contract
-  description: 'Foodwell expanded contract: 47 operations. Product GET, category operations
-    and customer registration are implemented. Customer management and cart operations are
-    explicitly enabled local demos only. Authentication and role/ownership enforcement remain
-    planned. Category writes currently have no role checks. Cart edits do not reserve stock;
-    checkout remains separate work.'
+  description: 'Foodwell contract: 48 operations. Delivery-area options combine Zippopotam.us/GeoNames
+    prefix data with configured Foodwell service areas and database slot availability. Customer/cart
+    management remain local demos; intended role/ownership enforcement is still planned. See
+    per-operation implementation/access metadata.'
 servers:
 - url: http://localhost/foodwell-api/api/v1
   description: WampServer (Apache, www/foodwell-api)
@@ -35,44 +34,151 @@ paths:
       tags:
       - implemented
       x-status: implemented
-      summary: Get the list of products
-      description: 'Returns every product from the database, wrapped in a `data` envelope.
-        No filtering, sorting or pagination in Build 1. When there are no products the response
-        is still `200` with `{"data": []}`.
+      summary: List products (filter, sort, paginate)
+      description: >
+        Returns one page of products in a `meta` + `data` envelope (#29).
+        Filters combine with AND. With no `sort`, products are ordered by ID
+        (Build 1 order); every sort ends with the product ID as a unique
+        tie-breaker, so pages never overlap. An empty result, or a page past
+        the last one, is still 200 with `"data": []`. `next`/`previous` are
+        relative links that keep every filter, the sort and the limit, and are
+        null when that page does not exist. Unknown query parameters are
+        ignored; invalid values return 400. Inactive products are included
+        (see `isActive`).
 
-        '
+
+        **Formats (#33):** JSON (default), XML or YAML, chosen with the
+        `Accept` header; anything else returns 406. See
+        docs/REPRESENTATION_MATRIX.md.
+      parameters:
+      - in: query
+        name: category
+        description: Only products in this category ID. An ID with no products returns an empty page.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 4294967295
+        example: 2
+      - in: query
+        name: search
+        description: >
+          Case-insensitive text contained in the product name. Trimmed;
+          blank means no search. `%` and `_` are matched literally.
+        schema:
+          type: string
+          maxLength: 100
+        example: milk
+      - in: query
+        name: sort
+        description: >
+          Sort order; a leading `-` means descending. Omitted = by ID ascending.
+        schema:
+          type: string
+          enum: [name, -name, price, -price]
+        example: -price
+      - in: query
+        name: page
+        description: Page number (1 = first page).
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100000
+          default: 1
+      - in: query
+        name: limit
+        description: Products per page.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
       responses:
         '200':
-          description: The product list (possibly empty)
+          description: One page of products (possibly empty)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProductList'
               examples:
-                populated:
-                  summary: Seeded database
+                filtered:
+                  summary: Dairy products containing "ch", sorted by price, 1 per page
                   value:
+                    meta:
+                      page: 1
+                      limit: 1
+                      total: 1
+                      totalPages: 1
+                      next: null
+                      previous: null
                     data:
-                    - id: 101
-                      name: Whole Milk 2L
-                      price: 4.99
+                    - id: 102
+                      name: Old Cheddar 400g
+                      price: 7.49
                       unit: each
-                      stock: 42
+                      stock: 25
                       categoryId: 2
                       categoryName: Dairy
-                      imageUrl: https://example.com/images/whole-milk.jpg
-                    - id: 104
-                      name: Gala Apples
-                      price: 2.99
-                      unit: lb
-                      stock: 120
-                      categoryId: 1
-                      categoryName: Produce
-                      imageUrl: https://example.com/images/gala-apples.jpg
-                empty:
-                  summary: No products in the database
+                      imageUrl: https://example.com/images/old-cheddar.jpg
+                      isActive: true
+                middlePage:
+                  summary: Page 2 of the Dairy category, 1 per page, with links that keep the filter
                   value:
+                    meta:
+                      page: 2
+                      limit: 1
+                      total: 3
+                      totalPages: 3
+                      next: /api/v1/products?category=2&page=3&limit=1
+                      previous: /api/v1/products?category=2&page=1&limit=1
+                    data:
+                    - id: 102
+                      name: Old Cheddar 400g
+                      price: 7.49
+                      unit: each
+                      stock: 25
+                      categoryId: 2
+                      categoryName: Dairy
+                      imageUrl: https://example.com/images/old-cheddar.jpg
+                      isActive: true
+                empty:
+                  summary: No matches
+                  value:
+                    meta:
+                      page: 1
+                      limit: 10
+                      total: 0
+                      totalPages: 0
+                      next: null
+                      previous: null
                     data: []
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ProductList'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/ProductList'
+        '400':
+          description: >
+            Invalid query parameter (for example page=0, limit=500, sort=stock,
+            category=abc). All problems are listed in one message. Sent in the
+            negotiated format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  status: 400
+                  message: 'Invalid query parameters: limit must be a whole number from 1 to 100.'
+                  requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
         '500':
           $ref: '#/components/responses/ServerError'
       operationId: get__products
@@ -82,41 +188,79 @@ paths:
       x-security-enforcement: not-required
     post:
       tags:
-      - planned
-      x-status: planned
-      summary: Add a new product (Build 2)
+      - implemented
+      x-status: implemented
+      summary: Create a product
+      description: >
+        Creates a product from a JSON object (#27). `stock` is the opening
+        balance; later stock changes use inventory adjustments. Names and units
+        are trimmed. Unknown fields are rejected. Rejected requests change
+        nothing. Intended for staff/administrators, but **no role check is
+        implemented yet** (Build 3, #45/#46), the same as category writes.
+        Request and response bodies are JSON only (XML/YAML deferred to #65).
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ProductInput'
+            example:
+              name: Oat Milk 1L
+              price: 3.49
+              unit: each
+              stock: 20
+              categoryId: 2
       responses:
         '201':
-          description: Product created
+          description: Product created; the body is the saved product read back from the database
+          headers:
+            Location:
+              description: Path of the new product
+              schema:
+                type: string
+              example: /api/v1/products/111
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Product'
+              example:
+                id: 111
+                name: Oat Milk 1L
+                price: 3.49
+                unit: each
+                stock: 20
+                categoryId: 2
+                categoryName: Dairy
+                imageUrl: null
+                isActive: true
         '400':
-          description: Invalid product data
-        '401':
-          description: Authentication required
+          $ref: '#/components/responses/MalformedJson'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          description: Invalid fields (including a category that does not exist); nothing is saved
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Permission denied
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationError'
+              example:
+                error:
+                  status: 422
+                  message: Validation failed.
+                  details:
+                    price: Price cannot be negative.
+                    categoryId: This category does not exist.
+                    color: This field is not allowed for this operation.
+                  requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: post__products
       security:
       - BearerSession: []
       x-access: staff_or_admin
-      x-current-access: not-implemented
+      x-current-access: public
       x-security-enforcement: planned
   /products/{id}:
     parameters:
@@ -126,6 +270,9 @@ paths:
       - implemented
       x-status: implemented
       summary: Get one product by ID
+      description: >
+        **Formats (#33):** JSON (default), XML or YAML, chosen with the
+        `Accept` header; anything else returns 406. Errors use the same format.
       responses:
         '200':
           description: The product
@@ -142,8 +289,38 @@ paths:
                 categoryId: 2
                 categoryName: Dairy
                 imageUrl: https://example.com/images/whole-milk.jpg
+                isActive: true
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Product'
+              example: |
+                <?xml version="1.0" encoding="UTF-8"?>
+                <product>
+                  <id>101</id>
+                  <name>Whole Milk 2L</name>
+                  <price>4.99</price>
+                  <unit>each</unit>
+                  <stock>42</stock>
+                  <categoryId>2</categoryId>
+                  <categoryName>Dairy</categoryName>
+                  <imageUrl>https://example.com/images/whole-milk.jpg</imageUrl>
+                  <isActive>true</isActive>
+                </product>
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/Product'
+              example: |
+                id: 101
+                name: "Whole Milk 2L"
+                price: 4.99
+                unit: "each"
+                stock: 42
+                categoryId: 2
+                categoryName: "Dairy"
+                imageUrl: "https://example.com/images/whole-milk.jpg"
+                isActive: true
         '404':
-          description: No product with that ID
+          description: No product with that ID (sent in the negotiated format)
           content:
             application/json:
               schema:
@@ -152,6 +329,15 @@ paths:
                 error:
                   status: 404
                   message: Product 999999 not found.
+                  requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
         '500':
           $ref: '#/components/responses/ServerError'
       operationId: get__products__id_
@@ -161,67 +347,109 @@ paths:
       x-security-enforcement: not-required
     put:
       tags:
-      - planned
-      x-status: planned
-      summary: Replace a product's details (Build 2)
+      - implemented
+      x-status: implemented
+      summary: Replace a product's details
+      description: >
+        Replaces name, price, unit, category and image (#27). **Stock cannot be
+        changed here** (422): it only changes through inventory adjustments.
+        Omitted optional fields reset to their defaults (unit "each", imageUrl
+        null), except `isActive`, which keeps its current value when omitted.
+        Send `"isActive": false` to deactivate a product (the cart then refuses
+        it). Rejected requests change nothing. No role check is implemented
+        yet (Build 3). JSON only.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ProductUpdate'
+            example:
+              name: Gala Apples
+              price: 3.19
+              unit: lb
+              categoryId: 1
+              imageUrl: null
       responses:
         '200':
-          description: Product updated
+          description: Product updated; the body is the saved product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/MalformedJson'
         '404':
-          description: Product not found
-        '401':
-          description: Authentication required
+          description: No product with that ID (checked before the body)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '403':
-          description: Permission denied
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          description: Invalid fields, a category that does not exist, or `stock` in the body; nothing is changed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-      description: Stock changes use inventory-adjustment resources. Deactivate products with
-        audit history instead of deleting them.
+                $ref: '#/components/schemas/ValidationError'
+              example:
+                error:
+                  status: 422
+                  message: Validation failed.
+                  details:
+                    stock: Stock cannot be changed here. Use an inventory adjustment.
+                  requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: put__products__id_
       security:
       - BearerSession: []
       x-access: staff_or_admin
-      x-current-access: not-implemented
+      x-current-access: public
       x-security-enforcement: planned
     delete:
       tags:
-      - planned
-      x-status: planned
-      summary: Delete a product (Build 2)
+      - implemented
+      x-status: implemented
+      summary: Delete a product
+      description: >
+        Deletes a product with no inventory history. The database then removes
+        its cart lines, favorites and reviews, and keeps past order lines with
+        productId set to null (purchase snapshots stay readable). A product with
+        inventory history cannot be deleted (409); deactivate it with PUT
+        `"isActive": false` instead. No role check is implemented yet (Build 3).
       responses:
         '204':
-          description: Product deleted
+          description: Product deleted (no body)
         '404':
-          description: Product not found
-        '401':
-          description: Authentication required
+          description: No product with that ID
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '403':
-          description: Permission denied
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '409':
+          description: The product has inventory history; nothing is deleted
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  status: 409
+                  message: 'Product 109 has inventory history and cannot be deleted. Deactivate it instead with PUT and "isActive": false.'
+                  requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: delete__products__id_
       security:
       - BearerSession: []
       x-access: staff_or_admin
-      x-current-access: not-implemented
+      x-current-access: public
       x-security-enforcement: planned
   /categories:
     get:
@@ -2274,6 +2502,55 @@ paths:
       schema:
         type: integer
         minimum: 1
+  /delivery-options:
+    get:
+      operationId: get__delivery_options
+      tags:
+      - implemented
+      x-status: implemented
+      x-access: public
+      x-current-access: public
+      x-security-enforcement: not-required
+      security: []
+      summary: Look up a Canadian postal area and Foodwell delivery options
+      description: 'Public read-only composite response: Zippopotam.us/GeoNames prefix lookup
+        plus Foodwell configured service prefixes and future active slots with remaining capacity.
+        Only the first three characters are sent externally. Full-address/full-code validity
+        is not verified. No booking is made. Provider failures/unknown coverage return 200
+        with status=partial, eligible=null and no offered slots. Input errors return 400.
+        area.source identifies live, cached or explicit local-demo data. See DELIVERY_AREA_INTEGRATION.md
+        for attribution, bounded requests, caching, configuration and PHP/JS consumer coverage.'
+      parameters:
+      - in: query
+        name: postalCode
+        required: true
+        description: Canadian syntax; trim/uppercase and accept A1A1A1 or A1A 1A1. Arrays/unknown
+          parameters rejected. Syntax alone does not prove the full code exists.
+        schema:
+          type: string
+          minLength: 6
+          maxLength: 7
+        example: H3N 1X1
+      responses:
+        '200':
+          description: Complete delivery-area result or explicit partial provider fallback
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryAreaOptions'
+        '400':
+          description: Missing, invalid, array-valued or unsupported query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
 components:
   parameters:
     ProductId:
@@ -2296,6 +2573,41 @@ components:
             error:
               status: 500
               message: Internal server error.
+    MalformedJson:
+      description: The body is not valid JSON, or is valid JSON but not an object
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              status: 400
+              message: Malformed JSON body.
+              requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+    NotAcceptable:
+      description: >
+        The Accept header allows none of the formats this route can return
+        (#33). Sent as JSON; the message lists the available formats.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              status: 406
+              message: 'Not acceptable. This route can return: application/json, application/xml, application/yaml.'
+              requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+    UnsupportedMediaType:
+      description: Missing or unsupported Content-Type (application/json required)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              status: 415
+              message: 'This operation requires Content-Type: application/json.'
+              requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
   schemas:
     Error:
       type: object
@@ -2314,8 +2626,36 @@ components:
             message:
               type: string
               example: Product 999999 not found.
+    ValidationError:
+      type: object
+      description: 422 body. `details` maps each rejected field to its message.
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - status
+          - message
+          - details
+          properties:
+            status:
+              type: integer
+              example: 422
+            message:
+              type: string
+              example: Validation failed.
+            details:
+              type: object
+              additionalProperties:
+                type: string
+            requestId:
+              type: string
     Product:
       type: object
+      description: >
+        A catalog product. In XML the root element is `<product>` and a null
+        value is written as an empty element with `nil="true"`.
       required:
       - id
       - name
@@ -2324,6 +2664,8 @@ components:
       - stock
       - categoryId
       - categoryName
+      - imageUrl
+      - isActive
       properties:
         id:
           type: integer
@@ -2334,12 +2676,14 @@ components:
         price:
           type: number
           format: float
+          minimum: 0
           example: 4.99
         unit:
           type: string
           example: each
         stock:
           type: integer
+          minimum: 0
           example: 42
         categoryId:
           type: integer
@@ -2353,19 +2697,63 @@ components:
           example: https://example.com/images/whole-milk.jpg
         isActive:
           type: boolean
-          description: Planned catalog activation field. Existing product GET responses omit
-            it.
+          description: false = deactivated (still listed, but the cart refuses it)
+          example: true
+      xml:
+        name: product
     ProductList:
       type: object
+      description: >
+        One page of products. In XML: `<products><meta>...</meta><data><product>...</product></data></products>`.
       required:
+      - meta
       - data
       properties:
+        meta:
+          type: object
+          required:
+          - page
+          - limit
+          - total
+          - totalPages
+          - next
+          - previous
+          properties:
+            page:
+              type: integer
+              example: 2
+            limit:
+              type: integer
+              example: 10
+            total:
+              type: integer
+              description: Number of products matching the filters (all pages)
+              example: 24
+            totalPages:
+              type: integer
+              description: 0 when nothing matches
+              example: 3
+            next:
+              type: string
+              nullable: true
+              description: Relative link to the next page, keeping filters, sort and limit; null on the last page
+              example: /api/v1/products?category=2&page=3&limit=10
+            previous:
+              type: string
+              nullable: true
+              description: Relative link to the previous page (past the end, to the last page); null on page 1
+              example: /api/v1/products?category=2&page=1&limit=10
         data:
           type: array
           items:
             $ref: '#/components/schemas/Product'
+          xml:
+            wrapped: true
+      xml:
+        name: products
     ProductInput:
       type: object
+      description: Body of POST /products. Unknown fields are rejected (422).
       required:
       - name
       - price
@@ -2373,19 +2761,36 @@ components:
       properties:
         name:
           type: string
+          minLength: 1
+          maxLength: 150
+          description: Trimmed; cannot be blank
         price:
           type: number
           format: float
           minimum: 0
+          maximum: 999999.99
+          description: A JSON number (not a string), at most 2 decimals
         unit:
           type: string
+          minLength: 1
+          maxLength: 30
+          default: each
         stock:
           type: integer
           minimum: 0
+          maximum: 1000000
+          default: 0
+          description: Opening balance only
         categoryId:
           type: integer
+          minimum: 1
+          description: Must be an existing category
         imageUrl:
           type: string
+          nullable: true
+          maxLength: 255
+          description: An http or https URL, or null
+      additionalProperties: false
     Category:
       type: object
       properties:
@@ -3097,6 +3502,9 @@ components:
       additionalProperties: false
     ProductUpdate:
       type: object
+      description: >
+        Body of PUT /products/{id}. Same rules as ProductInput, but `stock` is
+        not allowed (use inventory adjustments) and `isActive` may be sent.
       required:
       - name
       - price
@@ -3104,18 +3512,33 @@ components:
       properties:
         name:
           type: string
+          minLength: 1
+          maxLength: 150
+          description: Trimmed; cannot be blank
         price:
           type: number
           format: float
           minimum: 0
+          maximum: 999999.99
+          description: A JSON number (not a string), at most 2 decimals
         unit:
           type: string
+          minLength: 1
+          maxLength: 30
+          default: each
+          description: Omitted = "each"
         categoryId:
           type: integer
+          minimum: 1
+          description: Must be an existing category
         imageUrl:
           type: string
+          nullable: true
+          maxLength: 255
+          description: An http or https URL, or null. Omitted = null
         isActive:
           type: boolean
+          description: Omitted = keep the current value
       additionalProperties: false
     DeliverySlotInput:
       type: object
@@ -3295,6 +3718,151 @@ components:
           enum:
           - false
           description: Only false is supported; this endpoint cannot reactivate accounts
+    DeliveryAreaOptions:
+      type: object
+      required:
+      - status
+      - postalCode
+      - area
+      - delivery
+      - sources
+      - notice
+      - warnings
+      properties:
+        status:
+          type: string
+          enum:
+          - complete
+          - partial
+        postalCode:
+          type: string
+          example: H3N 1X1
+        area:
+          type: object
+          required:
+          - prefix
+          - lookupStatus
+          - places
+          - source
+          - fetchedAt
+          properties:
+            prefix:
+              type: string
+              example: H3N
+            lookupStatus:
+              type: string
+              enum:
+              - found
+              - not-found
+              - unavailable
+            places:
+              type: array
+              maxItems: 50
+              items:
+                type: object
+                required:
+                - name
+                - province
+                - provinceCode
+                properties:
+                  name:
+                    type: string
+                  province:
+                    type: string
+                  provinceCode:
+                    type: string
+            source:
+              type: string
+              enum:
+              - live
+              - cache
+              - demo
+              - unavailable
+            fetchedAt:
+              type: string
+              format: date-time
+              nullable: true
+        delivery:
+          type: object
+          required:
+          - eligible
+          - status
+          - slots
+          - bookingConfirmed
+          properties:
+            eligible:
+              type: boolean
+              nullable: true
+              description: Null when coverage/provider failure prevents confirmation
+            status:
+              type: string
+              enum:
+              - available
+              - no-slots
+              - outside-area
+              - unknown
+            slots:
+              type: array
+              maxItems: 10
+              items:
+                type: object
+                required:
+                - id
+                - startsAt
+                - endsAt
+                - remainingCapacity
+                properties:
+                  id:
+                    type: integer
+                  startsAt:
+                    type: string
+                    format: date-time
+                  endsAt:
+                    type: string
+                    format: date-time
+                  remainingCapacity:
+                    type: integer
+                    minimum: 1
+            bookingConfirmed:
+              type: boolean
+              enum:
+              - false
+        sources:
+          type: object
+          required:
+          - internal
+          - external
+          - providerUrl
+          - dataUrl
+          - licenseUrl
+          properties:
+            internal:
+              type: string
+            external:
+              type: string
+            providerUrl:
+              type: string
+              format: uri
+            dataUrl:
+              type: string
+              format: uri
+            licenseUrl:
+              type: string
+              format: uri
+        notice:
+          type: string
+        warnings:
+          type: array
+          items:
+            type: object
+            required:
+            - code
+            - message
+            properties:
+              code:
+                type: string
+              message:
+                type: string
   securitySchemes:
     BearerSession:
       type: http

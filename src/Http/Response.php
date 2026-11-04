@@ -5,6 +5,7 @@ namespace Foodwell\Http;
 
 final class Response
 {
+    private static string $format = Negotiation::JSON;
     public static function json(int $status, mixed $payload, array $headers = []): void
     {
         http_response_code($status); // Set the HTTP status code ex: 200, 404, 500
@@ -33,7 +34,37 @@ final class Response
             $error['requestId'] = $requestId;
         }
 
-        self::json($status, ['error' => $error], $headers);
-        // Call the json method to send a standardized error response
+        if (self::$format === Negotiation::XML) {
+            self::send($status, $error, $headers, 'error', 'item');
+            return;
+        }
+        self::send($status, ['error' => $error], $headers);
     }
+
+    public static function useFormat(string $mediaType): void
+    {
+        self::$format = $mediaType;
+    }
+
+    public static function send(int $status, array $payload, array $headers = [], string $xmlRoot = 'response', string $xmlItem = 'item'): void
+    {
+        if (self::$format === Negotiation::JSON) {
+            self::json($status, $payload, $headers);
+            return;
+        }
+
+        // Build the body first: if anything failed, no headers would be sent yet.
+        $body = self::$format === Negotiation::XML
+            ? Representation::xml($payload, $xmlRoot, $xmlItem)
+            : Representation::yaml($payload);
+
+        http_response_code($status);
+        header('Content-Type: ' . self::$format . '; charset=utf-8');
+        header('X-Content-Type-Options: nosniff');
+        foreach ($headers as $name => $value) {
+            header("$name: $value");
+        }
+        echo $body;
+    }
+    
 }
