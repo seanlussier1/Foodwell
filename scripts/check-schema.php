@@ -95,9 +95,9 @@ try {
     }
     require_once $root . '/src/Repositories/ProductRepository.php';
     $products = new \Foodwell\Repositories\ProductRepository($pdo);
-    verify(count($products->findAll()) === 10, 'Existing product repository reads expanded schema');
-    verify(array_keys($products->findById(101)) === ['id','name','price','unit','stock','categoryId','categoryName','imageUrl'],
-        'Existing product response fields remain unchanged');
+    verify($products->search(null, null, null, 100, 0)['total'] === 10, 'Existing product repository reads expanded schema');
+    verify(array_keys($products->findById(101)) === ['id','name','price','unit','stock','categoryId','categoryName','imageUrl','isActive'],
+        'Product response fields match the documented Product schema');
     rejects($pdo, 'UPDATE products SET is_active=2 WHERE id=101', 4025, 'Invalid activation flag rejected');
     rejects($pdo, "INSERT INTO customer_addresses (customer_id,label,recipient_name,address_line1,city,province,postal_code,country_code)
         VALUES (7,'Test','Demo','Street','City','Province','Code','US')", 4025, 'Non-Canadian saved address rejected');
