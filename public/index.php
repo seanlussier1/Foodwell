@@ -116,6 +116,7 @@ use Foodwell\Controllers\CustomerController;
 use Foodwell\Controllers\CartController;
 use Foodwell\Controllers\DeliveryOptionController;
 use Foodwell\Controllers\CategoryController;
+use Foodwell\Controllers\OrderController;
 use Foodwell\Database;
 use Foodwell\Env;
 use Foodwell\Http\Response;
@@ -128,6 +129,7 @@ use Foodwell\Repositories\CartRepository;
 use Foodwell\Repositories\DeliveryOptionRepository;
 use Foodwell\Services\PostalAreaClient;
 use Foodwell\Repositories\CategoryRepository;
+use Foodwell\Repositories\OrderRepository;
 
 Env::load(dirname(__DIR__) . '/.env');
 
@@ -174,6 +176,7 @@ try {
     $customers = new CustomerController(new CustomerRepository(Database::connection()));
     $categories = new CategoryController(new CategoryRepository(Database::connection()));
     $carts = new CartController(new CartRepository(Database::connection()));
+    $orders = new OrderController(new OrderRepository(Database::connection()));
     $deliveryOptions = new DeliveryOptionController(
         new PostalAreaClient(dirname(__DIR__) . '/var/postal-cache', 86400, Env::get('POSTAL_CA_BUNDLE', '')),
         new DeliveryOptionRepository(Database::connection())
@@ -196,6 +199,8 @@ try {
     $router->get(API_PREFIX . '/categories/{id}', [$categories, 'show']);
     $router->post(API_PREFIX . '/categories', [$categories, 'store']);
     $router->delete(API_PREFIX . '/categories/{id}', [$categories, 'destroy']);
+    $router->post(API_PREFIX . '/orders', [$orders, 'create']);
+    $router->get(API_PREFIX . '/orders/{id}', [$orders, 'show']);
 
     $productFormats = [Negotiation::JSON, Negotiation::XML, Negotiation::YAML];
 
@@ -212,6 +217,9 @@ try {
         'message' => 'Unhandled exception',
         'requestId' => $requestId,
         'exception' => get_class($e),
+        'errorMessage' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
     Response::error(500, 'Internal server error.');
