@@ -9,12 +9,7 @@ $requestId = bin2hex(random_bytes(16));
 $_SERVER['FOODWELL_REQUEST_ID'] = $requestId;
 header('X-Request-ID: ' . $requestId);
 
-set_error_handler(static function (
-    int $severity,
-    string $message,
-    string $file,
-    int $line
-): bool {
+set_error_handler(static function (int $severity, string $message, string $file, int $line): bool {
     if (!(error_reporting() & $severity)) {
         return false;
     }
@@ -119,6 +114,7 @@ require $autoload;
 use Foodwell\Controllers\ProductController;
 use Foodwell\Controllers\CustomerController;
 use Foodwell\Controllers\CartController;
+use Foodwell\Controllers\DeliveryOptionController;
 use Foodwell\Controllers\CategoryController;
 use Foodwell\Controllers\OrderController;
 use Foodwell\Database;
@@ -126,9 +122,12 @@ use Foodwell\Env;
 use Foodwell\Http\Response;
 use Foodwell\Http\Router;
 use Foodwell\Http\Cors;
+use Foodwell\Http\Negotiation;
 use Foodwell\Repositories\ProductRepository;
 use Foodwell\Repositories\CustomerRepository;
 use Foodwell\Repositories\CartRepository;
+use Foodwell\Repositories\DeliveryOptionRepository;
+use Foodwell\Services\PostalAreaClient;
 use Foodwell\Repositories\CategoryRepository;
 use Foodwell\Repositories\OrderRepository;
 
@@ -153,6 +152,10 @@ $clientAssets = [
     '/client/index.html' => ['index.html', 'text/html; charset=utf-8'],
     '/client/styles.css' => ['styles.css', 'text/css; charset=utf-8'],
     '/client/app.js' => ['app.js', 'text/javascript; charset=utf-8'],
+    '/client/delivery.html' => ['delivery.html', 'text/html; charset=utf-8'],
+    '/client/delivery.js' => ['delivery.js', 'text/javascript; charset=utf-8'],
+    '/client/products.html' => ['products.html', 'text/html; charset=utf-8'],
+    '/client/products.js' => ['products.js', 'text/javascript; charset=utf-8'],
 ];
 if (isset($clientAssets[$path])) {
     [$file, $contentType] = $clientAssets[$path];
@@ -163,7 +166,9 @@ if (isset($clientAssets[$path])) {
 }
 
 if (str_starts_with($path, API_PREFIX . '/') || $path === API_PREFIX) {
-    if (!Cors::handle()) { return; }
+    if (!Cors::handle()) {
+        return;
+    }
 }
 
 try {
@@ -172,10 +177,13 @@ try {
     $categories = new CategoryController(new CategoryRepository(Database::connection()));
     $carts = new CartController(new CartRepository(Database::connection()));
     $orders = new OrderController(new OrderRepository(Database::connection()));
+    $deliveryOptions = new DeliveryOptionController(
+        new PostalAreaClient(dirname(__DIR__) . '/var/postal-cache', 86400, Env::get('POSTAL_CA_BUNDLE', '')),
+        new DeliveryOptionRepository(Database::connection())
+    );
 
     $router = new Router();
-    $router->get(API_PREFIX . '/products',       [$products, 'index']);
-    $router->get(API_PREFIX . '/products/{id}',  [$products, 'show']);
+
     $router->post(API_PREFIX . '/customers', [$customers, 'register']);
     $router->get(API_PREFIX . '/customers', [$customers, 'index']);
     $router->get(API_PREFIX . '/customers/{id}', [$customers, 'show']);
@@ -185,12 +193,22 @@ try {
     $router->post(API_PREFIX . '/customers/{id}/cart/items', [$carts, 'add']);
     $router->put(API_PREFIX . '/customers/{id}/cart/items/{itemId}', [$carts, 'update']);
     $router->delete(API_PREFIX . '/customers/{id}/cart/items/{itemId}', [$carts, 'remove']);
+
+    $router->get(API_PREFIX . '/delivery-options', [$deliveryOptions, 'index']);
     $router->get(API_PREFIX . '/categories', [$categories, 'index']);
     $router->get(API_PREFIX . '/categories/{id}', [$categories, 'show']);
     $router->post(API_PREFIX . '/categories', [$categories, 'store']);
     $router->delete(API_PREFIX . '/categories/{id}', [$categories, 'destroy']);
     $router->post(API_PREFIX . '/orders', [$orders, 'create']);
     $router->get(API_PREFIX . '/orders/{id}', [$orders, 'show']);
+
+    $productFormats = [Negotiation::JSON, Negotiation::XML, Negotiation::YAML];
+
+    $router->get(API_PREFIX . '/products', [$products, 'index'], $productFormats);
+    $router->get(API_PREFIX . '/products/{id}', [$products, 'show'], $productFormats);
+    $router->post(API_PREFIX . '/products', [$products, 'store']);
+    $router->put(API_PREFIX . '/products/{id}', [$products, 'update']);
+    $router->delete(API_PREFIX . '/products/{id}', [$products, 'destroy']);
 
     $router->dispatch($_SERVER['REQUEST_METHOD'], $path);
 } catch (Throwable $e) {

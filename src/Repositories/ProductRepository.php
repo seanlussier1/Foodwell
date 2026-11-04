@@ -8,7 +8,7 @@ use PDO;
 final class ProductRepository
 {
     private const SELECT = 'SELECT p.id, p.name, p.price, p.unit, p.stock, p.category_id,
-                                   c.name AS category_name, p.image_url
+                                   c.name AS category_name, p.image_url, p.is_active
                             FROM products p
                             JOIN categories c ON c.id = p.category_id';
     // Sort values
@@ -55,6 +55,7 @@ final class ProductRepository
             'categoryId' => (int) $row['category_id'],
             'categoryName' => $row['category_name'],
             'imageUrl' => $row['image_url'],
+            'isActive' => (bool) $row['is_active'],
         ];
     }
 
@@ -98,6 +99,70 @@ final class ProductRepository
         ];
     }
 
+    public function categoryExists(int $id): bool
+    {
+        $stmt = $this->pdo->prepare('SELECT 1 FROM categories WHERE id = :id');
+        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchColumn() !== false;
+    }
 
+    public function hasInventoryHistory(int $id): bool
+    {
+        $stmt = $this->pdo->prepare('SELECT 1 FROM inventory_adjustments WHERE product_id = :id LIMIT 1');
+        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchColumn() !== false;
+    }
 
+    public function create(array $p): array
+    {
+        $stmt = $this->pdo->prepare(
+            'INSERT INTO products (name, price, unit, stock, category_id, image_url)
+             VALUES (:name, :price, :unit, :stock, :category_id, :image_url)'
+        );
+        $stmt->bindValue(':name', $p['name']);
+        $stmt->bindValue(':price', self::money($p['price']));
+        $stmt->bindValue(':unit', $p['unit']);
+        $stmt->bindValue(':stock', $p['stock'], PDO::PARAM_INT);
+        $stmt->bindValue(':category_id', $p['categoryId'], PDO::PARAM_INT);
+        $stmt->bindValue(':image_url', $p['imageUrl']); // PHP null -> SQL NULL
+        $stmt->execute();
+
+        return $this->findById((int) $this->pdo->lastInsertId());
+    }
+
+    public function update(int $id, array $p): array
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE products
+                SET name = :name, price = :price, unit = :unit,
+                    category_id = :category_id, image_url = :image_url, is_active = :is_active
+              WHERE id = :id'
+        );
+        $stmt->bindValue(':name', $p['name']);
+        $stmt->bindValue(':price', self::money($p['price']));
+        $stmt->bindValue(':unit', $p['unit']);
+        $stmt->bindValue(':category_id', $p['categoryId'], PDO::PARAM_INT);
+        $stmt->bindValue(':image_url', $p['imageUrl']);
+        $stmt->bindValue(':is_active', $p['isActive'] ? 1 : 0, PDO::PARAM_INT);
+        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $this->findById($id);
+    }
+
+    public function delete(int $id): void
+    {
+        $stmt = $this->pdo->prepare('DELETE FROM products WHERE id = :id');
+        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+    }
+
+    private static function money(float $value): string
+    {
+        return number_format($value, 2, '.', '');
+    }
 }
+
+

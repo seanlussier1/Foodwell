@@ -2,6 +2,8 @@
 
 This directory contains Sean's customer client. Products and categories remain the other owners' sections; they are not implemented by this client.
 
+The separate `delivery.html` page provides the #37 public delivery-area checker. Open it through the dashboard's **Check delivery area** link or directly at `http://localhost/foodwell-api/client/delivery.html`. With the separate client server, use `http://localhost:8081/delivery.html`. It combines Zippopotam.us/GeoNames postal-area details with Foodwell delivery windows and handles partial provider failures. No profile/cart demo flag is needed for normal delivery lookups. See [integration documentation](../docs/DELIVERY_AREA_INTEGRATION.md) for configuration, attribution, limitations, PHP consumption and controlled demo modes.
+
 ## Start with Wamp
 
 1. Keep Wamp running and use an updated development database with synthetic data.
