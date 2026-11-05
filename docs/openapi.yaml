@@ -647,9 +647,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '422': &id003
+        '422':
           description: Invalid registration fields; no customer is created
-          content: &id001
+          content:
             application/json:
               schema:
                 type: object
@@ -724,7 +724,24 @@ paths:
         '400':
           description: Invalid pagination, filters or unknown query parameters; error.details
             identifies fields
-          content: *id001
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      status:
+                        type: integer
+                        example: 422
+                      message:
+                        type: string
+                        example: Validation failed.
+                      details:
+                        type: object
+                        additionalProperties:
+                          type: string
         '403':
           description: Local demo disabled or request not from loopback
           content:
@@ -754,14 +771,17 @@ paths:
                 $ref: '#/components/schemas/Customer'
         '404':
           description: Customer ID not found or outside the supported ID range
-          content: &id002
+          content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
           description: Local demo is disabled or client is not loopback; future owner/admin
             enforcement remains planned
-          content: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
       operationId: get__customers__id_
       security:
       - BearerSession: []
@@ -792,21 +812,55 @@ paths:
                 $ref: '#/components/schemas/Customer'
         '404':
           description: Customer ID not found or outside the supported ID range
-          content: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '403':
           description: Local demo is disabled or client is not loopback; future owner/admin
             enforcement remains planned
-          content: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '400':
           description: Malformed JSON or non-object body
-          content: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '409':
           description: Normalized email belongs to another account
-          content: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '415':
           description: Missing or unsupported Content-Type; application/json required
-          content: *id002
-        '422': *id003
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Invalid registration fields; no customer is created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      status:
+                        type: integer
+                        example: 422
+                      message:
+                        type: string
+                        example: Validation failed.
+                      details:
+                        type: object
+                        additionalProperties:
+                          type: string
       operationId: put__customers__id_
       security:
       - BearerSession: []
@@ -847,20 +901,48 @@ paths:
                 $ref: '#/components/schemas/CustomerListItem'
         '400':
           description: Malformed or non-object JSON
-          content: &id004
+          content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
           description: Demo disabled, non-loopback request, or target is staff/admin
-          content: *id004
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: Customer not found
-          content: *id004
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '415':
           description: Missing or unsupported Content-Type; application/json required
-          content: *id004
-        '422': *id003
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Invalid registration fields; no customer is created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      status:
+                        type: integer
+                        example: 422
+                      message:
+                        type: string
+                        example: Validation failed.
+                      details:
+                        type: object
+                        additionalProperties:
+                          type: string
       x-current-access: local-demo-only
       x-security-enforcement: planned
   /customers/{id}/cart:
@@ -878,19 +960,22 @@ paths:
       responses:
         '200':
           description: Current cart, possibly empty
-          content: &id006
+          content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Cart'
         '404':
           description: Customer, product or scoped cart item does not exist, as applicable
-          content: &id005
+          content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
           description: Local demo disabled, non-loopback caller, or target account inactive/non-customer
-          content: *id005
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
       operationId: get__customers__id__cart
       security:
       - BearerSession: []
@@ -924,27 +1009,67 @@ paths:
       responses:
         '201':
           description: New product line added; creates the reusable cart if needed
-          content: *id006
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
         '409':
           description: Product inactive, unavailable stock, or combined quantity exceeds the
             per-line maximum; no cart change is committed
-          content: *id005
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '403':
           description: Local demo disabled, non-loopback caller, or target account inactive/non-customer
-          content: *id005
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: Customer, product or scoped cart item does not exist, as applicable
-          content: *id005
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '200':
           description: Updated cart; POST increased an existing product line
-          content: *id006
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
         '400':
           description: Malformed JSON or body is not an object
-          content: *id005
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '415':
           description: Missing or unsupported Content-Type; application/json required
-          content: *id005
-        '422': *id003
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Invalid registration fields; no customer is created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      status:
+                        type: integer
+                        example: 422
+                      message:
+                        type: string
+                        example: Validation failed.
+                      details:
+                        type: object
+                        additionalProperties:
+                          type: string
       operationId: post__customers__id__cart_items
       security:
       - BearerSession: []
@@ -984,24 +1109,61 @@ paths:
       responses:
         '200':
           description: Updated cart with absolute quantity
-          content: *id006
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
         '404':
           description: Customer, product or scoped cart item does not exist, as applicable
-          content: *id005
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '403':
           description: Local demo disabled, non-loopback caller, or target account inactive/non-customer
-          content: *id005
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '400':
           description: Malformed JSON or body is not an object
-          content: *id005
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '415':
           description: Missing or unsupported Content-Type; application/json required
-          content: *id005
-        '422': *id003
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Invalid registration fields; no customer is created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      status:
+                        type: integer
+                        example: 422
+                      message:
+                        type: string
+                        example: Validation failed.
+                      details:
+                        type: object
+                        additionalProperties:
+                          type: string
         '409':
           description: Product inactive, unavailable stock, or combined quantity exceeds the
             per-line maximum; no cart change is committed
-          content: *id005
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
       operationId: put__customers__id__cart_items__itemId_
       security:
       - BearerSession: []
@@ -1024,10 +1186,16 @@ paths:
           description: Item removed; no response body
         '404':
           description: Customer, product or scoped cart item does not exist, as applicable
-          content: *id005
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '403':
           description: Local demo disabled, non-loopback caller, or target account inactive/non-customer
-          content: *id005
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
       operationId: delete__customers__id__cart_items__itemId_
       security:
       - BearerSession: []
@@ -1044,83 +1212,126 @@ paths:
   /orders:
     post:
       tags:
-      - planned
-      x-status: planned
-      summary: Place an order from a customer's cart (Build 2)
-      description: 'Will validate stock for each line item and calculate the total server-side.
+      - implemented
+      x-status: implemented
+      summary: Create an order from a customer's cart
+      description: >
+        Creates an order using the customer's existing cart.
+        The server validates the customer, delivery address, optional delivery
+        slot, product availability and stock. Prices and the order total are
+        calculated using current database prices.
 
-        '
+        Checkout is transactional. Product stock is decreased and cart items
+        are removed only after the order and its item snapshots are saved
+        successfully.
+
+        Current access is restricted to a local demonstration:
+        APP_CART_DEMO=1 and a loopback client address are required.
+        Authentication and customer ownership enforcement are not implemented
+        yet and remain planned work.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/OrderInput'
+            example:
+              customerId: 11
+              deliveryAddress: "123 Demo Street, Montreal, QC"
       responses:
         '201':
-          description: Order created
+          description: Order successfully created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Order'
-        '409':
-          description: One or more items are out of stock
-        '401':
-          description: Authentication required
+        '400':
+          description: Malformed JSON or request body is not a JSON object
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Permission denied
+          description: Order demo is disabled or customer account is not eligible
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '404':
+          description: Customer or saved delivery address not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Cart is empty, product is unavailable, stock is insufficient, or delivery slot is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: Content-Type must be application/json
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
       operationId: post__orders
-      security:
-      - BearerSession: []
       x-access: owner_or_admin
-      x-current-access: not-implemented
+      x-current-access: local-demo-only
       x-security-enforcement: planned
   /orders/{id}:
     parameters:
     - in: path
       name: id
       required: true
+      description: ID of the order to retrieve
       schema:
         type: integer
+        minimum: 1
+        maximum: 4294967295
+      example: 910
     get:
       tags:
-      - planned
-      x-status: planned
-      summary: Get one order (Build 2)
+      - implemented
+      x-status: implemented
+      summary: Retrieve a saved order
+      description: >
+        Retrieves a previously created order, including its customer ID,
+        status, delivery information, total and saved item details.
+        The returned item details are read from the persisted order records.
+
+        Current access is restricted to a local demonstration:
+        APP_CART_DEMO=1 and a loopback client address are required.
+        Authentication and customer ownership enforcement are not implemented
+        yet and remain planned work.
       responses:
         '200':
-          description: A single order
+          description: Order successfully retrieved
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Order'
-        '404':
-          description: Order not found
-        '401':
-          description: Authentication required
+        '403':
+          description: Order demo is disabled
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '403':
-          description: Permission denied
+        '404':
+          description: Order not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
       operationId: get__orders__id_
-      security:
-      - BearerSession: []
       x-access: owner_or_admin
-      x-current-access: not-implemented
+      x-current-access: local-demo-only
       x-security-enforcement: planned
     patch:
       tags:
@@ -2626,6 +2837,9 @@ components:
             message:
               type: string
               example: Product 999999 not found.
+            requestId:
+              type: string
+              description: Optional request identifier for tracing the error
     ValidationError:
       type: object
       description: 422 body. `details` maps each rejected field to its message.
@@ -2994,39 +3208,54 @@ components:
       - out_for_delivery
       - delivered
       - cancelled
+
     OrderItem:
       type: object
       properties:
         productId:
           type: integer
-          example: 101
           nullable: true
-        quantity:
-          type: integer
-          example: 2
-        unitPrice:
-          type: number
-          format: float
-          example: 4.99
+          example: 101
         productName:
           type: string
           minLength: 1
           maxLength: 150
           readOnly: true
+          example: Whole Milk 2L
         unit:
           type: string
           minLength: 1
           maxLength: 30
           readOnly: true
+          example: each
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+        unitPrice:
+          type: number
+          format: float
+          example: 4.99
+      required:
+      - productId
+      - productName
+      - unit
+      - quantity
+      - unitPrice
+
     Order:
       type: object
       properties:
         id:
           type: integer
-          example: 900
+          example: 910
         customerId:
           type: integer
-          example: 7
+          example: 11
+        deliverySlotId:
+          type: integer
+          minimum: 1
+          nullable: true
         status:
           $ref: '#/components/schemas/OrderStatus'
         items:
@@ -3036,34 +3265,47 @@ components:
         total:
           type: number
           format: float
-          example: 14.97
+          example: 9.98
         deliveryAddress:
           type: string
-          example: 123 Rue Principale, Saint-Jerome, QC
+          example: 123 Demo Street, Montreal, QC
         createdAt:
           type: string
-          format: date-time
-          example: '2026-09-22T14:30:00Z'
-        deliverySlotId:
-          type: integer
-          minimum: 1
-          nullable: true
+          example: '2026-11-04 15:10:58'
+      required:
+      - id
+      - customerId
+      - deliverySlotId
+      - status
+      - items
+      - total
+      - deliveryAddress
+      - createdAt
+
     OrderInput:
       type: object
       properties:
         customerId:
           type: integer
           minimum: 1
+          maximum: 4294967295
+          example: 11
         deliveryAddress:
           type: string
           minLength: 1
           maxLength: 500
+          example: "123 Demo Street, Montreal, QC"
         addressId:
           type: integer
           minimum: 1
+          maximum: 4294967295
+          example: 5
         deliverySlotId:
           type: integer
           minimum: 1
+          maximum: 4294967295
+          nullable: true
+          example: null
       required:
       - customerId
       additionalProperties: false
@@ -3170,11 +3412,14 @@ components:
           type: string
           maxLength: 30
           nullable: true
-        createdAt: &id007
+        createdAt:
           type: string
           format: date-time
           readOnly: true
-        updatedAt: *id007
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
         customerId:
           type: integer
           minimum: 1
@@ -3257,8 +3502,14 @@ components:
         comment:
           type: string
           maxLength: 2000
-        createdAt: *id007
-        updatedAt: *id007
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
         productId:
           type: integer
           minimum: 1
@@ -3347,7 +3598,10 @@ components:
           type: integer
           minimum: 0
           readOnly: true
-        createdAt: *id007
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
       required:
       - id
       - productId
@@ -3364,7 +3618,10 @@ components:
           type: integer
           minimum: 1
           readOnly: true
-        createdAt: *id007
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
         product:
           $ref: '#/components/schemas/Product'
       required:
@@ -3390,7 +3647,7 @@ components:
           - out_for_delivery
           - delivered
           - cancelled
-          - null
+
           nullable: true
         newStatus:
           type: string
@@ -3411,7 +3668,10 @@ components:
           - application
           - migration_baseline
           readOnly: true
-        createdAt: *id007
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
       required:
       - id
       - orderId
@@ -3443,7 +3703,10 @@ components:
       properties:
         customer:
           $ref: '#/components/schemas/Customer'
-        expiresAt: *id007
+        expiresAt:
+          type: string
+          format: date-time
+          readOnly: true
       required:
       - customer
       - expiresAt
@@ -3459,7 +3722,10 @@ components:
           type: string
           enum:
           - Bearer
-        expiresAt: *id007
+        expiresAt:
+          type: string
+          format: date-time
+          readOnly: true
         customer:
           $ref: '#/components/schemas/Customer'
       required:
@@ -3579,8 +3845,14 @@ components:
         isActive:
           type: boolean
           default: true
-        createdAt: *id007
-        updatedAt: *id007
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
         availableCapacity:
           type: integer
           minimum: 0
