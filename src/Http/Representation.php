@@ -7,6 +7,14 @@ use XMLWriter;
 
 final class Representation
 {
+    private static function isList(array $value): bool
+    {
+        $expected = 0;
+        foreach ($value as $key => $_) {
+            if ($key !== $expected++) return false;
+        }
+        return true;
+    }
 
     public static function xml(mixed $payload, string $root, string $listItem = 'item'): string
     {
@@ -35,7 +43,7 @@ final class Representation
         } elseif (is_bool($value)) {
             $writer->text($value ? 'true' : 'false');
         } elseif (is_array($value)) {
-            $isList = array_is_list($value);
+            $isList = self::isList($value);
             foreach ($value as $key => $child) {
                 self::xmlElement($writer, $isList ? $listItem : (string) $key, $child, $listItem);
             }
@@ -60,7 +68,7 @@ final class Representation
     public static function yaml(array $payload): string
     {
         if ($payload === []) {
-            return (array_is_list($payload) ? '[]' : '{}') . "\n";
+            return (self::isList($payload) ? '[]' : '{}') . "\n";
         }
         return implode("\n", self::yamlLines($payload, 0)) . "\n";
     }
@@ -68,7 +76,7 @@ final class Representation
     private static function yamlLines(array $data, int $level): array
     {
         $pad = str_repeat('  ', $level);
-        $isList = array_is_list($data);
+        $isList = self::isList($data);
         $lines = [];
 
         foreach ($data as $key => $value) {
@@ -105,7 +113,7 @@ final class Representation
             is_bool($value) => $value ? 'true' : 'false',
             is_int($value) => (string) $value,
             is_float($value) => (string) json_encode($value),
-            is_array($value) => array_is_list($value) ? '[]' : '{}', // only empty arrays reach here
+            is_array($value) => self::isList($value) ? '[]' : '{}', // only empty arrays reach here
             // A JSON string is also a valid YAML double-quoted string, with the same escapes.
             default => (string) json_encode(
                 mb_scrub((string) $value, 'UTF-8'),

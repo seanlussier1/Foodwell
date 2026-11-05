@@ -22,7 +22,7 @@ The PHP consumer `php scripts/checkout-client.php 8 101 "123 Test Street, Montre
 
 `SCHEMA_TEST_PORT=13387 php scripts/check-order-concurrency.php` passed against a separate temporary MariaDB database. Two independent PHP servers received competing orders for a capacity-one slot while the slot row was locked: one returned 201, one 409, exactly one booking was saved and the rejected cart remained. The script creates and deletes its own uniquely named test database; set the `SCHEMA_TEST_HOST`, `SCHEMA_TEST_PORT`, `SCHEMA_TEST_USER` and `SCHEMA_TEST_PASS` environment variables as needed.
 
-After integrating `main`, the cart suite passed 79 checks and the delivery suite passed 62 checks on PHP 8.0. The product suite passed 79 checks on PHP 8.3. On PHP 8.0 it stopped at its strict database-row comparison after the product was created and read back successfully; the test expects native integer values from PDO, whereas the local PHP 8.0 driver returns numeric strings. This is a regression-test portability issue, not a verified product failure.
+After integrating `main`, the cart suite passed 79 checks and the delivery suite passed 62 checks on PHP 8.0. The product suite passed 79 checks on both PHP 8.0 and PHP 8.3 after normalizing PDO integer values in the test and replacing the PHP 8.1-only list detection used by XML/YAML serialization.
 
 ## Order/client contribution for the Build 2 manifest (#64)
 
