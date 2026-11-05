@@ -166,7 +166,7 @@ final class OrderRepository
             // Validate the optional delivery slot.
             if ($deliverySlotId !== null) {
                 $slotQuery = $this->pdo->prepare(
-                    'SELECT id, is_active
+                    'SELECT id, is_active, capacity, starts_at > UTC_TIMESTAMP() AS is_future
                      FROM delivery_slots
                      WHERE id = :id
                      FOR UPDATE'
@@ -174,11 +174,19 @@ final class OrderRepository
                 $slotQuery->execute(['id' => $deliverySlotId]);
                 $slot = $slotQuery->fetch();
 
-                if ($slot === false || !(bool) $slot['is_active']) {
+                if ($slot === false || !(bool) $slot['is_active'] || !(bool) $slot['is_future']) {
                     throw new OrderException(
                         409,
                         'The delivery slot is unavailable.'
                     );
+                }
+                // The locked slot serializes bookings; a locking read sees the latest committed orders.
+                $bookings = $this->pdo->prepare(
+                    "SELECT id FROM orders WHERE delivery_slot_id = :slot AND status <> 'cancelled' FOR UPDATE"
+                );
+                $bookings->execute(['slot' => $deliverySlotId]);
+                if (count($bookings->fetchAll()) >= (int) $slot['capacity']) {
+                    throw new OrderException(409, 'The delivery slot is unavailable.');
                 }
             }
 
@@ -269,9 +277,9 @@ final class OrderRepository
             );
             $clearCart->execute(['cart' => $cartId]);
 
+            $savedOrder = $this->find($orderId);
             $this->pdo->commit();
-
-            return $this->find($orderId);
+            return $savedOrder;
         } catch (Throwable $error) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
