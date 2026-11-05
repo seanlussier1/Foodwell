@@ -225,7 +225,8 @@ try {
         'POST returns the saved product (name trimmed, category joined)');
     check(api($apiPort, 'GET', "/products/$newId")[1] === $created, 'API read-back equals the POST response');
     $saved = $pdo->query("SELECT name, price, stock, category_id, is_active FROM products WHERE id = $newId")->fetch();
-    check($saved === ['name' => 'Oat Milk 1L', 'price' => '3.49', 'stock' => 20, 'category_id' => 2, 'is_active' => 1],
+    check($saved['name'] === 'Oat Milk 1L' && $saved['price'] === '3.49'
+        && (int) $saved['stock'] === 20 && (int) $saved['category_id'] === 2 && (int) $saved['is_active'] === 1,
         'Database row matches the created product');
 
     [$status, $minimal] = api($apiPort, 'POST', '/products', '{"name":"Free Sample","price":0,"categoryId":4}');
@@ -253,7 +254,8 @@ try {
     [$status, $updated] = api($apiPort, 'PUT', '/products/104',
         '{"name":"Gala Apples","price":3.19,"unit":"lb","categoryId":1,"imageUrl":null}');
     check($status === 200 && $updated['price'] === 3.19 && $updated['imageUrl'] === null, 'PUT returns 200 with the saved product');
-    check($pdo->query('SELECT price, stock FROM products WHERE id = 104')->fetch() === ['price' => '3.19', 'stock' => 120],
+    $savedUpdate = $pdo->query('SELECT price, stock FROM products WHERE id = 104')->fetch();
+    check($savedUpdate['price'] === '3.19' && (int) $savedUpdate['stock'] === 120,
         'Database has the new price and the stock is unchanged');
 
     $snapshot = $pdo->query('SELECT * FROM products WHERE id = 104')->fetch();
