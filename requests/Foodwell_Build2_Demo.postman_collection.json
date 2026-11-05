@@ -1,0 +1,798 @@
+{
+  "info": {
+    "name": "Foodwell - Build 2 demonstration (#64)",
+    "description": "The course guide's six-step Build 2 demonstration as saved requests with automatic pass/fail tests. Run the folders in order (Runner, or `newman run`). Folder 5b needs the demo-timeout configuration described in its description; skip it otherwise.\n\nSet `baseUrl` to your API: Wamp `http://localhost/foodwell-api/api/v1` (default) or `http://localhost:8080/api/v1` with `composer start`. Uses the seeded database (`composer db:setup`).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1 · Build 1 continuity",
+      "description": "Demo step 1: both original Build 1 GETs still work. The isolated empty-list check (4th Build 1 check) runs in `php scripts/run-checks.php`, which starts its own empty database.",
+      "item": [
+        {
+          "name": "Item 101 → 200 JSON",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"JSON response\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
+                  "const p = pm.response.json();",
+                  "pm.test(\"Item 101 with every documented field\", () => {",
+                  "    pm.expect(p.id).to.eql(101);",
+                  "    pm.expect(p).to.have.all.keys(\"id\", \"name\", \"price\", \"unit\", \"stock\", \"categoryId\", \"categoryName\", \"imageUrl\", \"isActive\");",
+                  "});",
+                  "pm.collectionVariables.set(\"item101Name\", p.name);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products/101"
+          }
+        },
+        {
+          "name": "Unknown item → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 Not Found\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Standard error body\", () => {",
+                  "    const e = pm.response.json().error;",
+                  "    pm.expect(e.status).to.eql(404);",
+                  "    pm.expect(e.message).to.eql(\"Product 999999 not found.\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products/999999"
+          }
+        },
+        {
+          "name": "List → 200 with items",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"meta + data envelope\", () => pm.expect(body).to.have.all.keys(\"meta\", \"data\"));",
+                  "pm.test(\"Database-backed items, item 101 first (ID order)\", () => {",
+                  "    pm.expect(body.data.length).to.be.above(0);",
+                  "    pm.expect(body.data[0].id).to.eql(101);",
+                  "    pm.expect(body.data[0].name).to.eql(pm.collectionVariables.get(\"item101Name\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 · Filter, sort, follow next",
+      "description": "Demo step 2: browse with a filter and a sort, then follow the API's own `next` link without losing the query. Ends with a page-boundary and an invalid-input example.",
+      "item": [
+        {
+          "name": "Dairy containing 'e', by price, 1 per page",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const { meta, data: items } = pm.response.json();",
+                  "pm.test(\"Only Dairy products whose name contains 'e'\", () => {",
+                  "    items.forEach(p => {",
+                  "        pm.expect(p.categoryId).to.eql(2);",
+                  "        pm.expect(p.name.toLowerCase()).to.include(\"e\");",
+                  "    });",
+                  "});",
+                  "pm.test(\"Page 1 of more than one\", () => {",
+                  "    pm.expect(meta.page).to.eql(1);",
+                  "    pm.expect(meta.totalPages).to.be.above(1);",
+                  "});",
+                  "pm.test(\"next keeps category, search, sort and limit\", () => {",
+                  "    [\"category=2\", \"search=e\", \"sort=price\", \"page=2\", \"limit=1\"].forEach(part => pm.expect(meta.next).to.include(part));",
+                  "});",
+                  "// next is relative (\"/api/v1/products?...\"): attach it to the API's own origin.",
+                  "const origin = pm.variables.get(\"baseUrl\").match(/^https?:\\/\\/[^/]+/)[0];",
+                  "pm.collectionVariables.set(\"nextUrl\", origin + meta.next);",
+                  "pm.collectionVariables.set(\"page1FirstPrice\", items[0].price);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products?category=2&search=e&sort=price&limit=1&page=1"
+          }
+        },
+        {
+          "name": "Follow next (URL taken from the previous response)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const { meta, data: items } = pm.response.json();",
+                  "pm.test(\"Now on page 2\", () => pm.expect(meta.page).to.eql(2));",
+                  "pm.test(\"Same filters still applied\", () => items.forEach(p => {",
+                  "    pm.expect(p.categoryId).to.eql(2);",
+                  "    pm.expect(p.name.toLowerCase()).to.include(\"e\");",
+                  "}));",
+                  "pm.test(\"Sort continues across pages (price never decreases)\", () =>",
+                  "    pm.expect(items[0].price).to.be.at.least(Number(pm.collectionVariables.get(\"page1FirstPrice\"))));",
+                  "pm.test(\"previous leads back to page 1 with the same query\", () => {",
+                  "    [\"category=2\", \"search=e\", \"sort=price\", \"page=1\", \"limit=1\"].forEach(part => pm.expect(meta.previous).to.include(part));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{nextUrl}}",
+            "description": "The URL is set by the previous request's test script from `meta.next`. Run the folder in order."
+          }
+        },
+        {
+          "name": "Page past the end → 200 empty",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK, not an error\", () => pm.response.to.have.status(200));",
+                  "const { meta, data: items } = pm.response.json();",
+                  "pm.test(\"Empty data\", () => pm.expect(items).to.eql([]));",
+                  "pm.test(\"next is null; previous points to the real last page\", () => {",
+                  "    pm.expect(meta.next).to.eql(null);",
+                  "    pm.expect(meta.previous).to.include(`page=${meta.totalPages}&`);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products?limit=4&page=99"
+          }
+        },
+        {
+          "name": "Invalid input → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"One message names every bad parameter\", () => {",
+                  "    const msg = pm.response.json().error.message;",
+                  "    [\"page\", \"limit\", \"sort\"].forEach(name => pm.expect(msg).to.include(name));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products?page=0&limit=500&sort=stock"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3 · Create, update, read back",
+      "description": "Demo step 3: create a product, read it back, update it, read it back again. The product is deleted at the end of the collection (folder 6). Check the database too: `SELECT * FROM products WHERE id = <the new id>;`",
+      "item": [
+        {
+          "name": "Create a product → 201",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A unique name per run, so the collection can be run again without clashes.",
+                  "pm.collectionVariables.set(\"demoName\", \"Demo Oat Milk \" + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created\", () => pm.response.to.have.status(201));",
+                  "const p = pm.response.json();",
+                  "pm.test(\"Location header points to the new product\", () =>",
+                  "    pm.expect(pm.response.headers.get(\"Location\")).to.match(new RegExp(`/api/v1/products/${p.id}$`)));",
+                  "pm.test(\"Saved values returned (name trimmed, category joined)\", () => {",
+                  "    pm.expect(p.name).to.eql(pm.collectionVariables.get(\"demoName\"));",
+                  "    pm.expect(p.price).to.eql(3.49);",
+                  "    pm.expect(p.stock).to.eql(20);",
+                  "    pm.expect(p.categoryName).to.eql(\"Dairy\");",
+                  "    pm.expect(p.isActive).to.eql(true);",
+                  "});",
+                  "pm.collectionVariables.set(\"productId\", p.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"  {{demoName}}  \",\n  \"price\": 3.49,\n  \"unit\": \"each\",\n  \"stock\": 20,\n  \"categoryId\": 2\n}"
+            }
+          }
+        },
+        {
+          "name": "Read back the new product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Persisted: same name, price and stock as created\", () => {",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.name).to.eql(pm.collectionVariables.get(\"demoName\"));",
+                  "    pm.expect(p.price).to.eql(3.49);",
+                  "    pm.expect(p.stock).to.eql(20);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{productId}}"
+          }
+        },
+        {
+          "name": "Update its price → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"New price returned\", () => pm.expect(pm.response.json().price).to.eql(3.79));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{productId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{demoName}}\",\n  \"price\": 3.79,\n  \"unit\": \"each\",\n  \"categoryId\": 2,\n  \"imageUrl\": null\n}"
+            }
+          }
+        },
+        {
+          "name": "Read back after update",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const p = pm.response.json();",
+                  "pm.test(\"Price change persisted\", () => pm.expect(p.price).to.eql(3.79));",
+                  "pm.test(\"Stock unchanged by PUT (inventory adjustments only)\", () => pm.expect(p.stock).to.eql(20));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{productId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4 · Formats and failures",
+      "description": "Demo step 4: the same product as JSON, XML and YAML (#33, see docs/REPRESENTATION_MATRIX.md), then a 406, a 422 and a 415.",
+      "item": [
+        {
+          "name": "Product 102 as JSON",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 JSON\", () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "const p = pm.response.json();",
+                  "pm.collectionVariables.set(\"json102\", JSON.stringify(p));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products/102"
+          }
+        },
+        {
+          "name": "Product 102 as XML",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 XML\", () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/xml\");",
+                  "});",
+                  "pm.test(\"Negotiated responses vary by Accept\", () => pm.expect(pm.response.headers.get(\"Vary\")).to.include(\"Accept\"));",
+                  "pm.test(\"Same values as the JSON (semantic parity)\", () => {",
+                  "    const json = JSON.parse(pm.collectionVariables.get(\"json102\"));",
+                  "    // cheerio is built into Postman; xmlMode parses the response as XML.",
+                  "    const $ = require(\"cheerio\").load(pm.response.text(), { xmlMode: true });",
+                  "    pm.expect($(\"product\").length).to.eql(1);",
+                  "    Object.keys(json).forEach(key =>",
+                  "        pm.expect($(`product > ${key}`).text()).to.eql(json[key] === null ? \"\" : String(json[key])));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/xml"
+              }
+            ],
+            "url": "{{baseUrl}}/products/102"
+          }
+        },
+        {
+          "name": "Product 102 as YAML",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 YAML\", () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/yaml\");",
+                  "});",
+                  "pm.test(\"Same values as the JSON\", () => {",
+                  "    const json = JSON.parse(pm.collectionVariables.get(\"json102\"));",
+                  "    const text = pm.response.text();",
+                  "    pm.expect(text).to.include(`id: ${json.id}`);",
+                  "    pm.expect(text).to.include(`name: ${JSON.stringify(json.name)}`);",
+                  "    pm.expect(text).to.include(`price: ${json.price}`);",
+                  "    pm.expect(text).to.include(`isActive: ${json.isActive}`);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/yaml"
+              }
+            ],
+            "url": "{{baseUrl}}/products/102"
+          }
+        },
+        {
+          "name": "Unsupported format → 406",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"406 Not Acceptable\", () => pm.response.to.have.status(406));",
+                  "pm.test(\"Message lists the formats this route can return\", () => {",
+                  "    const msg = pm.response.json().error.message;",
+                  "    [\"application/json\", \"application/xml\", \"application/yaml\"].forEach(t => pm.expect(msg).to.include(t));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/html"
+              }
+            ],
+            "url": "{{baseUrl}}/products/102"
+          }
+        },
+        {
+          "name": "Invalid product → 422 (nothing saved)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"422 Unprocessable\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"One message per rejected field\", () => {",
+                  "    const e = pm.response.json().error;",
+                  "    pm.expect(e.message).to.eql(\"Validation failed.\");",
+                  "    pm.expect(e.details).to.have.all.keys(\"name\", \"price\", \"categoryId\", \"color\");",
+                  "    pm.expect(e.details.categoryId).to.eql(\"This category does not exist.\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"price\": -1,\n  \"categoryId\": 99,\n  \"color\": \"red\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Wrong Content-Type → 415",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"415 Unsupported Media Type\", () => pm.response.to.have.status(415));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "text/plain"
+              }
+            ],
+            "url": "{{baseUrl}}/products",
+            "body": {
+              "mode": "raw",
+              "raw": "name=Milk&price=1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5 · Composite resource",
+      "description": "Demo step 5 (Sean's #37). `GET /delivery-options` combines Zippopotam.us/GeoNames area data (external) with Foodwell's service prefixes and delivery slots (internal). In live mode the area comes from the provider; if the provider cannot be reached, the API returns its documented partial fallback instead of failing. Both outcomes pass these tests; the response's `area.source` says which one happened.",
+      "item": [
+        {
+          "name": "Delivery options for H3N 1X1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Combines an external area and internal delivery data\", () => {",
+                  "    pm.expect(r).to.include.keys(\"status\", \"postalCode\", \"area\", \"delivery\", \"sources\");",
+                  "    pm.expect(r.postalCode).to.eql(\"H3N 1X1\");",
+                  "    pm.expect(r.area.prefix).to.eql(\"H3N\");",
+                  "});",
+                  "pm.test(\"Sources are identified\", () => pm.expect(JSON.stringify(r.sources)).to.match(/zippopotam/i));",
+                  "pm.test(\"Never claims a booking\", () => pm.expect(r.delivery.bookingConfirmed).to.eql(false));",
+                  "pm.test(\"Outcome is complete, or the documented partial fallback\", () => {",
+                  "    if (r.status === \"complete\") {",
+                  "        pm.expect([\"live\", \"cache\"]).to.include(r.area.source);",
+                  "    } else {",
+                  "        pm.expect(r.status).to.eql(\"partial\");",
+                  "        pm.expect(r.delivery.eligible).to.eql(null);",
+                  "        pm.expect(r.delivery.slots).to.eql([]);",
+                  "    }",
+                  "});",
+                  "console.log(`area.source=${r.area.source} status=${r.status} delivery=${r.delivery.status}`);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/delivery-options?postalCode=H3N%201X1"
+          }
+        },
+        {
+          "name": "Invalid postal code → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/delivery-options?postalCode=nope"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5b · Controlled upstream failure (needs demo-timeout config)",
+      "description": "Run this folder ONLY after setting `APP_POSTAL_DEMO=1` and `POSTAL_LOOKUP_MODE=demo-timeout` in `.env` (localhost only). It shows the provider timing out and the API answering with its controlled partial result. Restore `POSTAL_LOOKUP_MODE=live` and `APP_POSTAL_DEMO=0` afterwards. In normal mode these tests fail by design.",
+      "item": [
+        {
+          "name": "Provider timeout → controlled partial result",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Still 200: the failure is handled, not a crash\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Partial result, clearly labelled as a demo fixture\", () => {",
+                  "    pm.expect(r.status).to.eql(\"partial\");",
+                  "    pm.expect(r.area.source).to.eql(\"demo\");",
+                  "});",
+                  "pm.test(\"No false claims: eligibility unknown, no slots offered\", () => {",
+                  "    pm.expect(r.delivery.status).to.eql(\"unknown\");",
+                  "    pm.expect(r.delivery.eligible).to.eql(null);",
+                  "    pm.expect(r.delivery.slots).to.eql([]);",
+                  "});",
+                  "pm.test(\"Timeout is reported in warnings\", () => pm.expect(JSON.stringify(r.warnings)).to.match(/timeout/i));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/delivery-options?postalCode=H3N%201X1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6 · Clean up",
+      "description": "Deletes the product created in folder 3, so the database is back to its seeded state. Step 6 of the demo (regression checks) runs from the terminal: see docs/BUILD2_EVIDENCE.md.",
+      "item": [
+        {
+          "name": "Delete the demo product → 204",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 No Content\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{productId}}"
+          }
+        },
+        {
+          "name": "It is gone → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 Not Found\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{productId}}"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost/foodwell-api/api/v1"
+    },
+    {
+      "key": "productId",
+      "value": ""
+    },
+    {
+      "key": "demoName",
+      "value": ""
+    },
+    {
+      "key": "nextUrl",
+      "value": ""
+    },
+    {
+      "key": "page1FirstPrice",
+      "value": ""
+    },
+    {
+      "key": "item101Name",
+      "value": ""
+    },
+    {
+      "key": "json102",
+      "value": ""
+    }
+  ]
+}
