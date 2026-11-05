@@ -1,5 +1,9 @@
 # Customer dashboard (Lab 7 Part 4)
 
+The local synthetic checkout demonstration is at `/client/shop.html` (or `shop.html` on the separate client server). Enable `APP_CART_DEMO=1` and use an active customer ID. Browse and search products, add and update cart lines, optionally check a postal area and select an offered window, then enter an address and place an order. The confirmation reads the saved order back. Cart and order routes require loopback access; customer identity and ownership are not authenticated. Delivery-area lookup is advisory and does not validate the address. A selected window is rechecked for time and capacity at checkout.
+
+See [checkout demonstration and evidence](../docs/CHECKOUT_DEMO.md) for the PHP consumer, concurrent booking check and manifest contribution.
+
 This directory contains Sean's customer client. Products and categories remain the other owners' sections; they are not implemented by this client.
 
 The separate `delivery.html` page provides the #37 public delivery-area checker. Open it through the dashboard's **Check delivery area** link or directly at `http://localhost/foodwell-api/client/delivery.html`. With the separate client server, use `http://localhost:8081/delivery.html`. It combines Zippopotam.us/GeoNames postal-area details with Foodwell delivery windows and handles partial provider failures. No profile/cart demo flag is needed for normal delivery lookups. See [integration documentation](../docs/DELIVERY_AREA_INTEGRATION.md) for configuration, attribution, limitations, PHP consumption and controlled demo modes.

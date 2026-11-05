@@ -8,7 +8,7 @@ use RuntimeException;
 final class OrderException extends RuntimeException
 {
     public function __construct(
-        public readonly int $statusCode,
+        public int $statusCode,
         string $message
     ) {
         parent::__construct($message);
