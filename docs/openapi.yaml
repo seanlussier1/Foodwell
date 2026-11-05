@@ -5,7 +5,8 @@ info:
   description: 'Foodwell contract: 48 operations. Delivery-area options combine Zippopotam.us/GeoNames
     prefix data with configured Foodwell service areas and database slot availability. Customer/cart
     management remain local demos; intended role/ownership enforcement is still planned. See
-    per-operation implementation/access metadata.'
+    per-operation implementation/access metadata. Security requirements describe intended access,
+    not current enforcement; see x-current-access and x-security-enforcement for the actual boundary.'
 servers:
 - url: http://localhost/foodwell-api/api/v1
   description: WampServer (Apache, www/foodwell-api)
@@ -180,7 +181,7 @@ paths:
         '406':
           $ref: '#/components/responses/NotAcceptable'
         '500':
-          $ref: '#/components/responses/ServerError'
+          $ref: '#/components/responses/NegotiatedServerError'
       operationId: get__products
       x-access: public
       security: []
@@ -339,7 +340,7 @@ paths:
         '406':
           $ref: '#/components/responses/NotAcceptable'
         '500':
-          $ref: '#/components/responses/ServerError'
+          $ref: '#/components/responses/NegotiatedServerError'
       operationId: get__products__id_
       x-access: public
       security: []
@@ -473,6 +474,8 @@ paths:
                       $ref: '#/components/schemas/Category'
         '500':
           $ref: '#/components/responses/ServerError'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
       operationId: get__categories
       security: []
       x-access: public
@@ -522,6 +525,8 @@ paths:
                 $ref: '#/components/schemas/Error'
         '500':
           $ref: '#/components/responses/ServerError'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
       operationId: post__categories
       security:
       - BearerSession: []
@@ -558,6 +563,8 @@ paths:
                 $ref: '#/components/schemas/Error'
         '500':
           $ref: '#/components/responses/ServerError'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
       operationId: get__categories__id_
       security: []
       x-access: public
@@ -598,6 +605,8 @@ paths:
                 $ref: '#/components/schemas/Error'
         '500':
           $ref: '#/components/responses/ServerError'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
       operationId: delete__categories__id_
       security:
       - BearerSession: []
@@ -667,6 +676,10 @@ paths:
                         type: object
                         additionalProperties:
                           type: string
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: post__customers
       security: []
       x-access: public
@@ -734,10 +747,10 @@ paths:
                     properties:
                       status:
                         type: integer
-                        example: 422
+                        example: 400
                       message:
                         type: string
-                        example: Validation failed.
+                        example: Invalid query parameters.
                       details:
                         type: object
                         additionalProperties:
@@ -748,6 +761,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/ServerError'
       x-current-access: local-demo-only
       x-security-enforcement: planned
   /customers/{id}:
@@ -782,6 +799,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: get__customers__id_
       security:
       - BearerSession: []
@@ -861,6 +882,10 @@ paths:
                         type: object
                         additionalProperties:
                           type: string
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: put__customers__id_
       security:
       - BearerSession: []
@@ -943,6 +968,10 @@ paths:
                         type: object
                         additionalProperties:
                           type: string
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/ServerError'
       x-current-access: local-demo-only
       x-security-enforcement: planned
   /customers/{id}/cart:
@@ -976,6 +1005,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: get__customers__id__cart
       security:
       - BearerSession: []
@@ -1070,6 +1103,10 @@ paths:
                         type: object
                         additionalProperties:
                           type: string
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: post__customers__id__cart_items
       security:
       - BearerSession: []
@@ -1164,6 +1201,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: put__customers__id__cart_items__itemId_
       security:
       - BearerSession: []
@@ -1196,6 +1237,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: delete__customers__id__cart_items__itemId_
       security:
       - BearerSession: []
@@ -1213,7 +1258,7 @@ paths:
     post:
       tags:
       - implemented
-      x-status: implemented
+      x-status: local-demo
       summary: Create an order from a customer's cart
       description: >
         Creates an order using the customer's existing cart.
@@ -1281,7 +1326,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationError'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: post__orders
+      security:
+      - BearerSession: []
       x-access: owner_or_admin
       x-current-access: local-demo-only
       x-security-enforcement: planned
@@ -1299,7 +1350,7 @@ paths:
     get:
       tags:
       - implemented
-      x-status: implemented
+      x-status: local-demo
       summary: Retrieve a saved order
       description: >
         Retrieves a previously created order, including its customer ID,
@@ -1329,7 +1380,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: get__orders__id_
+      security:
+      - BearerSession: []
       x-access: owner_or_admin
       x-current-access: local-demo-only
       x-security-enforcement: planned
@@ -2762,6 +2819,8 @@ paths:
                 $ref: '#/components/schemas/Error'
         '500':
           $ref: '#/components/responses/ServerError'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
 components:
   parameters:
     ProductId:
@@ -2784,6 +2843,18 @@ components:
             error:
               status: 500
               message: Internal server error.
+    NegotiatedServerError:
+      description: Unexpected server or database error; JSON before negotiation, otherwise the selected format
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+        application/xml:
+          schema:
+            $ref: '#/components/schemas/Error'
+        application/yaml:
+          schema:
+            $ref: '#/components/schemas/Error'
     MalformedJson:
       description: The body is not valid JSON, or is valid JSON but not an object
       content:
@@ -2803,11 +2874,6 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-          example:
-            error:
-              status: 406
-              message: 'Not acceptable. This route can return: application/json, application/xml, application/yaml.'
-              requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
     UnsupportedMediaType:
       description: Missing or unsupported Content-Type (application/json required)
       content:
@@ -3081,28 +3147,6 @@ components:
           type: string
           nullable: true
           maxLength: 30
-    CustomerInput:
-      type: object
-      required:
-      - firstName
-      - lastName
-      - email
-      - password
-      properties:
-        firstName:
-          type: string
-        lastName:
-          type: string
-        email:
-          type: string
-        password:
-          type: string
-          format: password
-          writeOnly: true
-        address:
-          type: string
-        phone:
-          type: string
     CartItem:
       type: object
       properties:
