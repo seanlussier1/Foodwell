@@ -27,6 +27,7 @@
 
 <h1>Foodwell API – Build 1</h1>
 <p class="sub">Two database-backed reads: <code>GET /api/v1/products</code> and <code>GET /api/v1/products/{id}</code>.</p>
+<nav aria-label="Foodwell builds"><a href="client/shop.html">Continue to Build 2 shopping</a></nav>
 
 <section aria-labelledby="list-h">
   <h2 id="list-h">Product list</h2>
@@ -45,7 +46,7 @@
 </section>
 
 <script>
-const API = '/api/v1';
+const API = new URL('api/v1', location.href).pathname.replace(/\/$/, '');
 
 const $ = (id) => document.getElementById(id);
 
