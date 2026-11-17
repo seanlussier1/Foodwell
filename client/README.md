@@ -1,4 +1,4 @@
-> The existing browser demos do not yet send bearer tokens. Private routes now require authentication and authorization, so these demos need updating before they can exercise those routes.
+> The main navigation opens Shop, Delivery and Account in one workspace. Staff and administrators also see Customers and Products. Sign in from Account; the session stays in memory while navigating and ends when the page is reloaded.
 
 # Customer dashboard (Lab 7 Part 4)
 

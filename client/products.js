@@ -22,10 +22,7 @@ let listRequest = 0; // counts list loads so a slow old response can't overwrite
 const apachePrefix = location.pathname.includes("/client")
   ? location.pathname.split("/client")[0]
   : "";
-$("api-url").value =
-  location.port === "8081"
-    ? "http://localhost/foodwell-api/api/v1"
-    : `${location.origin}${apachePrefix}/api/v1`;
+$("api-url").value = window.foodwellAuth.base();
 
 function base() {
   const url = new URL($("api-url").value.trim());
@@ -50,7 +47,7 @@ function base() {
 async function request(target, { method = "GET", body } = {}) {
   const url = target.startsWith("http") ? target : `${base()}${target}`;
   const line = `${method} ${url}`;
-  const headers = { Accept: "application/json" };
+  const headers = { Accept: "application/json", ...window.foodwellAuth.headers(url) };
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
   let response;
