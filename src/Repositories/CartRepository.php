@@ -61,7 +61,8 @@ final class CartRepository
     /** Customer -> reusable cart -> products (ascending ID at checkout) -> item writes. */
     private function withCart(int $customerId, bool $create, callable $operation): mixed
     {
-        $this->pdo->beginTransaction();
+        $ownsTransaction = !$this->pdo->inTransaction();
+        if ($ownsTransaction) { $this->pdo->beginTransaction(); }
         try {
             // This common first lock serializes cart edits, deactivation and checkout
             // when checkout adopts the same handoff protocol.
@@ -82,10 +83,10 @@ final class CartRepository
                 $cartId = (int) $this->pdo->lastInsertId();
             }
             $result = $operation($cartId);
-            $this->pdo->commit();
+            if ($ownsTransaction) { $this->pdo->commit(); }
             return $result;
         } catch (Throwable $error) {
-            if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
+            if ($this->pdo->inTransaction()) { if ($ownsTransaction) { $this->pdo->rollBack(); } }
             throw $error;
         }
     }

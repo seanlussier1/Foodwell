@@ -1,3 +1,5 @@
+> The main navigation opens Shop, Delivery and Account in one workspace. Staff and administrators also see Customers and Products. Sign in from Account; the session stays in memory while navigating and ends when the page is reloaded.
+
 # Customer dashboard (Lab 7 Part 4)
 
 The local synthetic checkout demonstration is at `/client/shop.html` (or `shop.html` on the separate client server). Enable `APP_CART_DEMO=1` and use an active customer ID. Browse and search products, add and update cart lines, optionally check a postal area and select an offered window, then enter an address and place an order. The confirmation reads the saved order back. Cart and order routes require loopback access; customer identity and ownership are not authenticated. Delivery-area lookup is advisory and does not validate the address. A selected window is rechecked for time and capacity at checkout.

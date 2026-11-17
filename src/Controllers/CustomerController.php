@@ -41,7 +41,6 @@ final class CustomerController
 
     public function show(array $params): void
     {
-        if (!$this->allowLocalDemo()) { return; }
         $id = $this->profileId($params);
         if ($id === null) { return; }
         $customer = $this->customers->findById($id);
@@ -54,7 +53,6 @@ final class CustomerController
 
     public function index(array $params = []): void
     {
-        if (!$this->allowLocalDemo()) { return; }
         $validated = CustomerCollection::validate($_GET);
         if ($validated['errors'] !== []) {
             Response::error(400, 'Invalid query parameters.', [], $validated['errors']);
@@ -82,7 +80,6 @@ final class CustomerController
 
     public function update(array $params): void
     {
-        if (!$this->allowLocalDemo()) { return; }
         $id = $this->profileId($params);
         if ($id === null) { return; }
         $input = $this->readJson();
@@ -111,7 +108,6 @@ final class CustomerController
     /** PATCH supports deactivation only, not arbitrary profile or role changes. */
     public function deactivate(array $params): void
     {
-        if (!$this->allowLocalDemo()) { return; }
         $id = $this->profileId($params);
         if ($id === null) { return; }
         $input = $this->readJson();
@@ -124,17 +120,6 @@ final class CustomerController
         if ($customer === null) { Response::error(404, 'Customer not found.'); return; }
         if (isset($customer['restricted'])) { Response::error(403, 'Only customer-role accounts can be deactivated here.'); return; }
         Response::json(200, $customer);
-    }
-
-    /** Until #45/#46, profile access is a deliberately local-only demonstration. */
-    private function allowLocalDemo(): bool
-    {
-        if (Env::get('APP_CUSTOMER_PROFILE_DEMO', '0') !== '1'
-            || !in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true)) {
-            Response::error(403, 'Customer profile demo is disabled. Authentication and permissions are not implemented yet.');
-            return false;
-        }
-        return true;
     }
 
     private function profileId(array $params): ?int

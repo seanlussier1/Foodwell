@@ -112,6 +112,7 @@ if (!is_file($autoload)) {
 require $autoload;
 
 use Foodwell\Controllers\AuthController;
+use Foodwell\Security\Authorization;
 use Foodwell\Controllers\ProductController;
 use Foodwell\Controllers\CustomerController;
 use Foodwell\Controllers\CartController;
@@ -151,7 +152,12 @@ if ($path === '/client' && !str_ends_with((string) parse_url($_SERVER['REQUEST_U
 $clientAssets = [
     '/client' => ['index.html', 'text/html; charset=utf-8'],
     '/client/index.html' => ['index.html', 'text/html; charset=utf-8'],
+    '/client/customers.html' => ['customers.html', 'text/html; charset=utf-8'],
+    '/client/signin.html' => ['signin.html', 'text/html; charset=utf-8'],
+    '/client/signin.js' => ['signin.js', 'text/javascript; charset=utf-8'],
+    '/client/shell.js' => ['shell.js', 'text/javascript; charset=utf-8'],
     '/client/styles.css' => ['styles.css', 'text/css; charset=utf-8'],
+    '/client/auth.js' => ['auth.js', 'text/javascript; charset=utf-8'],
     '/client/app.js' => ['app.js', 'text/javascript; charset=utf-8'],
     '/client/delivery.html' => ['delivery.html', 'text/html; charset=utf-8'],
     '/client/delivery.js' => ['delivery.js', 'text/javascript; charset=utf-8'],
@@ -186,36 +192,37 @@ try {
     );
 
     $auth = new AuthController(Database::connection());
+    $authorization = new Authorization(Database::connection());
     $router = new Router();
     $router->post(API_PREFIX . '/auth/sessions', [$auth, 'login']);
     $router->get(API_PREFIX . '/auth/sessions/current', [$auth, 'current']);
     $router->delete(API_PREFIX . '/auth/sessions/current', [$auth, 'logout']);
 
     $router->post(API_PREFIX . '/customers', [$customers, 'register']);
-    $router->get(API_PREFIX . '/customers', [$customers, 'index']);
-    $router->get(API_PREFIX . '/customers/{id}', [$customers, 'show']);
-    $router->put(API_PREFIX . '/customers/{id}', [$customers, 'update']);
-    $router->patch(API_PREFIX . '/customers/{id}', [$customers, 'deactivate']);
-    $router->get(API_PREFIX . '/customers/{id}/cart', [$carts, 'show']);
-    $router->post(API_PREFIX . '/customers/{id}/cart/items', [$carts, 'add']);
-    $router->put(API_PREFIX . '/customers/{id}/cart/items/{itemId}', [$carts, 'update']);
-    $router->delete(API_PREFIX . '/customers/{id}/cart/items/{itemId}', [$carts, 'remove']);
+    $router->get(API_PREFIX . '/customers', $authorization->protect([$customers, 'index'], 'staff'));
+    $router->get(API_PREFIX . '/customers/{id}', $authorization->protect([$customers, 'show'], 'owner'));
+    $router->put(API_PREFIX . '/customers/{id}', $authorization->protect([$customers, 'update'], 'owner'));
+    $router->patch(API_PREFIX . '/customers/{id}', $authorization->protect([$customers, 'deactivate'], 'staff'));
+    $router->get(API_PREFIX . '/customers/{id}/cart', $authorization->protect([$carts, 'show'], 'owner'));
+    $router->post(API_PREFIX . '/customers/{id}/cart/items', $authorization->protect([$carts, 'add'], 'owner'));
+    $router->put(API_PREFIX . '/customers/{id}/cart/items/{itemId}', $authorization->protect([$carts, 'update'], 'owner'));
+    $router->delete(API_PREFIX . '/customers/{id}/cart/items/{itemId}', $authorization->protect([$carts, 'remove'], 'owner'));
 
     $router->get(API_PREFIX . '/delivery-options', [$deliveryOptions, 'index']);
     $router->get(API_PREFIX . '/categories', [$categories, 'index']);
     $router->get(API_PREFIX . '/categories/{id}', [$categories, 'show']);
-    $router->post(API_PREFIX . '/categories', [$categories, 'store']);
-    $router->delete(API_PREFIX . '/categories/{id}', [$categories, 'destroy']);
-    $router->post(API_PREFIX . '/orders', [$orders, 'create']);
-    $router->get(API_PREFIX . '/orders/{id}', [$orders, 'show']);
+    $router->post(API_PREFIX . '/categories', $authorization->protect([$categories, 'store'], 'staff'));
+    $router->delete(API_PREFIX . '/categories/{id}', $authorization->protect([$categories, 'destroy'], 'staff'));
+    $router->post(API_PREFIX . '/orders', $authorization->protect([$orders, 'create'], 'checkout'));
+    $router->get(API_PREFIX . '/orders/{id}', $authorization->protect([$orders, 'show'], 'order'));
 
     $productFormats = [Negotiation::JSON, Negotiation::XML, Negotiation::YAML];
 
     $router->get(API_PREFIX . '/products', [$products, 'index'], $productFormats);
     $router->get(API_PREFIX . '/products/{id}', [$products, 'show'], $productFormats);
-    $router->post(API_PREFIX . '/products', [$products, 'store']);
-    $router->put(API_PREFIX . '/products/{id}', [$products, 'update']);
-    $router->delete(API_PREFIX . '/products/{id}', [$products, 'destroy']);
+    $router->post(API_PREFIX . '/products', $authorization->protect([$products, 'store'], 'staff'));
+    $router->put(API_PREFIX . '/products/{id}', $authorization->protect([$products, 'update'], 'staff'));
+    $router->delete(API_PREFIX . '/products/{id}', $authorization->protect([$products, 'destroy'], 'staff'));
 
     $router->dispatch($_SERVER['REQUEST_METHOD'], $path);
 } catch (Throwable $e) {
