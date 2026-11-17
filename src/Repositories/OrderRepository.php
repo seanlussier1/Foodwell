@@ -17,7 +17,8 @@ final class OrderRepository
         ?int $deliverySlotId = null,
         ?int $addressId = null
     ): array {
-        $this->pdo->beginTransaction();
+        $ownsTransaction = !$this->pdo->inTransaction();
+        if ($ownsTransaction) { $this->pdo->beginTransaction(); }
 
         try {
             // Lock the customer first, following the cart transaction protocol.
@@ -278,11 +279,11 @@ final class OrderRepository
             $clearCart->execute(['cart' => $cartId]);
 
             $savedOrder = $this->find($orderId);
-            $this->pdo->commit();
+            if ($ownsTransaction) { $this->pdo->commit(); }
             return $savedOrder;
         } catch (Throwable $error) {
             if ($this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
+                if ($ownsTransaction) { $this->pdo->rollBack(); }
             }
 
             throw $error;

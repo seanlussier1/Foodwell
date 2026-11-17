@@ -186,3 +186,8 @@ Set `AUTH_LIMITER_SECRET` to a unique, randomly generated secret of at least 32 
 The session endpoints do not secure existing customer, cart or order routes; authorization is tracked separately in #46.
 
 Run the isolated authentication checks with `php scripts/check-auth.php`; configure SCHEMA_TEST_HOST, SCHEMA_TEST_PORT, SCHEMA_TEST_USER and SCHEMA_TEST_PASS for a disposable MariaDB server. The test account needs permission to create and drop a randomly named test database.
+
+
+## Authorization (#46)
+
+Customer profile, cart, checkout and order detail routes require a valid bearer session and the documented owner or administrator rule. Customer listing, deactivation, product writes and category writes require staff or administrator. The former loopback demo flags do not bypass these checks. The existing browser demos and older local-demo test scripts do not yet send bearer tokens and must be updated before use. Run `php scripts/check-authorization.php` with the same disposable-database configuration as the authentication checks.

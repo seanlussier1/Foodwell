@@ -2,6 +2,8 @@
 
 Draft for Will and Mohamed to review, November 1, 2026. This file lists all 48 API operations and their intended access rules. Read the [security plan](SECURITY_DESIGN.md) for the full rules, explanations and implementation tasks. No endpoint or permission check is implemented by this document.
 
+**Implementation update (#46):** Current implemented customer, cart, checkout, order detail, product-write and category-write routes use bearer-session role and ownership checks. The remaining planned routes still require their owners to implement and test them.
+
 ## How to read the tables
 
 - **Who should be allowed:** the rule to enforce when Build 3 security is implemented.

@@ -20,10 +20,6 @@ final class CartController
 
     private function handle(string $operation, array $params): void
     {
-        if (Env::get('APP_CART_DEMO', '0') !== '1' || !in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true)) {
-            Response::error(403, 'Cart demo is disabled. Authentication and ownership enforcement remain planned.');
-            return;
-        }
         foreach ($params as $value) {
             if (filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 4294967295]]) === false) {
                 Response::error(404, 'Customer or cart item not found.');
