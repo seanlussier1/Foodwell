@@ -9,6 +9,7 @@ implement the planned API endpoints or authentication.
 | categories | Grocery categories; existing Build 1 fields unchanged |
 | products | Catalog, price and stock; existing Build 1 fields unchanged |
 | customers | Profile, unique email, password hash, customer/staff/admin role |
+| auth_login_limits | Shared login throttling counters |
 | auth_sessions | Hashed opaque session tokens, expiration and revocation |
 | carts | One reusable cart per customer |
 | cart_items | Product quantities; one row per product per cart |
@@ -19,12 +20,12 @@ implement the planned API endpoints or authentication.
 ## Installation
 
 **New or disposable development database:** `composer db:setup` uses `schema.sql`
-and the existing synthetic category/product seed. It drops **all 14 tables**
-before recreating them. The seed also includes 4 demo accounts (2 customers, staff and admin), 2 expired/revoked sessions, 2 carts, 2 cart items, 4 delivery slots, 5 orders covering every status, and 6 order lines. All demo accounts use password `FoodwellDemo!2026`, stored as a bcrypt hash. Login is not implemented yet. Never use these demo accounts in production. Future delivery windows are relative to the UTC import date. `--empty`
+and the existing synthetic category/product seed. It drops **all 15 tables**
+before recreating them. The seed also includes 4 demo accounts (2 customers, staff and admin), 2 expired/revoked sessions, 2 carts, 2 cart items, 4 delivery slots, 5 orders covering every status, and 6 order lines. All demo accounts use password `FoodwellDemo!2026`, stored as a bcrypt hash. Login requires AUTH_LIMITER_SECRET as described in the main README. Never use these demo accounts in production. Future delivery windows are relative to the UTC import date. `--empty`
 creates all tables without sample data.
 
 **Existing Build 1 database:** back it up, select it in your MariaDB client, then
-execute `database/migrations/002_full_project.sql`, then `database/migrations/003_project_expansion.sql`, once each. A nine-table database needs only migration 003. It creates only the seven
+execute `database/migrations/002_full_project.sql`, then `database/migrations/003_project_expansion.sql` and `database/migrations/004_auth_login_limits.sql`, once each. A nine-table database needs only migration 003. It creates only the seven
 new tables; it does not drop or alter categories or products. Do not run it after
 the full schema or rerun it: existing table names intentionally cause an error.
 MariaDB DDL implicitly commits, so restore from backup if a migration fails partway.
@@ -118,6 +119,6 @@ erDiagram
     customers o|--o{ order_status_events : acts
 ```
 
-Products now have is_active; new rows default to true. Existing product GET behavior is unchanged. Products with inventory history must be deactivated instead of deleted. Fresh schema/seed uses all 14 tables; migrations preserve existing records and add baseline events for old orders.
+Products now have is_active; new rows default to true. Existing product GET behavior is unchanged. Products with inventory history must be deactivated instead of deleted. Fresh schema/seed uses all 15 tables; migrations preserve existing records and add baseline events for old orders.
 
 See [the setup guide](../README.md) for install paths, actor/ownership rules and the application work still required. Aggregate capacity, stock transactions, permissions and append-only audit behavior are application responsibilities.

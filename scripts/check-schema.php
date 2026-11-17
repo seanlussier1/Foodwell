@@ -78,6 +78,7 @@ try {
     }
     verify((int) $pdo->query("SELECT COUNT(*) FROM order_status_events WHERE source='migration_baseline'")->fetchColumn() === 5,
         'Migration labels existing order states as baseline events');
+    $pdo->exec(file_get_contents($root . '/database/migrations/004_auth_login_limits.sql'));
     $upgraded = definitions($pdo);
     $pdo->exec($schema);
     verify(definitions($pdo) === $upgraded, 'Fresh and migrated table definitions agree');
@@ -195,7 +196,7 @@ try {
     verify($line['product_id'] === null && $line['product_name'] === 'Whole Milk 2L'
         && $line['unit_price'] === '4.99', 'Purchased details survive catalog deletion');
     $pdo->exec($schema);
-    verify(count($pdo->query('SHOW TABLES')->fetchAll()) === 14,
+    verify(count($pdo->query('SHOW TABLES')->fetchAll()) === 15,
         'Development reset succeeds with related order and customer records');
     verify((int) $pdo->query('SELECT COUNT(*) FROM products')->fetchColumn() === 0,
         'Schema-only empty fixture remains supported');
