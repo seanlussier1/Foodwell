@@ -73,7 +73,8 @@ final class CategoryRepository
      */
     public function delete(int $id): ?array
     {
-        $this->pdo->beginTransaction();
+        $ownsTransaction = !$this->pdo->inTransaction();
+        if ($ownsTransaction) { $this->pdo->beginTransaction(); }
 
         try {
             $stmt = $this->pdo->prepare(
@@ -83,7 +84,7 @@ final class CategoryRepository
             $row = $stmt->fetch();
 
             if ($row === false) {
-                $this->pdo->rollBack();
+                if ($ownsTransaction) { $this->pdo->rollBack(); }
                 return null;
             }
 
@@ -93,7 +94,7 @@ final class CategoryRepository
             $stmt->execute(['id' => $id]);
 
             if ((int) $stmt->fetchColumn() > 0) {
-                $this->pdo->rollBack();
+                if ($ownsTransaction) { $this->pdo->rollBack(); }
                 return ['inUse' => true];
             }
 
@@ -107,12 +108,12 @@ final class CategoryRepository
                 'name' => $row['name'],
             ];
 
-            $this->pdo->commit();
+            if ($ownsTransaction) { $this->pdo->commit(); }
 
             return $category;
         } catch (\Throwable $e) {
             if ($this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
+                if ($ownsTransaction) { $this->pdo->rollBack(); }
             }
 
             throw $e;

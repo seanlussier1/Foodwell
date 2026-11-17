@@ -15,15 +15,7 @@ final class OrderController
 
     public function create(array $params): void
     {
-        if (!$this->demoEnabled()) {
-            Response::error(
-                403,
-                'Order demo is disabled. Authentication and ownership enforcement remain planned.'
-            );
-            return;
-        }
-
-        $input = $this->readInput();
+$input = $this->readInput();
 
         if ($input === null) {
             return;
@@ -45,15 +37,7 @@ final class OrderController
 
     public function show(array $params): void
     {
-        if (!$this->demoEnabled()) {
-            Response::error(
-                403,
-                'Order demo is disabled. Authentication and ownership enforcement remain planned.'
-            );
-            return;
-        }
-
-        $id = filter_var(
+$id = filter_var(
             $params['id'] ?? null,
             FILTER_VALIDATE_INT,
             ['options' => ['min_range' => 1, 'max_range' => 4294967295]]
@@ -69,16 +53,6 @@ final class OrderController
         } catch (OrderException $error) {
             Response::error($error->statusCode, $error->getMessage());
         }
-    }
-
-    private function demoEnabled(): bool
-    {
-        return Env::get('APP_CART_DEMO', '0') === '1'
-            && in_array(
-                $_SERVER['REMOTE_ADDR'] ?? '',
-                ['127.0.0.1', '::1'],
-                true
-            );
     }
 
     private function readInput(): ?array

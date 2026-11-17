@@ -261,8 +261,8 @@ paths:
       security:
       - BearerSession: []
       x-access: staff_or_admin
-      x-current-access: public
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
   /products/{id}:
     parameters:
     - $ref: '#/components/parameters/ProductId'
@@ -409,8 +409,8 @@ paths:
       security:
       - BearerSession: []
       x-access: staff_or_admin
-      x-current-access: public
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
     delete:
       tags:
       - implemented
@@ -450,8 +450,8 @@ paths:
       security:
       - BearerSession: []
       x-access: staff_or_admin
-      x-current-access: public
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
   /categories:
     get:
       tags:
@@ -531,8 +531,8 @@ paths:
       security:
       - BearerSession: []
       x-access: staff_or_admin
-      x-current-access: public
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
       x-security-note: 'Current category writes have no authentication/role checks. Staff/admin
         permission is intended under #46; controlled local synthetic development only until
         enforced.'
@@ -611,8 +611,8 @@ paths:
       security:
       - BearerSession: []
       x-access: staff_or_admin
-      x-current-access: public
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
       x-security-note: 'Current category writes have no authentication/role checks. Staff/admin
         permission is intended under #46; controlled local synthetic development only until
         enforced.'
@@ -765,8 +765,8 @@ paths:
           $ref: '#/components/responses/NotAcceptable'
         '500':
           $ref: '#/components/responses/ServerError'
-      x-current-access: local-demo-only
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
   /customers/{id}:
     parameters:
     - in: path
@@ -811,8 +811,8 @@ paths:
         returns 403. This is a local synthetic-data demo without authentication; owner/admin
         session enforcement is planned under #45/#46. BearerSession below documents the intended
         future access contract, not implemented security.'
-      x-current-access: local-demo-only
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
     put:
       tags:
       - implemented
@@ -896,8 +896,8 @@ paths:
         future access contract, not implemented security. Replaces profile fields; omitted
         address/phone become null. Password, role and activation cannot be changed. Missing
         required fields are invalid.'
-      x-current-access: local-demo-only
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
     patch:
       tags:
       - implemented
@@ -972,8 +972,8 @@ paths:
           $ref: '#/components/responses/NotAcceptable'
         '500':
           $ref: '#/components/responses/ServerError'
-      x-current-access: local-demo-only
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
   /customers/{id}/cart:
     get:
       tags:
@@ -1000,7 +1000,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Local demo disabled, non-loopback caller, or target account inactive/non-customer
+          description: Forbidden role or inactive/non-customer target
           content:
             application/json:
               schema:
@@ -1013,14 +1013,9 @@ paths:
       security:
       - BearerSession: []
       x-access: owner_or_admin
-      x-current-access: local-demo-only
-      x-security-enforcement: planned
-      description: 'Requires APP_CART_DEMO=1 and a loopback client address. This is not authentication
-        or owner/admin enforcement. The path customer must exist, be active and have the customer
-        role. All cart-item IDs are scoped to that customer cart. Prices/subtotals are server-calculated
-        from the current catalog; cart edits do not reserve stock. Session ownership checks
-        remain #45/#46 work. GET is read-only. An account without a persisted cart receives
-        an empty cart with id=null; no cart row is created.'
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
+      description: 'Requires an active bearer session with the owner or administrator permission.'
   /customers/{id}/cart/items:
     post:
       tags:
@@ -1054,7 +1049,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Local demo disabled, non-loopback caller, or target account inactive/non-customer
+          description: Forbidden role or inactive/non-customer target
           content:
             application/json:
               schema:
@@ -1111,15 +1106,9 @@ paths:
       security:
       - BearerSession: []
       x-access: owner_or_admin
-      x-current-access: local-demo-only
-      x-security-enforcement: planned
-      description: 'Requires APP_CART_DEMO=1 and a loopback client address. This is not authentication
-        or owner/admin enforcement. The path customer must exist, be active and have the customer
-        role. All cart-item IDs are scoped to that customer cart. Prices/subtotals are server-calculated
-        from the current catalog; cart edits do not reserve stock. Session ownership checks
-        remain #45/#46 work. POST adds quantity to an existing line; the combined quantity
-        must pass stock checks. POST is not idempotent and must not be blindly retried after
-        an uncertain response.'
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
+      description: 'Requires an active bearer session with the owner or administrator permission.'
   /customers/{id}/cart/items/{itemId}:
     parameters:
     - in: path
@@ -1157,7 +1146,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Local demo disabled, non-loopback caller, or target account inactive/non-customer
+          description: Forbidden role or inactive/non-customer target
           content:
             application/json:
               schema:
@@ -1209,14 +1198,9 @@ paths:
       security:
       - BearerSession: []
       x-access: owner_or_admin
-      x-current-access: local-demo-only
-      x-security-enforcement: planned
-      description: 'Requires APP_CART_DEMO=1 and a loopback client address. This is not authentication
-        or owner/admin enforcement. The path customer must exist, be active and have the customer
-        role. All cart-item IDs are scoped to that customer cart. Prices/subtotals are server-calculated
-        from the current catalog; cart edits do not reserve stock. Session ownership checks
-        remain #45/#46 work. PUT replaces the line quantity; it cannot change the product.
-        Repeating an unchanged valid PUT succeeds.'
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
+      description: 'Requires an active bearer session with the owner or administrator permission.'
     delete:
       tags:
       - implemented
@@ -1232,7 +1216,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Local demo disabled, non-loopback caller, or target account inactive/non-customer
+          description: Forbidden role or inactive/non-customer target
           content:
             application/json:
               schema:
@@ -1245,15 +1229,9 @@ paths:
       security:
       - BearerSession: []
       x-access: owner_or_admin
-      x-current-access: local-demo-only
-      x-security-enforcement: planned
-      description: 'Requires APP_CART_DEMO=1 and a loopback client address. This is not authentication
-        or owner/admin enforcement. The path customer must exist, be active and have the customer
-        role. All cart-item IDs are scoped to that customer cart. Prices/subtotals are server-calculated
-        from the current catalog; cart edits do not reserve stock. Session ownership checks
-        remain #45/#46 work. DELETE returns 204 without a response body. Repeating removal
-        of a missing item returns 404. Inactive/out-of-stock product lines may still be removed.
-        An emptied cart row is retained for reuse.'
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
+      description: 'Requires an active bearer session with the owner or administrator permission.'
   /orders:
     post:
       tags:
@@ -1334,8 +1312,8 @@ paths:
       security:
       - BearerSession: []
       x-access: owner_or_admin
-      x-current-access: local-demo-only
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
   /orders/{id}:
     parameters:
     - in: path
@@ -1388,8 +1366,8 @@ paths:
       security:
       - BearerSession: []
       x-access: owner_or_admin
-      x-current-access: local-demo-only
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
     patch:
       tags:
       - planned
