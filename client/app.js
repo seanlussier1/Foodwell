@@ -5,7 +5,7 @@ let pendingList = 0;
 let listAbort;
 const apachePrefix = location.pathname.includes('/client') ? location.pathname.split('/client')[0] : '';
 const defaultApi = location.port === '8081' ? 'http://localhost/foodwell-api/api/v1' : `${location.origin}${apachePrefix}/api/v1`;
-$('api-url').value = defaultApi;
+$('api-url').value = window.foodwellAuth.base();
 
 function feedback(title, error = false, details = {}) {
   $('feedback').hidden = false;
@@ -25,6 +25,7 @@ function base() {
 }
 async function request(path, { method = 'GET', body, signal } = {}) {
   const headers = { Accept: 'application/json' };
+  Object.assign(headers, window.foodwellAuth.headers(base() + path));
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   let response;
   try { response = await fetch(`${base()}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal }); }
@@ -69,6 +70,7 @@ async function loadCustomers(lastPage = false) {
       const actions = document.createElement('div'); actions.className = 'row-actions';
       const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'secondary'; edit.textContent = 'Edit'; edit.setAttribute('aria-label', `Edit ${customer.firstName} ${customer.lastName}`); edit.onclick = () => editCustomer(customer);
       const deactivate = document.createElement('button'); deactivate.type = 'button'; deactivate.className = 'deactivate'; deactivate.textContent = customer.isActive ? 'Deactivate' : 'Deactivated'; deactivate.disabled = !customer.isActive; deactivate.setAttribute('aria-label', `Deactivate ${customer.firstName} ${customer.lastName}`); deactivate.onclick = () => deactivateCustomer(customer, deactivate);
+      if (window.foodwellAuth.customer()?.role !== 'admin') edit.hidden = true;
       actions.append(edit, deactivate); row.insertCell().append(actions); $('customers').append(row);
     }
     if (!result.data.length) { const row = document.createElement('tr'); const cell = row.insertCell(); cell.colSpan = 3; cell.className = 'empty-state'; cell.textContent = 'No customers match these filters.'; $('customers').append(row); }
@@ -129,3 +131,5 @@ $('new-customer').onclick = () => { resetForm(); $('feedback').hidden = true; $(
 $('cancel-edit').onclick = resetForm;
 $('connection-form').addEventListener('submit', (event) => { event.preventDefault(); resetForm(); $('feedback').hidden = true; state.page = 1; loadCustomers(); });
 loadCustomers();
+
+window.addEventListener('foodwell-auth-change', () => loadCustomers());

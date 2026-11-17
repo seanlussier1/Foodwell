@@ -14,3 +14,7 @@ label.check{display:flex;gap:8px;align-items:center;font-weight:400;color:#65786
 .format-preview pre{background:#f4f6f1;border:1px solid var(--border);border-radius:6px;padding:12px;font-size:11px;max-height:260px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:1050px){.product-filters{grid-template-columns:1fr 1fr}}
 @media(max-width:760px){.masthead{flex-wrap:wrap;gap:10px 16px}.top-nav{order:3;width:100%;gap:16px}}
+/* One navigation remains visible while the current workspace is loaded. */
+.page-frame{display:block;width:100%;border:0;min-height:500px}.embedded body>header{display:none}.embedded main{padding-top:28px}.shell-status{max-width:1440px;margin:auto;padding:0 42px;color:#61776a;font-size:12px}.shell-status:not(:empty){padding-top:10px}.signin-panel{max-width:460px}.signin-panel label{margin:15px 0}.top-nav [aria-current=page]{font-weight:750;color:#174a37;text-decoration:underline;text-underline-offset:7px}@media(max-width:700px){.masthead{align-items:flex-start;gap:14px;flex-direction:column;padding:20px}.top-nav{display:flex;flex-wrap:wrap;gap:12px}.shell-status{padding-left:20px;padding-right:20px}}
+
+[hidden]{display:none !important}

@@ -152,7 +152,12 @@ if ($path === '/client' && !str_ends_with((string) parse_url($_SERVER['REQUEST_U
 $clientAssets = [
     '/client' => ['index.html', 'text/html; charset=utf-8'],
     '/client/index.html' => ['index.html', 'text/html; charset=utf-8'],
+    '/client/customers.html' => ['customers.html', 'text/html; charset=utf-8'],
+    '/client/signin.html' => ['signin.html', 'text/html; charset=utf-8'],
+    '/client/signin.js' => ['signin.js', 'text/javascript; charset=utf-8'],
+    '/client/shell.js' => ['shell.js', 'text/javascript; charset=utf-8'],
     '/client/styles.css' => ['styles.css', 'text/css; charset=utf-8'],
+    '/client/auth.js' => ['auth.js', 'text/javascript; charset=utf-8'],
     '/client/app.js' => ['app.js', 'text/javascript; charset=utf-8'],
     '/client/delivery.html' => ['delivery.html', 'text/html; charset=utf-8'],
     '/client/delivery.js' => ['delivery.js', 'text/javascript; charset=utf-8'],
