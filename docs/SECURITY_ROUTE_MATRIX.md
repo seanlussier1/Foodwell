@@ -93,9 +93,9 @@ Resource owner: **Mohamed**.
 
 | POST | `/orders` | Owner or administrator | Not implemented yet | Verify customerId against the caller; check cart and address ownership. |
 | GET | `/orders/{id}` | Owner or administrator | Not implemented yet | Staff access to full order details is not currently agreed; Mohamed must confirm. |
-| PATCH | `/orders/{id}` | Staff or administrator | Not implemented yet | Get the order owner from the database; record the signed-in actor on status changes. |
-| GET | `/customers/{id}/orders` | Owner or administrator | Not implemented yet | Check the listed role; get the acting account from its session. |
-| GET | `/orders/{id}/status-events` | Owner, staff or administrator | Not implemented yet | Get the order owner from the database; record the signed-in actor on status changes. |
+| PATCH | `/orders/{id}` | Staff or administrator | Bearer session enforced | Record the signed-in actor on each status change. |
+| GET | `/customers/{id}/orders` | Owner or administrator | Bearer session enforced | Match the requested customer to the signed-in account for owner access. |
+| GET | `/orders/{id}/status-events` | Owner, staff or administrator | Bearer session enforced | Resolve ownership from the stored order. |
 
 
 ## Delivery slots

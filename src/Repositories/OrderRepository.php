@@ -9,7 +9,152 @@ use Foodwell\Http\OrderException;
 
 final class OrderRepository
 {
+    private const TRANSITIONS = [
+        'pending' => ['packed', 'cancelled'],
+        'packed' => ['out_for_delivery', 'cancelled'],
+        'out_for_delivery' => ['delivered'],
+        'delivered' => [],
+        'cancelled' => [],
+    ];
+
     public function __construct(private PDO $pdo) {}
+
+    public static function isStatus(string $status): bool
+    {
+        return isset(self::TRANSITIONS[$status]);
+    }
+
+    public function updateStatus(int $orderId, string $status, int $actorId): array
+    {
+        $ownsTransaction = !$this->pdo->inTransaction();
+        if ($ownsTransaction) {
+            $this->pdo->beginTransaction();
+        }
+
+        try {
+            $lookup = $this->pdo->prepare('SELECT delivery_slot_id FROM orders WHERE id = ?');
+            $lookup->execute([$orderId]);
+            $slotId = $lookup->fetchColumn();
+            if ($slotId === false) {
+                throw new OrderException(404, 'Order not found.');
+            }
+
+            // Match checkout's product -> slot -> order lock order.
+            if ($status === 'cancelled') {
+                $items = $this->pdo->prepare(
+                    'SELECT product_id, quantity FROM order_items WHERE order_id = ?
+                     ORDER BY product_id, id'
+                );
+                $items->execute([$orderId]);
+                $lines = $items->fetchAll();
+                $lockProduct = $this->pdo->prepare('SELECT id FROM products WHERE id = ? FOR UPDATE');
+                $hasMissingProduct = false;
+                foreach ($lines as $line) {
+                    $lockProduct->execute([$line['product_id']]);
+                    if ($lockProduct->fetchColumn() === false) {
+                        $hasMissingProduct = true;
+                    }
+                }
+            }
+            if ($slotId !== null) {
+                $lockSlot = $this->pdo->prepare('SELECT id FROM delivery_slots WHERE id = ? FOR UPDATE');
+                $lockSlot->execute([$slotId]);
+                $lockSlot->fetchColumn();
+            }
+            $current = $this->pdo->prepare('SELECT status FROM orders WHERE id = ? FOR UPDATE');
+            $current->execute([$orderId]);
+            $previous = $current->fetchColumn();
+            if ($previous === false) {
+                throw new OrderException(404, 'Order not found.');
+            }
+
+            if ($previous !== $status) {
+                if (!in_array($status, self::TRANSITIONS[$previous], true)) {
+                    throw new OrderException(409, "Cannot change order status from $previous to $status.");
+                }
+                if ($status === 'cancelled') {
+                    if ($hasMissingProduct) {
+                        throw new OrderException(409, 'Stock cannot be restored for a deleted product.');
+                    }
+                    $restore = $this->pdo->prepare('UPDATE products SET stock = stock + ? WHERE id = ?');
+                    foreach ($lines as $line) {
+                        $restore->execute([$line['quantity'], $line['product_id']]);
+                    }
+                }
+
+                // Capacity is derived from non-cancelled orders under the slot lock.
+                $update = $this->pdo->prepare('UPDATE orders SET status = ? WHERE id = ?');
+                $update->execute([$status, $orderId]);
+                $event = $this->pdo->prepare(
+                    'INSERT INTO order_status_events (order_id, previous_status, new_status, changed_by)
+                     VALUES (?, ?, ?, ?)'
+                );
+                $event->execute([$orderId, $previous, $status, $actorId]);
+            }
+
+            $order = $this->find($orderId);
+            // An idempotent retry may have started before the other writer committed.
+            $order['status'] = $status;
+            if ($ownsTransaction) {
+                $this->pdo->commit();
+            }
+            return $order;
+        } catch (Throwable $error) {
+            if ($ownsTransaction && $this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
+    public function listForCustomer(int $customerId, ?string $status, int $page, int $limit): array
+    {
+        $customer = $this->pdo->prepare('SELECT id FROM customers WHERE id = ?');
+        $customer->execute([$customerId]);
+        if ($customer->fetchColumn() === false) {
+            throw new OrderException(404, 'Customer not found.');
+        }
+
+        $sql = 'SELECT id, customer_id, delivery_slot_id, status, total, delivery_address, created_at
+                FROM orders WHERE customer_id = :customer';
+        if ($status !== null) {
+            $sql .= ' AND status = :status';
+        }
+        $query = $this->pdo->prepare($sql . ' ORDER BY created_at DESC, id DESC LIMIT :limit OFFSET :offset');
+        $query->bindValue('customer', $customerId, PDO::PARAM_INT);
+        if ($status !== null) {
+            $query->bindValue('status', $status);
+        }
+        $query->bindValue('limit', $limit, PDO::PARAM_INT);
+        $query->bindValue('offset', ($page - 1) * $limit, PDO::PARAM_INT);
+        $query->execute();
+
+        return array_map($this->formatOrder(...), $query->fetchAll());
+    }
+
+    public function listStatusEvents(int $orderId, int $page, int $limit): array
+    {
+        $query = $this->pdo->prepare(
+            'SELECT id, previous_status, new_status, changed_by, source,
+                    UNIX_TIMESTAMP(created_at) AS created_epoch
+             FROM order_status_events WHERE order_id = :order
+             ORDER BY created_at ASC, id ASC LIMIT :limit OFFSET :offset'
+        );
+        $query->bindValue('order', $orderId, PDO::PARAM_INT);
+        $query->bindValue('limit', $limit, PDO::PARAM_INT);
+        $query->bindValue('offset', ($page - 1) * $limit, PDO::PARAM_INT);
+        $query->execute();
+
+        return array_map(static fn (array $event): array => [
+            'id' => (int) $event['id'],
+            'orderId' => $orderId,
+            'previousStatus' => $event['previous_status'],
+            'newStatus' => $event['new_status'],
+            'changedBy' => $event['changed_by'] === null ? null : (int) $event['changed_by'],
+            'source' => $event['source'],
+            'createdAt' => gmdate(DATE_ATOM, (int) $event['created_epoch']),
+        ], $query->fetchAll());
+    }
 
     public function create(
         int $customerId,
@@ -305,13 +450,18 @@ final class OrderRepository
             throw new OrderException(404, 'Order not found.');
         }
 
+        return $this->formatOrder($order);
+    }
+
+    private function formatOrder(array $order): array
+    {
         $itemsQuery = $this->pdo->prepare(
             'SELECT product_id, product_name, unit, quantity, unit_price
              FROM order_items
              WHERE order_id = :order
              ORDER BY id ASC'
         );
-        $itemsQuery->execute(['order' => $orderId]);
+        $itemsQuery->execute(['order' => $order['id']]);
 
         $items = [];
 

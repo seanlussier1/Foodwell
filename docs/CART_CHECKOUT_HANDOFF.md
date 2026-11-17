@@ -36,7 +36,9 @@ Each CartRepository operation starts a transaction and obtains these locks in or
 3. The affected product row with FOR UPDATE for an addition/quantity change.
 4. Write the scoped cart item and update the cart timestamp; commit the response state.
 
-All operations changing the same customer's cart must take the customer/cart locks first. This serializes cart edits even when no cart row existed initially. A checkout transaction must follow that protocol so edits cannot arrive between its cart read and clear. If multiple product rows are needed, lock them in ascending product ID order. If slots are used, agree their place before product locks and keep checkout/cancellation consistent; Mohamed must confirm the broader order/slot lock sequence as part of #36/#50.
+All operations changing the same customer's cart take the customer/cart locks first. This serializes cart edits even when no cart row existed initially. Checkout uses the same protocol so edits cannot arrive between its cart read and clear.
+
+Checkout and cancellation lock products in ascending ID order, then the delivery slot, then the order rows. Slot availability comes from the number of non-cancelled orders. Slot mutations in #39 that inspect bookings should lock the slot row before reading or locking those bookings.
 
 CartRepository methods manage their own transactions. **Do not call get/add/update/remove inside an already-started checkout transaction**, and do not call cart HTTP endpoints from checkout. Mohamed should perform the checkout SQL on one shared PDO connection inside one checkout transaction, using the same locking protocol.
 
@@ -44,7 +46,7 @@ CartRepository methods manage their own transactions. **Do not call get/add/upda
 
 1. Resolve the intended caller/customer according to the applicable security stage. In the final secured version, derive the caller from its validated session and enforce the reviewed permission rules; a supplied customerId is not proof of identity.
 2. Begin one transaction. Lock/check the active customer and reusable cart, then read its items. Reject a nonexistent/empty cart without creating an order or clearing data.
-3. Lock any selected slot in the agreed global order and verify active window/capacity. Lock all required products in ascending ID order; recheck existence, activation and stock against each cart quantity. Failure leaves all records unchanged.
+3. Lock the required products in ascending ID order and recheck existence, activation and stock against each cart quantity. Then lock the selected slot, if any, and verify its active window and capacity against current bookings. Failure leaves all records unchanged.
 4. Compute current unit prices and total with database DECIMAL or checked integer cents. Validate/copy the customer's selected address, or the accepted delivery-address input; later address edits must not change the order.
 5. Create the order and order-item purchase snapshots, decrement stock, record the initial status event and book slot capacity as applicable. Keep these writes in the same transaction.
 6. Delete only this cart's items; retain the reusable cart row. Commit after every step succeeds. Any failure must roll everything back, including stock, order lines, history, capacity and cart clearing.

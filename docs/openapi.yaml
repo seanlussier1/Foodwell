@@ -1370,15 +1370,22 @@ paths:
       x-security-enforcement: enforced
     patch:
       tags:
-      - planned
-      x-status: planned
-      summary: Update an order's status (Build 2)
+      - Order history
+      x-status: implemented
+      summary: Update an order's status
+      description: >
+        Pending orders may be packed or cancelled. Packed orders may go out for delivery
+        or be cancelled. Orders out for delivery may be delivered. Delivered and cancelled
+        are terminal. Sending the current status again returns the current order without
+        creating an event. Cancellation restores stock and releases slot capacity in the
+        same transaction as the status change and event.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required:
               - status
               properties:
@@ -1386,7 +1393,13 @@ paths:
                   $ref: '#/components/schemas/OrderStatus'
       responses:
         '200':
-          description: Status updated
+          description: Current order after the requested status change
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: Malformed JSON or a body that is not a JSON object
         '404':
           description: Order not found
         '401':
@@ -1401,18 +1414,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '409':
+          description: Invalid transition or stock cannot be restored for a deleted product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: Content-Type must be application/json
+        '422':
+          description: Invalid or missing status, or unexpected request fields
       operationId: patch__orders__id_
       security:
       - BearerSession: []
       x-access: staff_or_admin
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
   /customers/{id}/orders:
     get:
       tags:
-      - planned
-      x-status: planned
-      summary: Get a customer's order history (Build 2)
+      - Order history
+      x-status: implemented
+      summary: Get a customer's order history
+      description: Orders are sorted newest first, with descending order ID breaking timestamp ties.
       parameters:
       - in: path
         name: id
@@ -1422,12 +1446,21 @@ paths:
       - in: query
         name: status
         schema:
-          type: string
+          $ref: '#/components/schemas/OrderStatus'
       - in: query
         name: page
         schema:
           type: integer
+          minimum: 1
+          maximum: 4294967295
           default: 1
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
       responses:
         '200':
           description: The customer's orders
@@ -1437,6 +1470,10 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Order'
+        '400':
+          description: Invalid filter or pagination
+        '404':
+          description: Customer not found
         '401':
           description: Authentication required
           content:
@@ -1453,8 +1490,8 @@ paths:
       security:
       - BearerSession: []
       x-access: owner_or_admin
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
   /delivery-slots:
     get:
       tags:
@@ -2682,9 +2719,8 @@ paths:
   /orders/{id}/status-events:
     get:
       tags:
-      - planned
       - Order history
-      x-status: planned
+      x-status: implemented
       operationId: get__orders__id__status_events
       summary: List immutable order status events
       x-access: owner_or_staff_or_admin
@@ -2709,12 +2745,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '409':
-          description: Resource conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '401':
           description: Missing, expired, revoked or invalid session
           content:
@@ -2733,6 +2763,7 @@ paths:
         schema:
           type: integer
           minimum: 1
+          maximum: 4294967295
           default: 1
       - in: query
         name: limit
@@ -2741,10 +2772,12 @@ paths:
           minimum: 1
           default: 20
           maximum: 100
-      description: Planned bounded pagination, ordered by a stable identifier. Access is checked
-        before rows are returned.
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+      description: >
+        Events are sorted oldest first, with ascending event ID breaking timestamp ties.
+        For existing orders, a migration_baseline event records the status known at
+        migration time. Its previous status and actor are null.
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
     parameters:
     - in: path
       name: id
