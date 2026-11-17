@@ -20,12 +20,15 @@ async function checkDelivery(event) {
   if (!/^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z] ?\d[ABCEGHJ-NPRSTV-Z]\d$/.test(code)) {
     deliveryFeedback('Enter a Canadian postal code such as H3N 1X1. No request was sent.', true); return;
   }
-  lookupAbort = new AbortController(); deliveryElement('check-delivery').disabled = true;
+  const controller = new AbortController();
+  lookupAbort = controller;
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  deliveryElement('check-delivery').disabled = true;
   deliveryFeedback('Checking the postal area and Foodwell availability…');
   try {
     const url = new URL(deliveryElement('delivery-api').value.trim());
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error('Use a valid HTTP API base URL without credentials, query or fragment.');
-    const response = await fetch(`${url.href.replace(/\/$/, '')}/delivery-options?postalCode=${encodeURIComponent(code)}`, { headers: { Accept: 'application/json' }, signal: lookupAbort.signal });
+    const response = await fetch(`${url.href.replace(/\/$/, '')}/delivery-options?postalCode=${encodeURIComponent(code)}`, { headers: { Accept: 'application/json' }, signal: controller.signal });
     const result = await response.json();
     if (current !== lookupSequence) return;
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${result.error?.message || 'The request failed.'}`);
@@ -47,8 +50,17 @@ async function checkDelivery(event) {
     const warnings = result.warnings.map((warning) => warning.message).join(' ');
     deliveryFeedback(warnings || 'Lookup complete. No booking has been made.', result.status === 'partial' || result.area.source === 'demo');
   } catch (error) {
-    if (error.name !== 'AbortError' && current === lookupSequence) deliveryFeedback(error.message.startsWith('HTTP') ? error.message : 'Unable to load delivery options. Check the API connection and try again.', true);
-  } finally { if (current === lookupSequence) deliveryElement('check-delivery').disabled = false; }
+    if (current === lookupSequence) {
+      if (error.name === 'AbortError') {
+        deliveryFeedback('The delivery lookup timed out. Try again in a moment.', true);
+      } else {
+        deliveryFeedback(error.message.startsWith('HTTP') ? error.message : 'Unable to load delivery options. Check the API connection and try again.', true);
+      }
+    }
+  } finally {
+    clearTimeout(timeout);
+    if (current === lookupSequence) deliveryElement('check-delivery').disabled = false;
+  }
 }
 deliveryElement('postal-form').addEventListener('submit', checkDelivery);
 deliveryElement('delivery-connection').addEventListener('submit', (event) => { event.preventDefault(); lookupSequence++; lookupAbort?.abort(); deliveryElement('check-delivery').disabled = false; deliveryFeedback('Connection updated. Check your postal code to load options.'); deliveryElement('delivery-result').replaceChildren(); });

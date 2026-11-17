@@ -2800,9 +2800,14 @@ paths:
         plus Foodwell configured service prefixes and future active slots with remaining capacity.
         Only the first three characters are sent externally. Full-address/full-code validity
         is not verified. No booking is made. Provider failures/unknown coverage return 200
-        with status=partial, eligible=null and no offered slots. Input errors return 400.
-        area.source identifies live, cached or explicit local-demo data. See DELIVERY_AREA_INTEGRATION.md
-        for attribution, bounded requests, caching, configuration and PHP/JS consumer coverage.'
+        with status=partial, eligible=null and no offered slots instead of passing through
+        upstream 502/503 responses. Input errors return 400. The upstream lookup shares a
+        five-second budget across at most two attempts, with at most two seconds to connect
+        per attempt. Only transient connection failures and upstream 500, 502, 503 or 504
+        responses without Retry-After can be retried. Timeouts, quota responses and invalid
+        payloads are not retried. Fallback logs correlate with X-Request-ID and omit postal
+        data, provider bodies and credentials. See DELIVERY_AREA_INTEGRATION.md for the
+        cache, configuration, source labels and PHP/JS consumer coverage.'
       parameters:
       - in: query
         name: postalCode
@@ -2822,6 +2827,10 @@ paths:
               schema:
                 type: string
                 example: no-store
+            X-Request-ID:
+              description: Correlation ID for fallback diagnostics.
+              schema:
+                type: string
           content:
             application/json:
               schema:

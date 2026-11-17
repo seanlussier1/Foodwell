@@ -60,6 +60,13 @@ final class DeliveryOptionController
             $slots = $eligible ? $this->slots->available() : [];
             $response['delivery'] = ['eligible' => $eligible, 'status' => !$eligible ? 'outside-area' : ($slots === [] ? 'no-slots' : 'available'), 'slots' => $slots, 'bookingConfirmed' => false];
         } catch (PostalLookupException $error) {
+            error_log(json_encode([
+                'level' => 'warning',
+                'event' => 'postal_lookup_fallback',
+                'requestId' => $_SERVER['FOODWELL_REQUEST_ID'] ?? null,
+                'reason' => $error->reason,
+                'source' => $lookupSource,
+            ]));
             $response['status'] = 'partial';
             $response['area']['lookupStatus'] = $error->reason === 'not-found' ? 'not-found' : 'unavailable';
             $response['area']['source'] = $lookupSource;
