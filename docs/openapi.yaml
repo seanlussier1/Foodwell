@@ -1636,9 +1636,8 @@ paths:
   /auth/sessions:
     post:
       tags:
-      - planned
       - Sessions
-      x-status: planned
+      x-status: implemented
       operationId: post__auth_sessions
       summary: Log in and create a session
       x-access: public
@@ -1674,8 +1673,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '503':
+          description: Authentication is unavailable due to missing configuration
         '429':
           description: Too many login attempts
+          headers:
+            Retry-After:
+              description: Seconds until the limit resets
+              schema:
+                type: integer
           content:
             application/json:
               schema:
@@ -1686,15 +1692,14 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/LoginInput'
-      x-current-access: not-implemented
+      x-current-access: public
       x-security-enforcement: not-required
     parameters: []
   /auth/sessions/current:
     get:
       tags:
-      - planned
       - Sessions
-      x-status: planned
+      x-status: implemented
       operationId: get__auth_sessions_current
       summary: Read current identity and expiry
       x-access: authenticated
@@ -1737,14 +1742,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+      x-current-access: authenticated
+      x-security-enforcement: enforced
     parameters: []
     delete:
       tags:
-      - planned
       - Sessions
-      x-status: planned
+      x-status: implemented
       operationId: delete__auth_sessions_current
       summary: Revoke current session
       x-access: authenticated
@@ -1783,8 +1787,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+      x-current-access: authenticated
+      x-security-enforcement: enforced
   /customers/{id}/addresses:
     get:
       tags:
@@ -4183,9 +4187,9 @@ components:
     BearerSession:
       type: http
       scheme: bearer
-      description: Planned opaque 256-bit random bearer session; only the SHA-256 token digest
-        is stored. Server-side expiry, revocation, active-account and current-role checks
-        remain Build 3 work. See SECURITY_DESIGN.md; this declaration alone does not enforce
+      description: Opaque 256-bit random bearer session; only the SHA-256 token digest
+        is stored. Session endpoints validate expiry, revocation and account activity;
+        authorization of other routes is tracked in issue 46. This declaration does not enforce
         access.
 x-cors:
   configuration: 'CORS_ALLOWED_ORIGINS: comma-separated allowed browser origins; same-origin

@@ -117,9 +117,9 @@ Resource owner: **Sean**.
 | Method | Path | Who should be allowed | What works today | Important check |
 |---|---|---|---|---|
 
-| POST | `/auth/sessions` | Public | Not implemented yet | Use generic login errors; issue a fresh token after successful login. |
-| GET | `/auth/sessions/current` | Authenticated account (own session) | Not implemented yet | Return only the caller's current session; never return the token/digest. |
-| DELETE | `/auth/sessions/current` | Authenticated account (own session) | Not implemented yet | Cancel only the caller's current session. |
+| POST | `/auth/sessions` | Public | Implemented | Use generic login errors; issue a fresh token after successful login. |
+| GET | `/auth/sessions/current` | Authenticated account (own session) | Implemented | Return only the caller's current session; never return the token/digest. |
+| DELETE | `/auth/sessions/current` | Authenticated account (own session) | Implemented | Cancel only the caller's current session. |
 
 
 ## Saved addresses

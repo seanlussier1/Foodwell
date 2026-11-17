@@ -175,6 +175,14 @@ This resets the configured application database to the synthetic seed and resets
 - Cart/checkout totals and stock are calculated server-side in a transaction.
 - Manual stock changes write an audit record with the actor and before/after balances. Products with audit history are deactivated instead of deleted.
 - Order changes append status events atomically; cancellation restores stock only once.
-- Session validation, roles, ownership checks and immutable audit API behavior still require application code.
+- Resource-level roles, ownership checks and immutable audit API behavior still require application code.
 
 Request path: browser → `public/index.php` → router → controller → repository → MariaDB → response.
+
+## Authentication setup
+
+Set `AUTH_LIMITER_SECRET` to a unique, randomly generated secret of at least 32 characters in the environment or `.env`. Keep it private and consistent across all application workers. Without it login returns 503. Apply `database/migrations/004_auth_login_limits.sql` to existing databases; fresh schema includes it. Expire old limiter entries using an operator scheduled task such as `DELETE FROM auth_login_limits WHERE window_start < UTC_TIMESTAMP() - INTERVAL 7 DAY`. Protect database access and logs. Login uses REMOTE_ADDR, not forwarded headers. Use HTTPS outside local development.
+
+The session endpoints do not secure existing customer, cart or order routes; authorization is tracked separately in #46.
+
+Run the isolated authentication checks with `php scripts/check-auth.php`; configure SCHEMA_TEST_HOST, SCHEMA_TEST_PORT, SCHEMA_TEST_USER and SCHEMA_TEST_PASS for a disposable MariaDB server. The test account needs permission to create and drop a randomly named test database.
