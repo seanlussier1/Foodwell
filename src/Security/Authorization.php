@@ -14,7 +14,7 @@ final class Authorization
 
     public function protect(callable $handler, string $policy): callable
     {
-        if (!in_array($policy, ['staff', 'owner', 'order', 'checkout'], true)) {
+        if (!in_array($policy, ['staff', 'owner', 'order', 'order_history', 'checkout'], true)) {
             throw new \InvalidArgumentException('Unknown authorization policy.');
         }
         return function (array $params) use ($handler, $policy): void {
@@ -38,7 +38,7 @@ final class Authorization
                     $this->db->rollBack(); $this->unauthorized(); return;
                 }
                 $ownerId = $params['id'] ?? null;
-                if ($policy === 'order') {
+                if ($policy === 'order' || $policy === 'order_history') {
                     $order = $this->db->prepare('SELECT customer_id FROM orders WHERE id = ?');
                     $order->execute([$ownerId]);
                     $ownerId = $order->fetchColumn();
@@ -49,8 +49,10 @@ final class Authorization
                     if (!is_int($ownerId) || $ownerId < 1) { $this->db->rollBack(); Response::error(422, 'Valid customerId required.'); return; }
                 }
                 $allowed = $policy === 'staff' ? in_array($actor['role'], ['staff', 'admin'], true)
-                    : ($actor['role'] === 'admin' || (string)$actor['id'] === (string)$ownerId);
+                    : ($actor['role'] === 'admin' || (string)$actor['id'] === (string)$ownerId
+                        || ($policy === 'order_history' && $actor['role'] === 'staff'));
                 if (!$allowed) { $this->db->rollBack(); Response::error(403, 'Forbidden.'); return; }
+                $params['actorId'] = (int) $actor['id'];
                 ob_start();
                 try {
                     $handler($params);

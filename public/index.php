@@ -217,6 +217,9 @@ try {
     $router->delete(API_PREFIX . '/categories/{id}', $authorization->protect([$categories, 'destroy'], 'staff'));
     $router->post(API_PREFIX . '/orders', $authorization->protect([$orders, 'create'], 'checkout'));
     $router->get(API_PREFIX . '/orders/{id}', $authorization->protect([$orders, 'show'], 'order'));
+    $router->patch(API_PREFIX . '/orders/{id}', $authorization->protect([$orders, 'updateStatus'], 'staff'));
+    $router->get(API_PREFIX . '/customers/{id}/orders', $authorization->protect([$orders, 'customerHistory'], 'owner'));
+    $router->get(API_PREFIX . '/orders/{id}/status-events', $authorization->protect([$orders, 'statusHistory'], 'order_history'));
 
     $productFormats = [Negotiation::JSON, Negotiation::XML, Negotiation::YAML];
 

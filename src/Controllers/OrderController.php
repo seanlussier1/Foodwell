@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Foodwell\Controllers;
 
-use Foodwell\Env;
 use Foodwell\Http\OrderException;
 use Foodwell\Http\Response;
 use Foodwell\Repositories\OrderRepository;
@@ -15,7 +14,7 @@ final class OrderController
 
     public function create(array $params): void
     {
-$input = $this->readInput();
+        $input = $this->readInput();
 
         if ($input === null) {
             return;
@@ -37,7 +36,7 @@ $input = $this->readInput();
 
     public function show(array $params): void
     {
-$id = filter_var(
+        $id = filter_var(
             $params['id'] ?? null,
             FILTER_VALIDATE_INT,
             ['options' => ['min_range' => 1, 'max_range' => 4294967295]]
@@ -55,7 +54,85 @@ $id = filter_var(
         }
     }
 
-    private function readInput(): ?array
+    public function updateStatus(array $params): void
+    {
+        $id = filter_var($params['id'], FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => 4294967295],
+        ]);
+        if ($id === false) {
+            Response::error(404, 'Order not found.');
+            return;
+        }
+
+        $input = $this->readJsonObject('Order status updates');
+        if ($input === null) {
+            return;
+        }
+        if (
+            count($input) !== 1 || !is_string($input['status'] ?? null)
+            || !OrderRepository::isStatus($input['status'])
+        ) {
+            Response::error(422, 'Provide only a valid order status.');
+            return;
+        }
+
+        try {
+            Response::json(200, $this->orders->updateStatus($id, $input['status'], $params['actorId']));
+        } catch (OrderException $error) {
+            Response::error($error->statusCode, $error->getMessage());
+        }
+    }
+
+    public function customerHistory(array $params): void
+    {
+        $id = filter_var($params['id'], FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => 4294967295],
+        ]);
+        if ($id === false) {
+            Response::error(404, 'Customer not found.');
+            return;
+        }
+        $status = $_GET['status'] ?? null;
+        if ($status !== null && (!is_string($status) || !OrderRepository::isStatus($status))) {
+            Response::error(400, 'Invalid order status filter.');
+            return;
+        }
+        $paging = $this->readPaging();
+        if ($paging === null) {
+            return;
+        }
+
+        try {
+            Response::json(200, $this->orders->listForCustomer($id, $status, ...$paging));
+        } catch (OrderException $error) {
+            Response::error($error->statusCode, $error->getMessage());
+        }
+    }
+
+    public function statusHistory(array $params): void
+    {
+        $paging = $this->readPaging();
+        if ($paging !== null) {
+            Response::json(200, ['data' => $this->orders->listStatusEvents((int) $params['id'], ...$paging)]);
+        }
+    }
+
+    private function readPaging(): ?array
+    {
+        $page = filter_var($_GET['page'] ?? 1, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => 4294967295],
+        ]);
+        $limit = filter_var($_GET['limit'] ?? 20, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => 100],
+        ]);
+        if ($page === false || $limit === false) {
+            Response::error(400, 'Use a positive page number and a limit from 1 to 100.');
+            return null;
+        }
+        return [$page, $limit];
+    }
+
+    private function readJsonObject(string $operation): ?array
     {
         $contentType = strtolower(
             trim(explode(';', $_SERVER['CONTENT_TYPE'] ?? '')[0])
@@ -64,7 +141,7 @@ $id = filter_var(
         if ($contentType !== 'application/json') {
             Response::error(
                 415,
-                'Order creation requires Content-Type: application/json.'
+                "$operation requires Content-Type: application/json."
             );
             return null;
         }
@@ -86,7 +163,15 @@ $id = filter_var(
             return null;
         }
 
-        $input = (array) $body;
+        return (array) $body;
+    }
+
+    private function readInput(): ?array
+    {
+        $input = $this->readJsonObject('Order creation');
+        if ($input === null) {
+            return null;
+        }
         $allowedFields = [
             'customerId',
             'deliveryAddress',
