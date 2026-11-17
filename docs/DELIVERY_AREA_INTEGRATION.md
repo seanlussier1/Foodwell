@@ -38,24 +38,24 @@ Successful validated provider results are cached for 24 hours in var/postal-cach
 
 Only one query parameter is supported: postalCode, a scalar Canadian-format code such as H3N 1X1 or H3N1X1. Input is trimmed/uppercased and returned with a space. Extra parameters, arrays, missing values and invalid syntax return 400. A syntactically valid full code is not proof it is assigned to an actual address.
 
-The provider client uses a 2-second connection timeout, 5-second overall timeout, 64 KiB body limit and bounded JSON depth/place counts. Redirects are not followed and HTTPS verification remains on. Country/prefix and required place/province fields are checked before use. Multiple places are retained. Request parameters cannot override the upstream host, country, mode or file paths.
+The provider client uses a five-second total upstream budget, a connection timeout of up to two seconds per attempt, a 64 KiB body limit and bounded JSON depth and place counts. The read-only request can retry once on a transient connection interruption or provider HTTP 500, 502, 503 or 504 without a Retry-After header. The retry uses the remaining time only. A timeout, a quota response (429), a Retry-After header, an invalid response or a permanent transport failure ends the lookup without another attempt. Redirects remain disabled and TLS verification stays enabled. Country, prefix and required place fields are checked before caching or use.
 
 | Response | Meaning |
 |---|---|
 | 200, status=complete, delivery.status=available | Area found, prefix served and future capacity exists. Slots are options, not bookings. |
 | 200, complete, no-slots | Area served, but no matching future slot currently has capacity. |
 | 200, complete, outside-area | Area found but its prefix is not in Foodwell's configured service area. No slots are offered. |
-| 200, status=partial, delivery.status=unknown | Provider coverage/result could not confirm the area. eligible=null and slots=[]; no false claim of invalid address or available delivery. |
+| 200, status=partial, delivery.status=unknown | Provider coverage/result could not confirm the area, including when the provider returns 502 or 503. The composite API returns eligible=null, slots=[] and bookingConfirmed=false. |
 | 400 | Invalid local query. |
 | 500 | Unexpected application/database/configuration failure outside the controlled provider fallback. Shared middleware returns a safe error with request ID. |
 
 Top-level fields: status, postalCode, area, delivery, sources, notice, warnings. area includes prefix, lookupStatus, places, source and fetchedAt. delivery includes eligible, status, slots and bookingConfirmed (always false). Dates in slots are UTC ISO strings; the JavaScript view displays them in America/Toronto. Remaining capacity counts every non-cancelled order assigned to that slot; inactive/past/full slots are excluded and results are ordered by start time/ID.
 
-area.source identifies `live`, `cache`, `demo` or `unavailable`. The API's partial result is a deliberate fallback, not a silent success or invented area. Provider 404 means unknown coverage, not proof that the full postal code is invalid. Timeout, 429, other HTTP failures, network/certificate issues, malformed JSON and mismatched/oversized responses have explicit warning codes. No automatic retries are performed.
+area.source identifies `live`, `cache`, `demo` or `unavailable`. Provider 404 indicates unknown coverage. The fallback includes a warning code for timeouts, quota limits, malformed or oversized responses and other provider failures. Each fallback logs the same request ID returned in `X-Request-ID`, plus the reason and source. The log excludes the postal code, prefix, provider response body and credentials.
 
 ## JavaScript and PHP consumers
 
-**Browser:** open `http://localhost/foodwell-api/client/delivery.html`, or use the customer dashboard's Check delivery area link. With the separate client server (`php -S localhost:8081 -t client`), open `http://localhost:8081/delivery.html`. Adjust API connection if needed. The view renders area details and Foodwell windows, handles errors/partial results, and keeps attribution visible. Invalid syntax is caught before a request. Provider text is rendered as text, not HTML.
+**Browser:** open `http://localhost/foodwell-api/client/delivery.html`, or use the customer dashboard's Check delivery area link. With the separate client server (`php -S localhost:8081 -t client`), open `http://localhost:8081/delivery.html`. Adjust API connection if needed. The view renders area details and Foodwell windows, handles errors and partial results, and keeps attribution visible. The browser stops waiting after eight seconds and lets the customer try again. Invalid syntax is caught before a request. Provider text is rendered as text, not HTML.
 
 **PHP:** with Wamp or the PHP API server running:
 
@@ -89,6 +89,6 @@ Use SCHEMA_TEST_HOST/USER/PASS if needed. The default suite uses isolated tempor
 
 For #64 evidence, record the submitted commit, service-prefix configuration, provider/data attribution, a working browser lookup, PHP output, source labels, input failure and explicit controlled upstream failure. Keep a real live-provider check separate from demo/test fixtures. Normal lookups do not require APP_CART_DEMO or APP_CUSTOMER_PROFILE_DEMO.
 
-## What remains for #51 and the team
+## Deployment checks
 
-This delivers initial bounded requests, caching, validation and explicit failures. #51 still owns broader provider-outage/quota testing, traffic controls against bursts, deployment/cache-permission checks and any revised retry/stale-cache policy. This is not a delivery booking or complete address-validation service. Will reviews #37; coordinate slot capacity/status definitions with Mohamed so checkout rechecks the same business rules. Agree real store service prefixes before using eligibility beyond the classroom demonstration.
+Check cache directory permissions and trusted CA configuration in the deployment environment. Agree real store service prefixes before using eligibility beyond the classroom demonstration.
