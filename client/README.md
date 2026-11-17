@@ -2,6 +2,8 @@
 
 # Customer dashboard (Lab 7 Part 4)
 
+New customers can choose **Sign in → Create an account**, enter their name, email and password, and then sign in. Registration uses the public customer endpoint and does not accept role or activation fields. The form checks matching passwords and displays API validation or duplicate-email errors. Use synthetic accounts when testing locally.
+
 The local synthetic checkout demonstration is at `/client/shop.html` (or `shop.html` on the separate client server). Enable `APP_CART_DEMO=1` and use an active customer ID. Browse and search products, add and update cart lines, optionally check a postal area and select an offered window, then enter an address and place an order. The confirmation reads the saved order back. Cart and order routes require loopback access; customer identity and ownership are not authenticated. Delivery-area lookup is advisory and does not validate the address. A selected window is rechecked for time and capacity at checkout.
 
 See [checkout demonstration and evidence](../docs/CHECKOUT_DEMO.md) for the PHP consumer, concurrent booking check and manifest contribution.

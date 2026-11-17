@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Foodwell | Create account</title><link rel="stylesheet" href="styles.css">
+  <script defer src="auth.js"></script><script defer src="register.js"></script>
+</head>
+<body data-page="register">
+<main>
+  <div class="intro"><p class="eyebrow">YOUR ACCOUNT</p><h1>Create your account.</h1><p>Join Foodwell to manage your cart and place orders.</p></div>
+  <section class="panel signin-panel" aria-labelledby="register-heading">
+    <h2 id="register-heading">Create account</h2>
+    <p id="register-status" class="muted" role="status" aria-live="polite"></p>
+    <ul id="register-errors" class="field-errors" aria-live="polite"></ul>
+    <form id="register-form">
+      <label>First name<input id="register-first" autocomplete="given-name" maxlength="100" required></label>
+      <label>Last name<input id="register-last" autocomplete="family-name" maxlength="100" required></label>
+      <label>Email<input id="register-email" type="email" autocomplete="email" maxlength="254" required></label>
+      <label>Password<input id="register-password" type="password" autocomplete="new-password" required aria-describedby="password-help"><small id="password-help">Use 8–72 bytes.</small></label>
+      <label>Confirm password<input id="register-confirm" type="password" autocomplete="new-password" required></label>
+      <button id="register-submit" type="submit">Create account</button>
+    </form>
+    <p>Already have an account? <a id="go-signin" href="./?page=signin" target="_top">Sign in</a></p>
+  </section>
+</main>
+</body></html>

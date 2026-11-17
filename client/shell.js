@@ -3,7 +3,7 @@
   let token = null, account = null, boundBase = null;
   const prefix = location.pathname.includes('/client') ? location.pathname.split('/client')[0] : '';
   const defaultBase = location.port === '8081' ? 'http://localhost/foodwell-api/api/v1' : `${location.origin}${prefix}/api/v1`;
-  const pages = {shop:'shop.html', delivery:'delivery.html', customers:'customers.html', products:'products.html', signin:'signin.html'};
+  const pages = {shop:'shop.html', delivery:'delivery.html', customers:'customers.html', products:'products.html', signin:'signin.html', register:'register.html'};
   const frame = document.getElementById('page');
   const normalize = value => { const u = new URL(value); if (!['http:','https:'].includes(u.protocol) || u.username || u.password || u.search || u.hash) throw new Error('Invalid API address.'); return u.href.replace(/\/$/, ''); };
   const notify = () => { for (const link of document.querySelectorAll('[data-page=customers], [data-page=products]')) link.hidden = !account || !['staff','admin'].includes(account.role); document.getElementById('account-link').textContent = account ? 'Account' : 'Sign in'; document.getElementById('shell-status').textContent = account ? `Signed in as ${account.firstName} ${account.lastName}` : ''; try { frame.contentWindow.dispatchEvent(new Event('foodwell-auth-change')); } catch (_) {} };
@@ -19,9 +19,9 @@
   function render() {
     const candidate = new URL(location.href).searchParams.get('page') || 'shop';
     const page = Object.hasOwn ? (Object.hasOwn(pages,candidate) ? candidate : 'shop') : (Object.prototype.hasOwnProperty.call(pages,candidate) ? candidate : 'shop');
-    for (const link of document.querySelectorAll('[data-page]')) { if (link.dataset.page === page) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current'); }
+    for (const link of document.querySelectorAll('[data-page]')) { if (link.dataset.page === page || (page === 'register' && link.dataset.page === 'signin')) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current'); }
     frame.src = pages[page] + '?embedded=1';
-    document.title = `Foodwell | ${page === 'signin' ? 'Account' : page.charAt(0).toUpperCase()+page.slice(1)}`;
+    document.title = `Foodwell | ${page === 'register' ? 'Create account' : page === 'signin' ? 'Account' : page.charAt(0).toUpperCase()+page.slice(1)}`;
   }
   function navigate(page) { if (!Object.prototype.hasOwnProperty.call(pages,page)) return; history.pushState({},'',`?page=${encodeURIComponent(page)}`); render(); }
   document.querySelectorAll('a[data-page], a.brand').forEach(link => link.addEventListener('click', e => { if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return; e.preventDefault(); navigate(link.dataset.page || 'shop'); }));

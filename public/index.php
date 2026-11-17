@@ -155,6 +155,8 @@ $clientAssets = [
     '/client/customers.html' => ['customers.html', 'text/html; charset=utf-8'],
     '/client/signin.html' => ['signin.html', 'text/html; charset=utf-8'],
     '/client/signin.js' => ['signin.js', 'text/javascript; charset=utf-8'],
+    '/client/register.html' => ['register.html', 'text/html; charset=utf-8'],
+    '/client/register.js' => ['register.js', 'text/javascript; charset=utf-8'],
     '/client/shell.js' => ['shell.js', 'text/javascript; charset=utf-8'],
     '/client/styles.css' => ['styles.css', 'text/css; charset=utf-8'],
     '/client/auth.js' => ['auth.js', 'text/javascript; charset=utf-8'],
