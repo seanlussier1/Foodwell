@@ -4,6 +4,8 @@ Status: design draft ready for resource-owner review, November 1, 2026.
 Owner: Sean (@seanlussier1). Required resource reviews: Will (@Wlszn) and Mohamed (@MohAmine2006). Neither review is recorded yet. No authentication or authorization implementation is delivered by this document.
 
 
+**Implementation update (#45):** Login, current-session and logout are implemented. This document describes the earlier design snapshot; route authorization and private-resource enforcement remain assigned to #46 and the resource owners.
+
 ## How to read this plan
 
 This plan helps the team agree on who should be allowed to use each API operation and how login should work. Each resource owner will use those decisions when implementing security in Build 3.

@@ -111,6 +111,7 @@ if (!is_file($autoload)) {
 }
 require $autoload;
 
+use Foodwell\Controllers\AuthController;
 use Foodwell\Controllers\ProductController;
 use Foodwell\Controllers\CustomerController;
 use Foodwell\Controllers\CartController;
@@ -184,7 +185,11 @@ try {
         new DeliveryOptionRepository(Database::connection())
     );
 
+    $auth = new AuthController(Database::connection());
     $router = new Router();
+    $router->post(API_PREFIX . '/auth/sessions', [$auth, 'login']);
+    $router->get(API_PREFIX . '/auth/sessions/current', [$auth, 'current']);
+    $router->delete(API_PREFIX . '/auth/sessions/current', [$auth, 'logout']);
 
     $router->post(API_PREFIX . '/customers', [$customers, 'register']);
     $router->get(API_PREFIX . '/customers', [$customers, 'index']);

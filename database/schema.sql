@@ -12,6 +12,7 @@ DROP TABLE IF EXISTS orders;
 DROP TABLE IF EXISTS delivery_slots;
 DROP TABLE IF EXISTS cart_items;
 DROP TABLE IF EXISTS carts;
+DROP TABLE IF EXISTS auth_login_limits;
 DROP TABLE IF EXISTS auth_sessions;
 DROP TABLE IF EXISTS customers;
 DROP TABLE IF EXISTS products;
@@ -243,4 +244,13 @@ CREATE TABLE order_status_events (
     CONSTRAINT chk_status_events_source CHECK (
         (source = 'migration_baseline' AND previous_status IS NULL AND changed_by IS NULL)
         OR (source = 'application' AND changed_by IS NOT NULL))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- Shared fixed-window login counters. Keys are HMACs, never raw emails or IPs.
+CREATE TABLE auth_login_limits (
+    limit_key CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
+    attempts INT UNSIGNED NOT NULL DEFAULT 0,
+    window_start DATETIME NOT NULL,
+    KEY idx_auth_login_limits_window (window_start)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
