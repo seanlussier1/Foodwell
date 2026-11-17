@@ -19,6 +19,12 @@
     "scripts": {
         "start": "php -S localhost:8080 -t public public/index.php",
         "db:setup": "php scripts/db-setup.php",
-        "check": "php scripts/run-checks.php"
+        "check": "php scripts/run-checks.php",
+        "test:unit": "phpunit --configuration phpunit.xml",
+        "test:api": "php scripts/check-newman.php"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.6",
+        "ext-pdo_sqlite": "*"
     }
 }

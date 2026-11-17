@@ -1,0 +1,8 @@
+{
+    "name": "foodwell-api-tests",
+    "private": true,
+    "description": "Development-only Postman collection runner",
+    "devDependencies": {
+        "newman": "^6.2.3"
+    }
+}

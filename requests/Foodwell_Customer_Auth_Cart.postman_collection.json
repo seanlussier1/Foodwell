@@ -1,0 +1,404 @@
+{
+  "info": {
+    "name": "Foodwell customer, authentication and cart (#48)",
+    "description": "Run only against the disposable synthetic database. Creates an account and modifies its cart; no environment or results file with tokens is exported.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8080/api/v1"
+    },
+    {
+      "key": "email",
+      "value": ""
+    },
+    {
+      "key": "customerId",
+      "value": ""
+    },
+    {
+      "key": "itemId",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Create synthetic customer",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('email', 'newman-' + Date.now() + '-' + Math.floor(Math.random()*1000000) + '@example.test');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Created without credential fields', function () { pm.response.to.have.status(201); var body = pm.response.json(); pm.expect(body.id).to.be.a('number'); pm.expect(body).not.to.have.property('password_hash'); pm.expect(body).not.to.have.property('password'); pm.collectionVariables.set('customerId', body.id); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/customers",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"firstName\":\"Newman\",\"lastName\":\"Test\",\"email\":\"{{email}}\",\"password\":\"FoodwellDemo!2026\"}"
+        }
+      }
+    },
+    {
+      "name": "Duplicate registration",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/customers",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"firstName\":\"Newman\",\"lastName\":\"Test\",\"email\":\"{{email}}\",\"password\":\"FoodwellDemo!2026\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Duplicate email is rejected', function () { pm.response.to.have.status(409); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wrong password",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/sessions",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"{{email}}\",\"password\":\"Incorrect!2026\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Invalid credentials are rejected', function () { pm.response.to.have.status(401); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Log in",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/sessions",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"{{email}}\",\"password\":\"FoodwellDemo!2026\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login supplies one bearer token', function () { pm.response.to.have.status(201); var b=pm.response.json(); pm.expect(b.accessToken).to.match(/^[0-9a-f]{64}$/); pm.expect(b.tokenType).to.eql('Bearer'); pm.collectionVariables.set('token',b.accessToken); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Read own profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Owner can read profile without credentials', function () { pm.response.to.have.status(200); var b=pm.response.json(); pm.expect(b.id).to.eql(Number(pm.collectionVariables.get('customerId'))); pm.expect(b).not.to.have.property('password_hash'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Read another profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": "{{baseUrl}}/customers/7"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Another profile is forbidden', function () { pm.response.to.have.status(403); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Read own cart",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/cart"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Owner cart starts empty', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().items).to.be.an('array').that.is.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Add item",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/cart/items",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"productId\":101,\"quantity\":1}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Item is added with a server price', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); var b=pm.response.json(); var item=b.items.find(function(x){return x.productId===101;}); pm.expect(item).to.exist; pm.expect(item.quantity).to.eql(1); pm.collectionVariables.set('itemId',item.id); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Update item",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/cart/items/{{itemId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"quantity\":2}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Quantity is updated', function () { pm.response.to.have.status(200); var item=pm.response.json().items.find(function(x){return x.productId===101;}); pm.expect(item.quantity).to.eql(2); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Remove item",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/cart/items/{{itemId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Item is removed', function () { pm.response.to.have.status(204); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Log out",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/sessions/current"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Session is revoked', function () { pm.response.to.have.status(204); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject revoked session",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": "{{baseUrl}}/customers/{{customerId}}/cart"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Revoked token cannot access cart', function () { pm.response.to.have.status(401); pm.response.to.have.header('WWW-Authenticate'); });"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

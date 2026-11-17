@@ -191,3 +191,9 @@ Run the isolated authentication checks with `php scripts/check-auth.php`; config
 ## Authorization (#46)
 
 Customer profile, cart, checkout and order detail routes require a valid bearer session and the documented owner or administrator rule. Customer listing, deactivation, product writes and category writes require staff or administrator. The former loopback demo flags do not bypass these checks. The browser workspace uses the Account page to sign in, and retains the token in memory while navigating. Some older local-demo test scripts still require updating. Run `php scripts/check-authorization.php` with the same disposable-database configuration as the authentication checks.
+
+## Automated customer, session and cart checks (#48)
+
+Install development dependencies with `composer install` and `npm ci` (PHP 8.0 or newer, including PDO SQLite for the unit tests, and Node.js). Run `composer test:unit` for validation and password-hashing checks. The repository test uses an in-memory SQLite database; it does not replace the MariaDB API checks.
+
+Run `composer test:api` for the Newman collection against a temporary PHP server and randomly named disposable MariaDB database. Configure `SCHEMA_TEST_HOST`, `SCHEMA_TEST_PORT`, `SCHEMA_TEST_USER`, and `SCHEMA_TEST_PASS` for a test server; the database user must be able to create and drop a database. The runner seeds synthetic data and deletes only the database it created. The collection registers a synthetic account, checks login errors and ownership, modifies that account's cart, logs out, and verifies revocation. It does not export session tokens or alter the configured application database. The collection is also available at `requests/Foodwell_Customer_Auth_Cart.postman_collection.json`; only run it directly against disposable synthetic data.
