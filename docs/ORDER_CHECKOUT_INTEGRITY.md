@@ -24,4 +24,20 @@ The duplicate checkout came from a MariaDB snapshot opened during authentication
 
 Checkout retries use the current cart. A retry after a rolled-back write can succeed once the failure is removed. After a successful checkout, resubmitting the same request with an empty cart returns HTTP 409. If the cart is replenished, checkout can place a new order.
 
-The temporary harness and raw results were kept in `.issue-52-tests`. Use the cases and expected database state above as the handoff for the PHPUnit and Newman automation in #53.
+The temporary #52 harness and raw results were kept in `.issue-52-tests`.
+
+## Automated checks and QA handoff (#53, #66)
+
+Install the locked dependencies with `composer install` and `npm ci`. Point the test runner at a development MariaDB instance using `SCHEMA_TEST_HOST`, `SCHEMA_TEST_PORT`, `SCHEMA_TEST_USER` and `SCHEMA_TEST_PASS` as needed. The account must be able to create and drop a disposable schema and create triggers in it. The concurrent checks inspect the same account's connections.
+
+```powershell
+composer test:orders
+```
+
+- PHPUnit's isolated stock validation tests use labeled PDO doubles to verify that a rejected quantity never reaches a write. The MariaDB PHPUnit suite checks actual totals and stock, concurrent requests, forced rollback, authorization, and the resulting domain rows.
+- Newman runs `requests/Foodwell_Orders_Checkout.postman_collection.json` against a freshly reseeded API fixture. It checks checkout, rejection, cancellation retries and filtered history through the public HTTP interface.
+- The runner starts two loopback API workers and creates a randomly named test schema. It stops the workers and drops that schema on exit. JUnit reports and worker logs are stored in `.issue-53-tests`, which can be deleted after collecting the evidence. Keep the committed PHPUnit tests and Postman collection for reruns.
+
+For #66, attach the JUnit reports with the tested commit, MariaDB version and command. Record the three fixture inputs as the schema, the synthetic seed and the test-local trigger and capacity changes. Capture any failures and rerun the same command after applying a fix.
+
+The local #53 run used the merged #52 base `5a049f0`, MariaDB 10.4.32 and PHP 8.2.12. PHPUnit passed 2 stock unit tests with 6 assertions and 3 MariaDB tests with 83 assertions. Newman passed 14 requests and 21 assertions. The cancelled-history check verifies membership and status because seed timestamps use UTC while new order timestamps use the database session clock. On the local non-UTC instance, a seed order sorted ahead of the new order.

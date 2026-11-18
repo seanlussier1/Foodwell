@@ -21,7 +21,8 @@
         "db:setup": "php scripts/db-setup.php",
         "check": "php scripts/run-checks.php",
         "test:unit": "phpunit --configuration phpunit.xml",
-        "test:api": "php scripts/check-newman.php"
+        "test:api": "php scripts/check-newman.php",
+        "test:orders": "php scripts/check-newman.php --orders"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.6",
