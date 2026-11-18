@@ -248,12 +248,13 @@ final class OrderRepository
 
             $cartId = (int) $cartId;
 
-            // Read cart items in product ID order.
+            // Read current cart items even if authentication opened an older snapshot.
             $itemsQuery = $this->pdo->prepare(
                 'SELECT ci.product_id, ci.quantity
                  FROM cart_items ci
                  WHERE ci.cart_id = :cart
-                 ORDER BY ci.product_id ASC'
+                 ORDER BY ci.product_id ASC
+                 FOR UPDATE'
             );
             $itemsQuery->execute(['cart' => $cartId]);
             $cartItems = $itemsQuery->fetchAll();
@@ -336,12 +337,13 @@ final class OrderRepository
                 }
             }
 
-            // Calculate the total using current database prices.
+            // Calculate exact totals from the current, locked cart and product rows.
             $totalQuery = $this->pdo->prepare(
                 'SELECT COALESCE(SUM(p.price * ci.quantity), 0)
                  FROM cart_items ci
                  JOIN products p ON p.id = ci.product_id
-                 WHERE ci.cart_id = :cart'
+                 WHERE ci.cart_id = :cart
+                 FOR UPDATE'
             );
             $totalQuery->execute(['cart' => $cartId]);
             $total = $totalQuery->fetchColumn();
