@@ -4,7 +4,7 @@ Foodwell is a PHP/MariaDB REST API for an online grocery store. Customers browse
 
 ## Current status
 
-The database has **14 tables** and the [OpenAPI contract](docs/openapi.yaml) documents **48 operations**. Product list/item GET, category operations, customer registration and the public delivery-area lookup work in PHP. Customer management and cart operations work as explicitly enabled local demos; authentication and role/owner/admin enforcement remain planned. Category writes currently have no role checks. Other operations, including checkout, remain planned.
+The database has **14 tables** and the [OpenAPI contract](docs/openapi.yaml) documents **48 operations**. Product list/item GET, category operations, customer registration and the public delivery-area lookup work in PHP. Customer management and cart operations work as explicitly enabled local demos; authentication and role/owner/admin enforcement remain planned. Product, category and delivery-slot writes require a staff or admin login (#40). Other operations, including checkout, remain planned.
 
 Customer registration accepts JSON with `firstName`, `lastName`, `email`, `password`, and optional nullable `address`/`phone`. Names are trimmed (1-100 characters); email is trimmed and lowercased (maximum 254 characters). Passwords are 8-72 bytes, are not trimmed, and are stored using bcrypt. Registration always creates an active customer; caller-supplied roles, activation and other unknown fields are rejected. Responses never include passwords or hashes. Successful creation returns 201; malformed/non-object JSON returns 400, duplicate email 409, unsupported/missing Content-Type 415 and invalid fields 422 with `error.details`. JSON is the only implemented customer format. Login remains planned; the local customer dashboard is described below.
 
@@ -58,9 +58,15 @@ Customers attach a slot to an order at checkout: `POST /api/v1/orders` with `"de
 
 Run `php scripts/check-delivery-slots.php` with the SCHEMA_TEST settings above: 71 checks in a temporary database cover filters, permissions, validation, checkout booking, update/delete rules and cleanup. No migration is needed.
 
+### Catalog permissions (#40)
+
+Anyone can read products, categories and delivery slots. Creating, updating or deleting them requires a bearer login for a **staff** or **admin** account: no login, a broken token, or an expired, logged-out or deactivated session returns **401** with `WWW-Authenticate: Bearer`; a customer login returns **403**. The permission check runs before the request body is read, and a refused request changes nothing.
+
+Run `php scripts/check-catalog-authorization.php` with the SCHEMA_TEST settings above: 250 checks cover all eight catalog/slot write routes, confirm each is wrapped in the staff check in `public/index.php`, and verify public reads. `check-products.php` now logs in as the seeded staff account for its write checks. Planned inventory-adjustment routes are not implemented, so they are not claimed as protected.
+
 ## Security preparation
 
-The [security design](docs/SECURITY_DESIGN.md) and [48-operation permission matrix](docs/SECURITY_ROUTE_MATRIX.md) define intended roles, ownership, account administration and opaque-session behavior for #63. They distinguish intended permissions from current public/local-demo access and link Build 3 enforcement to #40/#45/#46/#47. The draft still requires Will's and Mohamed's resource-rule reviews; this documentation does not implement login or authorization. Category writes currently have no role checks and customer management is a local demo. Link the final reviewed design/commit from the #64 Build 2 manifest before marking #63 Done.
+The [security design](docs/SECURITY_DESIGN.md) and [48-operation permission matrix](docs/SECURITY_ROUTE_MATRIX.md) define intended roles, ownership, account administration and opaque-session behavior for #63. They distinguish intended permissions from current public/local-demo access and link Build 3 enforcement to #40/#45/#46/#47. The draft still requires Will's and Mohamed's resource-rule reviews; this documentation does not implement login or authorization. Catalog and slot writes are now staff/admin-only (#40, see below). Link the final reviewed design/commit from the #64 Build 2 manifest before marking #63 Done.
 
 ## Team responsibilities
 

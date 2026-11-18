@@ -23,7 +23,7 @@ Draft for Will and Mohamed to review, November 1, 2026. This file lists all 48 A
 | Customer role / customer author | A signed-in customer; author means the customer who wrote the review. |
 | Owner, staff or administrator | The owner can read their own record, and the listed staff/admin roles have explicit access. |
 
-**Working local demo** means the existing demo flag and a request from the same computer are required. It does not check who the person is or enforce the intended roles. **Working; public access** does not mean private permission checks are complete: category creation/deletion currently accept requests without role checks. **Not implemented yet** means the contract describes a future operation.
+**Working local demo** means the existing demo flag and a request from the same computer are required. It does not check who the person is or enforce the intended roles. **Working; public access** means anyone may call it on purpose (public reads). **Bearer session enforced** means the route checks the login session and role on every request (401 without a working login, 403 for the wrong role). **Not implemented yet** means the contract describes a future operation.
 
 The permission rules do not give administrators unrestricted access to everything. Only the exceptions explicitly named in the tables apply.
 
@@ -34,12 +34,11 @@ Resource owner: **Will**.
 
 | Method | Path | Who should be allowed | What works today | Important check |
 |---|---|---|---|---|
-
 | GET | `/products` | Public | Working; public access | Anyone may read this resource. |
-| POST | `/products` | Staff or administrator | Not implemented yet | Check the listed role; get the acting account from its session. |
+| POST | `/products` | Staff or administrator | Bearer session enforced | 401 without a working login; 403 for customers. Checked before the body is read. |
 | GET | `/products/{id}` | Public | Working; public access | Anyone may read this resource. |
-| PUT | `/products/{id}` | Staff or administrator | Not implemented yet | Check the listed role; get the acting account from its session. |
-| DELETE | `/products/{id}` | Staff or administrator | Not implemented yet | Check the listed role; get the acting account from its session. |
+| PUT | `/products/{id}` | Staff or administrator | Bearer session enforced | 401 without a working login; 403 for customers. Checked before the body is read. |
+| DELETE | `/products/{id}` | Staff or administrator | Bearer session enforced | 401 without a working login; 403 for customers. |
 
 
 ## Categories
@@ -48,11 +47,10 @@ Resource owner: **Mohamed**.
 
 | Method | Path | Who should be allowed | What works today | Important check |
 |---|---|---|---|---|
-
 | GET | `/categories` | Public | Working; public access | Anyone may read this resource. |
-| POST | `/categories` | Staff or administrator | Working; public access | Role checks are missing today; staff/admin access is the intended rule. |
+| POST | `/categories` | Staff or administrator | Bearer session enforced | 401 without a working login; 403 for customers. Checked before the body is read. |
 | GET | `/categories/{id}` | Public | Working; public access | Anyone may read this resource. |
-| DELETE | `/categories/{id}` | Staff or administrator | Working; public access | Role checks are missing today; staff/admin access is the intended rule. |
+| DELETE | `/categories/{id}` | Staff or administrator | Bearer session enforced | 401 without a working login; 403 for customers. |
 
 
 ## Customer accounts
@@ -111,6 +109,8 @@ Resource owner: **Will**.
 | DELETE | `/delivery-slots/{id}` | Staff or administrator | Bearer session enforced | Refuse when any order references the slot; deactivate instead. |
 
 Customers attach a slot to their own order through `POST /orders` (`deliverySlotId`); that route's owner check applies.
+
+All eight catalog and slot writes above are tested together by `php scripts/check-catalog-authorization.php` (#40): public reads, no/broken/expired/logged-out/deactivated logins (401), customers (403), staff and admin (allowed), and no database change after any refusal. The planned inventory-adjustment and review routes below are **not** protected yet because they do not exist yet; they must use the same staff check when they are built.
 
 
 ## Login sessions
