@@ -1,17 +1,6 @@
 <?php
 declare(strict_types=1);
 
-/**
- * Delivery slot checks (#39, B3-1): CRUD, date/available filters, staff-only
- * writes, booking rules and attaching a slot to an order at checkout.
- *
- *   php scripts/check-delivery-slots.php
- *
- * Uses SCHEMA_TEST_HOST/PORT/USER/PASS like the other check scripts. Creates a
- * disposable seeded database and API server, then drops them. The application
- * database is never touched.
- */
-
 require dirname(__DIR__) . '/vendor/autoload.php';
 
 $root = dirname(__DIR__);
@@ -32,6 +21,7 @@ $router = null;
 $exitCode = 0;
 $checks = 0;
 
+/** Prints PASS, or stops the whole script at the first failure so the message points at the exact problem. */
 function check(bool $condition, string $message): void
 {
     global $checks;
@@ -42,7 +32,11 @@ function check(bool $condition, string $message): void
     echo "PASS: $message\n";
 }
 
-/** @return array{0:int,1:mixed,2:array<string,string>} status, decoded JSON, lower-case headers */
+/**
+ * Sends one HTTP request to the temporary API server.
+ * $token = the login token to send as "Authorization: Bearer ..." (null = not logged in).
+ * @return array{0:int,1:mixed,2:array<string,string>} status code, JSON body, headers (lower-case names)
+ */
 function api(string $method, string $path, mixed $body = null, ?string $token = null, array $headers = []): array
 {
     global $serverPort;
@@ -57,11 +51,15 @@ function api(string $method, string $path, mixed $body = null, ?string $token = 
     foreach ($headers as $name => $value) {
         $lines[] = "$name: $value";
     }
-    $context = stream_context_create(['http' => [
-        'method' => $method, 'ignore_errors' => true, 'timeout' => 10,
-        'header' => implode("\r\n", $lines),
-        'content' => $body === null ? '' : (is_string($body) ? $body : json_encode($body)),
-    ]]);
+    $context = stream_context_create([
+        'http' => [
+            'method' => $method,
+            'ignore_errors' => true,
+            'timeout' => 10,
+            'header' => implode("\r\n", $lines),
+            'content' => $body === null ? '' : (is_string($body) ? $body : json_encode($body)),
+        ]
+    ]);
     $raw = (string) file_get_contents("http://127.0.0.1:$serverPort/api/v1$path", false, $context);
 
     preg_match('/\s(\d{3})\s/', $http_response_header[0], $match);
@@ -73,7 +71,10 @@ function api(string $method, string $path, mixed $body = null, ?string $token = 
     return [(int) $match[1], json_decode($raw, true), $responseHeaders];
 }
 
-/** A live session straight in the table (login itself is covered by check-auth). */
+/**
+ * Creates a login session for an account directly in the database and returns
+ * its token.
+ */
 function session(PDO $pdo, int $customerId): string
 {
     $token = bin2hex(random_bytes(32));
@@ -87,7 +88,7 @@ function ids(array $list): array
     return array_column($list['data'], 'id');
 }
 
-/** UTC 'Y-m-d\TH:i:s\Z' that many hours from now, on the hour. */
+/** The UTC time this many hours from now (negative = in the past), on the hour, e.g. 2026-11-20T19:00:00Z. */
 function hoursAhead(int $hours): string
 {
     $time = new DateTimeImmutable(sprintf('%+d hours', $hours), new DateTimeZone('UTC'));   // "-3", not "+-3"
@@ -100,7 +101,6 @@ function slotCount(PDO $pdo): int
 }
 
 try {
-    // ---------------------------------------------------------- fixtures
     $pdo->exec("CREATE DATABASE `$db`");
     $pdo->exec("USE `$db`");
     $pdo->exec(file_get_contents("$root/database/schema.sql"));
@@ -110,7 +110,6 @@ try {
     $serverPort = (int) substr(strrchr(stream_socket_get_name($socket, false), ':'), 1);
     fclose($socket);
 
-    // DB_PASS="" in the environment is not enough for Env::get; force it like check-products does.
     $router = tempnam(sys_get_temp_dir(), 'slots-router-');
     file_put_contents($router, '<?php ' . ($pass === '' ? 'putenv("DB_PASS=");' : '')
         . ' return require ' . var_export("$root/public/index.php", true) . ';');
@@ -119,14 +118,26 @@ try {
     $server = proc_open(
         [PHP_BINARY, '-d', 'display_errors=0', '-d', "error_log=$log", '-S', "127.0.0.1:$serverPort", '-t', "$root/public", $router],
         [0 => ['file', $null, 'r'], 1 => ['file', $null, 'w'], 2 => ['file', $log, 'a']],
-        $pipes, $root,
-        array_merge(getenv(), ['DB_HOST' => $host, 'DB_PORT' => $port, 'DB_NAME' => $db, 'DB_USER' => $user,
-            'DB_PASS' => $pass, 'APP_BASE_PATH' => ''])
+        $pipes,
+        $root,
+        array_merge(getenv(), [
+            'DB_HOST' => $host,
+            'DB_PORT' => $port,
+            'DB_NAME' => $db,
+            'DB_USER' => $user,
+            'DB_PASS' => $pass,
+            'APP_BASE_PATH' => ''
+        ])
     );
     $ready = false;
     for ($i = 0; $i < 50 && !$ready; $i++) {
         $probe = @fsockopen('127.0.0.1', $serverPort);
-        if ($probe) { fclose($probe); $ready = true; } else { usleep(100000); }
+        if ($probe) {
+            fclose($probe);
+            $ready = true;
+        } else {
+            usleep(100000);
+        }
     }
     check($ready, 'Disposable seeded database and API server started');
 
@@ -134,12 +145,10 @@ try {
     $staff = session($pdo, 9);      // Taylor, staff
     $admin = session($pdo, 10);     // Jordan, admin
 
-    // Seed: 301 tomorrow cap 2 (2 booked, full) · 302 in 2 days cap 1 (full)
-    //       303 yesterday, inactive · 304 in 3 days cap 3 (free)
     $today = new DateTimeImmutable('today', new DateTimeZone('UTC'));
     $day = fn(int $offset): string => $today->modify("+$offset day")->format('Y-m-d');
 
-    // ===================================================== reads (public)
+    //reads (public)
     echo "\n-- Reads and filters (no session needed)\n";
 
     [$status, $list, $headers] = api('GET', '/delivery-slots');
@@ -150,8 +159,10 @@ try {
     $row = $pdo->query('SELECT starts_at, ends_at, capacity FROM delivery_slots WHERE id = 301')->fetch();
     check($status === 200 && $slot['startsAt'] === str_replace(' ', 'T', $row['starts_at']) . 'Z'
         && $slot['capacity'] === (int) $row['capacity'], 'Item matches its database row, times as UTC ISO 8601');
-    check($slot['bookedCount'] === 2 && $slot['availableCapacity'] === 0 && $slot['isAvailable'] === false,
-        'Full slot 301: 2 booked, 0 left, not available');
+    check(
+        $slot['bookedCount'] === 2 && $slot['availableCapacity'] === 0 && $slot['isAvailable'] === false,
+        'Full slot 301: 2 booked, 0 left, not available'
+    );
     check(api('GET', '/delivery-slots/304')[1]['isAvailable'] === true, 'Free future slot 304 is available');
     [, $past] = api('GET', '/delivery-slots/303');
     check($past['isActive'] === false && $past['isAvailable'] === false, 'Past inactive slot 303 is not available');
@@ -167,14 +178,18 @@ try {
     check(ids(api('GET', '/delivery-slots?date=&available=')[1]) === [303, 301, 302, 304], 'Empty filter values are ignored');
 
     foreach ([
-        '?date=2026-02-30' => 'date', '?date=20-11-2026' => 'date', '?available=yes' => 'available',
-        '?available=1' => 'available', '?sort=date' => 'sort', '?date[]=2026-11-20' => 'date',
+        '?date=2026-02-30' => 'date',
+        '?date=20-11-2026' => 'date',
+        '?available=yes' => 'available',
+        '?available=1' => 'available',
+        '?sort=date' => 'sort',
+        '?date[]=2026-11-20' => 'date',
     ] as $query => $field) {
         [$status, $body] = api('GET', "/delivery-slots$query");
         check($status === 400 && isset($body['error']['details'][$field]), "Bad query $query returns 400 naming $field");
     }
 
-    // ===================================================== permissions
+    // permissions
     echo "\n-- Writes need a staff or admin session\n";
 
     $new = ['startsAt' => hoursAhead(48), 'endsAt' => hoursAhead(50), 'capacity' => 2];
@@ -186,7 +201,7 @@ try {
     check(api('DELETE', '/delivery-slots/304', null, $customer)[0] === 403, 'DELETE as a customer returns 403');
     check(slotCount($pdo) === $before && api('GET', '/delivery-slots/304')[1]['capacity'] === 3, 'Refused writes changed nothing');
 
-    // ===================================================== create
+    // create
     echo "\n-- Create\n";
 
     [$status, $created, $headers] = api('POST', '/delivery-slots', $new, $staff);
@@ -197,15 +212,19 @@ try {
     check(($headers['location'] ?? '') === "/api/v1/delivery-slots/$newId", 'Location header points at the new slot');
     check(api('GET', "/delivery-slots/$newId")[1] == $created, 'GET returns the same slot that POST returned');
 
-    // A Montreal time (UTC-5 in November) is stored in UTC.
+    //Converted to UTC.
     $local = (new DateTimeImmutable('+5 days', new DateTimeZone('America/Toronto')))->setTime(9, 0);
     [$status, $offsetSlot] = api('POST', '/delivery-slots', [
-        'startsAt' => $local->format('Y-m-d\TH:i:sP'), 'endsAt' => $local->modify('+2 hours')->format('Y-m-d\TH:iP'),
-        'capacity' => 1, 'isActive' => false,
+        'startsAt' => $local->format('Y-m-d\TH:i:sP'),
+        'endsAt' => $local->modify('+2 hours')->format('Y-m-d\TH:iP'),
+        'capacity' => 1,
+        'isActive' => false,
     ], $admin);
     $expectedUtc = $local->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z');
-    check($status === 201 && $offsetSlot['startsAt'] === $expectedUtc && $offsetSlot['isActive'] === false,
-        'Admin may create; a -05:00 time (and no seconds) is converted to UTC');
+    check(
+        $status === 201 && $offsetSlot['startsAt'] === $expectedUtc && $offsetSlot['isActive'] === false,
+        'Admin may create; a -05:00 time (and no seconds) is converted to UTC'
+    );
 
     [$status, $body] = api('POST', '/delivery-slots', $new, $staff);
     check($status === 409 && str_contains($body['error']['message'], 'same startsAt and endsAt'), 'Same window twice returns 409');
@@ -237,14 +256,17 @@ try {
     check(api('POST', '/delivery-slots', json_encode($new), $staff, ['Content-Type' => 'text/plain'])[0] === 415, 'Wrong Content-Type returns 415');
     check(slotCount($pdo) === $before + 2, 'Only the two valid POSTs created rows');
 
-    // ===================================================== attach to an order
+    // attach to an order
     echo "\n-- Attaching a slot to an order (POST /orders deliverySlotId)\n";
 
     $pdo->exec('UPDATE products SET stock = 50 WHERE id IN (101, 102)');
     $cart = fn() => api('POST', '/customers/7/cart/items', ['productId' => 101, 'quantity' => 1], $customer);
     check(in_array($cart()[0], [200, 201], true), 'Customer adds a product to the cart');
-    [$status, $order] = api('POST', '/orders', ['customerId' => 7, 'deliveryAddress' => '123 Demo Street, Montreal, QC',
-        'deliverySlotId' => $newId], $customer);
+    [$status, $order] = api('POST', '/orders', [
+        'customerId' => 7,
+        'deliveryAddress' => '123 Demo Street, Montreal, QC',
+        'deliverySlotId' => $newId
+    ], $customer);
     check($status === 201 && $order['deliverySlotId'] === $newId, 'Checkout attaches the new slot to the order');
     [, $slot] = api('GET', "/delivery-slots/$newId");
     check($slot['bookedCount'] === 1 && $slot['availableCapacity'] === 1, 'The slot now counts 1 booked order, 1 place left');
@@ -255,7 +277,7 @@ try {
     [$status] = api('POST', '/orders', ['customerId' => 7, 'deliveryAddress' => 'x', 'deliverySlotId' => $offsetSlot['id']], $customer);
     check($status === 409, 'Checkout refuses an inactive slot (409)');
 
-    // ===================================================== update
+    //  update
     echo "\n-- Update\n";
 
     $booked = ['startsAt' => $new['startsAt'], 'endsAt' => $new['endsAt']];
@@ -265,7 +287,8 @@ try {
     [, $slot] = api('GET', "/delivery-slots/$newId");
     check($slot['availableCapacity'] === 0 && $slot['isAvailable'] === false, '...which makes the slot full');
     [$status, $body] = api('PUT', '/delivery-slots/301', [
-        'startsAt' => api('GET', '/delivery-slots/301')[1]['startsAt'], 'endsAt' => api('GET', '/delivery-slots/301')[1]['endsAt'],
+        'startsAt' => api('GET', '/delivery-slots/301')[1]['startsAt'],
+        'endsAt' => api('GET', '/delivery-slots/301')[1]['endsAt'],
         'capacity' => 1,
     ], $staff);
     check($status === 409 && str_contains($body['error']['message'], 'cannot be lower'), 'Capacity below the booked orders returns 409');
@@ -275,8 +298,10 @@ try {
     check(api('GET', "/delivery-slots/$newId")[1]['startsAt'] === $new['startsAt'], '...and the window stayed put');
 
     [$status, $slot] = api('PUT', "/delivery-slots/$newId", $booked + ['capacity' => 3, 'isActive' => false], $staff);
-    check($status === 200 && $slot['isActive'] === false && $slot['isAvailable'] === false && $slot['bookedCount'] === 1,
-        'Deactivating keeps existing bookings and stops new ones');
+    check(
+        $status === 200 && $slot['isActive'] === false && $slot['isAvailable'] === false && $slot['bookedCount'] === 1,
+        'Deactivating keeps existing bookings and stops new ones'
+    );
     [$status, $slot] = api('PUT', "/delivery-slots/$newId", $booked + ['capacity' => 3], $staff);
     check($status === 200 && $slot['isActive'] === false, 'Leaving isActive out keeps the current value');
     $order0 = $pdo->query("SELECT delivery_slot_id FROM orders WHERE id = {$order['id']}")->fetchColumn();
@@ -285,8 +310,10 @@ try {
     $free = $offsetSlot['id'];
     $moved = ['startsAt' => hoursAhead(80), 'endsAt' => hoursAhead(81), 'capacity' => 5, 'isActive' => true];
     [$status, $slot] = api('PUT', "/delivery-slots/$free", $moved, $admin);
-    check($status === 200 && $slot['startsAt'] === $moved['startsAt'] && $slot['capacity'] === 5 && $slot['isAvailable'] === true,
-        'A slot with no bookings can be moved and reactivated');
+    check(
+        $status === 200 && $slot['startsAt'] === $moved['startsAt'] && $slot['capacity'] === 5 && $slot['isAvailable'] === true,
+        'A slot with no bookings can be moved and reactivated'
+    );
     [$status] = api('PUT', "/delivery-slots/$free", ['startsAt' => hoursAhead(-5), 'endsAt' => hoursAhead(-4), 'capacity' => 5], $staff);
     check($status === 422, 'Moving a slot into the past returns 422');
     [, $s304] = api('GET', '/delivery-slots/304');
@@ -294,7 +321,7 @@ try {
     check($status === 409, "Moving onto another slot's exact window returns 409");
     check(api('PUT', '/delivery-slots/999999', $moved, $staff)[0] === 404, 'PUT on an unknown slot returns 404');
 
-    // Past slot edits that don't move the window still work (e.g. fixing capacity).
+    // A past slot can still be edited as long as its window stays the same (e.g. fixing its capacity).
     [$status] = api('PUT', '/delivery-slots/303', ['startsAt' => $past['startsAt'], 'endsAt' => $past['endsAt'], 'capacity' => 3], $staff);
     check($status === 200, 'A past slot can be edited if its window stays the same');
 
@@ -314,7 +341,7 @@ try {
 } catch (Throwable $e) {
     echo "\n" . $e->getMessage() . "\n";
     if ($log !== null && is_file($log) && filesize($log) > 0) {
-        // Only PHP messages; the development server also logs every connection.
+        // Show only real PHP messages, not the server's "connection opened/closed" lines.
         $lines = preg_grep('/Accepted|Closing|Closed without|started$|\[\d{3}\]: /', file($log), PREG_GREP_INVERT);
         echo $lines === [] ? '' : "Server log:\n" . implode('', $lines) . "\n";
     }

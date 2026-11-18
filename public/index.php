@@ -215,8 +215,11 @@ try {
 
     $router->get(API_PREFIX . '/delivery-options', [$deliveryOptions, 'index']);
 
-    // Delivery slots: public reads; staff/admin writes. Customers attach a
-    // slot to an order with POST /orders "deliverySlotId".
+    // Delivery slots Anyone can read them. Creating, changing and
+    // deleting go through $authorization, which checks
+    // the login and role before the controller runs: no login = 401,
+    // customer = 403. Customers attach a slot to their order at
+    // checkout by sending "deliverySlotId" to POST /orders.
     $router->get(API_PREFIX . '/delivery-slots', [$deliverySlots, 'index']);
     $router->get(API_PREFIX . '/delivery-slots/{id}', [$deliverySlots, 'show']);
     $router->post(API_PREFIX . '/delivery-slots', $authorization->protect([$deliverySlots, 'store'], 'staff'));

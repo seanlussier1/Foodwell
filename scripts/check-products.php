@@ -19,6 +19,7 @@ $exitCode = 0;
 $servers = [];
 $temporaryFiles = [];
 $checks = 0;
+$staffToken = null;   // set once the seeded database exists
 
 /** Stops at the first failure so the message points at the exact problem. */
 function check(bool $condition, string $message): void
@@ -37,7 +38,15 @@ function check(bool $condition, string $message): void
  */
 function api(int $port, string $method, string $path, ?string $body = null, array $headers = []): array
 {
+    global $staffToken;
     $headers += ['Accept' => 'application/json'];
+    // Since #46/#40, product writes need a staff or admin login. Every write in
+    // this script is meant to succeed (or fail for a data reason), so it logs in
+    // as staff automatically. Permission refusals are tested separately in
+    // check-catalog-authorization.php.
+    if ($method !== 'GET' && $staffToken !== null && !isset($headers['Authorization'])) {
+        $headers['Authorization'] = "Bearer $staffToken";
+    }
     if ($body !== null) {
         $headers += ['Content-Type' => 'application/json'];
     }
@@ -119,6 +128,12 @@ function startApi(PDO $pdo, string $label, bool $seed): array
 try {
     [$emptyPort] = startApi($pdo, 'empty', false);
     [$apiPort, $db] = startApi($pdo, 'seeded', true);   // leaves $pdo using the seeded database
+
+    // A staff login session (account 9, "Taylor Staff" in the seed data) for
+    // the write checks below. Only a fingerprint of the token is stored, like real logins.
+    $staffToken = bin2hex(random_bytes(32));
+    $pdo->prepare('INSERT INTO auth_sessions (customer_id, token_hash, expires_at) VALUES (9, ?, UTC_TIMESTAMP() + INTERVAL 1 HOUR)')
+        ->execute([hash('sha256', $staffToken)]);
     check(true, 'Two disposable databases and API servers started');
 
     $countProducts = fn(): int => (int) $pdo->query('SELECT COUNT(*) FROM products')->fetchColumn();

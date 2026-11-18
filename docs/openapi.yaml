@@ -196,8 +196,8 @@ paths:
         Creates a product from a JSON object (#27). `stock` is the opening
         balance; later stock changes use inventory adjustments. Names and units
         are trimmed. Unknown fields are rejected. Rejected requests change
-        nothing. Intended for staff/administrators, but **no role check is
-        implemented yet** (Build 3, #45/#46), the same as category writes.
+        nothing. Requires a staff or administrator login (#40): no login gives
+        401, a customer login gives 403.
         Request and response bodies are JSON only (XML/YAML deferred to #65).
       requestBody:
         required: true
@@ -236,6 +236,10 @@ paths:
                 isActive: true
         '400':
           $ref: '#/components/responses/MalformedJson'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/StaffOnly'
         '406':
           $ref: '#/components/responses/NotAcceptable'
         '415':
@@ -357,8 +361,8 @@ paths:
         Omitted optional fields reset to their defaults (unit "each", imageUrl
         null), except `isActive`, which keeps its current value when omitted.
         Send `"isActive": false` to deactivate a product (the cart then refuses
-        it). Rejected requests change nothing. No role check is implemented
-        yet (Build 3). JSON only.
+        it). Rejected requests change nothing. Requires a staff or administrator
+        login (#40). JSON only.
       requestBody:
         required: true
         content:
@@ -380,6 +384,10 @@ paths:
                 $ref: '#/components/schemas/Product'
         '400':
           $ref: '#/components/responses/MalformedJson'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/StaffOnly'
         '404':
           description: No product with that ID (checked before the body)
           content:
@@ -421,10 +429,14 @@ paths:
         its cart lines, favorites and reviews, and keeps past order lines with
         productId set to null (purchase snapshots stay readable). A product with
         inventory history cannot be deleted (409); deactivate it with PUT
-        `"isActive": false` instead. No role check is implemented yet (Build 3).
+        `"isActive": false` instead. Requires a staff or administrator login (#40).
       responses:
         '204':
           description: Product deleted (no body)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/StaffOnly'
         '404':
           description: No product with that ID
           content:
@@ -505,6 +517,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/StaffOnly'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
         '409':
           description: A category with this name already exists
           content:
@@ -525,17 +543,12 @@ paths:
                 $ref: '#/components/schemas/Error'
         '500':
           $ref: '#/components/responses/ServerError'
-        '406':
-          $ref: '#/components/responses/NotAcceptable'
       operationId: post__categories
       security:
       - BearerSession: []
       x-access: staff_or_admin
       x-current-access: bearer-session-required
       x-security-enforcement: enforced
-      x-security-note: 'Current category writes have no authentication/role checks. Staff/admin
-        permission is intended under #46; controlled local synthetic development only until
-        enforced.'
   /categories/{id}:
     parameters:
     - in: path
@@ -591,12 +604,18 @@ paths:
                     example: Category deleted successfully.
                   data:
                     $ref: '#/components/schemas/Category'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/StaffOnly'
         '404':
           description: Category not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
         '409':
           description: Cannot delete a category that still has products
           content:
@@ -605,17 +624,12 @@ paths:
                 $ref: '#/components/schemas/Error'
         '500':
           $ref: '#/components/responses/ServerError'
-        '406':
-          $ref: '#/components/responses/NotAcceptable'
       operationId: delete__categories__id_
       security:
       - BearerSession: []
       x-access: staff_or_admin
       x-current-access: bearer-session-required
       x-security-enforcement: enforced
-      x-security-note: 'Current category writes have no authentication/role checks. Staff/admin
-        permission is intended under #46; controlled local synthetic development only until
-        enforced.'
   /customers:
     post:
       tags:
@@ -1586,17 +1600,9 @@ paths:
         '400':
           $ref: '#/components/responses/MalformedJson'
         '401':
-          description: Missing, invalid or expired bearer session
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: The session belongs to a customer, not staff or an administrator
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/StaffOnly'
         '406':
           $ref: '#/components/responses/NotAcceptable'
         '409':
@@ -1694,17 +1700,9 @@ paths:
         '400':
           $ref: '#/components/responses/MalformedJson'
         '401':
-          description: Missing, invalid or expired bearer session
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: The session belongs to a customer, not staff or an administrator
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/StaffOnly'
         '404':
           description: Delivery slot not found
           content:
@@ -1750,17 +1748,9 @@ paths:
         '204':
           description: Delivery slot deleted; no body
         '401':
-          description: Missing, invalid or expired bearer session
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: The session belongs to a customer, not staff or an administrator
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/StaffOnly'
         '404':
           description: Delivery slot not found
           content:
@@ -3043,6 +3033,40 @@ components:
             error:
               status: 415
               message: 'This operation requires Content-Type: application/json.'
+              requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+    Unauthorized:
+      description: >
+        No working login: the Authorization header is missing or is not
+        "Bearer <64 hex characters>", or the session is unknown, expired,
+        logged out, or belongs to a deactivated account. Nothing is changed.
+      headers:
+        WWW-Authenticate:
+          description: Always "Bearer", telling the client to log in and send a bearer token
+          schema:
+            type: string
+          example: Bearer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              status: 401
+              message: Invalid or expired session.
+              requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+    StaffOnly:
+      description: >
+        Logged in, but as a customer. Only staff and administrator accounts may
+        do this. The check runs before the request body is read, so no
+        validation details or existence hints are returned. Nothing is changed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              status: 403
+              message: Forbidden.
               requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
   schemas:
     Error:
