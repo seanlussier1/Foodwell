@@ -104,12 +104,13 @@ Resource owner: **Will**.
 
 | Method | Path | Who should be allowed | What works today | Important check |
 |---|---|---|---|---|
+| GET | `/delivery-slots` | Public | Working; public access | Anyone may read this resource. |
+| POST | `/delivery-slots` | Staff or administrator | Bearer session enforced | Check the listed role; get the acting account from its session. |
+| GET | `/delivery-slots/{id}` | Public | Working; public access | Anyone may read this resource. |
+| PUT | `/delivery-slots/{id}` | Staff or administrator | Bearer session enforced | Lock the slot before counting bookings; never move a booked window or drop capacity below bookings. |
+| DELETE | `/delivery-slots/{id}` | Staff or administrator | Bearer session enforced | Refuse when any order references the slot; deactivate instead. |
 
-| GET | `/delivery-slots` | Public | Not implemented yet | Anyone may read this resource. |
-| POST | `/delivery-slots` | Staff or administrator | Not implemented yet | Check the listed role; get the acting account from its session. |
-| GET | `/delivery-slots/{id}` | Public | Not implemented yet | Anyone may read this resource. |
-| PUT | `/delivery-slots/{id}` | Staff or administrator | Not implemented yet | Check the listed role; get the acting account from its session. |
-| DELETE | `/delivery-slots/{id}` | Staff or administrator | Not implemented yet | Check the listed role; get the acting account from its session. |
+Customers attach a slot to their own order through `POST /orders` (`deliverySlotId`); that route's owner check applies.
 
 
 ## Login sessions

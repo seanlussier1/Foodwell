@@ -48,6 +48,16 @@ PHP consumption: `php scripts/delivery-client.php "H3N 1X1"` calls the same comp
 
 Run `php scripts/check-delivery.php` with the SCHEMA_TEST settings above: 62 checks use temporary databases and labeled doubles. Add `--live` for 69 checks including real provider calls (working HTTPS required). Provider failure gives a clearly marked partial response with unknown eligibility, rather than invented location or slot data. Live/cached/demo results are labeled separately.
 
+### Delivery slots (#39)
+
+`GET /api/v1/delivery-slots` lists delivery windows by start time (public, no login). Filters: `date=YYYY-MM-DD` (UTC day the slot starts) and `available=true|false`. `GET /delivery-slots/{id}` returns one slot. Each slot has `startsAt`/`endsAt` in UTC, `capacity`, `bookedCount` (non-cancelled orders), `availableCapacity`, `isActive` and `isAvailable` (active, in the future and not full, the same rule checkout uses).
+
+`POST`, `PUT` and `DELETE` require a staff or admin bearer session (401 without one, 403 for customers). Body: `{"startsAt": "2026-11-20T19:00:00Z", "endsAt": "2026-11-20T21:00:00Z", "capacity": 4, "isActive": true}`. Times need `Z` or `+hh:mm`; windows are at most 12 hours, start in the future and at most 365 days ahead; capacity is 1-1000. Once orders are booked, a slot's window cannot move and its capacity cannot drop below the bookings (409). Deactivate with `"isActive": false` to stop new bookings. Slots any order has used cannot be deleted (409).
+
+Customers attach a slot to an order at checkout: `POST /api/v1/orders` with `"deliverySlotId"`. Checkout refuses inactive, past or full slots with 409.
+
+Run `php scripts/check-delivery-slots.php` with the SCHEMA_TEST settings above: 71 checks in a temporary database cover filters, permissions, validation, checkout booking, update/delete rules and cleanup. No migration is needed.
+
 ## Security preparation
 
 The [security design](docs/SECURITY_DESIGN.md) and [48-operation permission matrix](docs/SECURITY_ROUTE_MATRIX.md) define intended roles, ownership, account administration and opaque-session behavior for #63. They distinguish intended permissions from current public/local-demo access and link Build 3 enforcement to #40/#45/#46/#47. The draft still requires Will's and Mohamed's resource-rule reviews; this documentation does not implement login or authorization. Category writes currently have no role checks and customer management is a local demo. Link the final reviewed design/commit from the #64 Build 2 manifest before marking #63 Done.
