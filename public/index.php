@@ -117,6 +117,7 @@ use Foodwell\Controllers\ProductController;
 use Foodwell\Controllers\CustomerController;
 use Foodwell\Controllers\CartController;
 use Foodwell\Controllers\DeliveryOptionController;
+use Foodwell\Controllers\DeliverySlotController;
 use Foodwell\Controllers\CategoryController;
 use Foodwell\Controllers\OrderController;
 use Foodwell\Database;
@@ -129,6 +130,7 @@ use Foodwell\Repositories\ProductRepository;
 use Foodwell\Repositories\CustomerRepository;
 use Foodwell\Repositories\CartRepository;
 use Foodwell\Repositories\DeliveryOptionRepository;
+use Foodwell\Repositories\DeliverySlotRepository;
 use Foodwell\Services\PostalAreaClient;
 use Foodwell\Repositories\CategoryRepository;
 use Foodwell\Repositories\OrderRepository;
@@ -188,6 +190,7 @@ try {
     $categories = new CategoryController(new CategoryRepository(Database::connection()));
     $carts = new CartController(new CartRepository(Database::connection()));
     $orders = new OrderController(new OrderRepository(Database::connection()));
+    $deliverySlots = new DeliverySlotController(new DeliverySlotRepository(Database::connection()));
     $deliveryOptions = new DeliveryOptionController(
         new PostalAreaClient(dirname(__DIR__) . '/var/postal-cache', 86400, Env::get('POSTAL_CA_BUNDLE', '')),
         new DeliveryOptionRepository(Database::connection())
@@ -211,6 +214,15 @@ try {
     $router->delete(API_PREFIX . '/customers/{id}/cart/items/{itemId}', $authorization->protect([$carts, 'remove'], 'owner'));
 
     $router->get(API_PREFIX . '/delivery-options', [$deliveryOptions, 'index']);
+
+    // Delivery slots: public reads; staff/admin writes. Customers attach a
+    // slot to an order with POST /orders "deliverySlotId".
+    $router->get(API_PREFIX . '/delivery-slots', [$deliverySlots, 'index']);
+    $router->get(API_PREFIX . '/delivery-slots/{id}', [$deliverySlots, 'show']);
+    $router->post(API_PREFIX . '/delivery-slots', $authorization->protect([$deliverySlots, 'store'], 'staff'));
+    $router->put(API_PREFIX . '/delivery-slots/{id}', $authorization->protect([$deliverySlots, 'update'], 'staff'));
+    $router->delete(API_PREFIX . '/delivery-slots/{id}', $authorization->protect([$deliverySlots, 'destroy'], 'staff'));
+
     $router->get(API_PREFIX . '/categories', [$categories, 'index']);
     $router->get(API_PREFIX . '/categories/{id}', [$categories, 'show']);
     $router->post(API_PREFIX . '/categories', $authorization->protect([$categories, 'store'], 'staff'));

@@ -25,6 +25,9 @@ Media types: **JSON** `application/json` · **XML** `application/xml` · **YAML*
 | POST, PUT | `/customers/{id}/cart/items[/{itemId}]` | JSON implemented; XML/YAML **deferred** | JSON implemented; XML/YAML **deferred** |
 | DELETE | `/customers/{id}/cart/items/{itemId}` | 204, no body (error bodies JSON) | — |
 | GET | `/delivery-options` | JSON implemented; XML/YAML **deferred** | — |
+| GET | `/delivery-slots`, `/delivery-slots/{id}` | JSON implemented; XML/YAML **deferred** | — |
+| POST, PUT | `/delivery-slots[/{id}]` | JSON implemented; XML/YAML **deferred** | JSON implemented; XML/YAML **deferred** |
+| DELETE | `/delivery-slots/{id}` | 204, no body (error bodies JSON) | — |
 
 Output-only XML/YAML support on the two product reads does **not** complete the
 matrix: all XML/YAML request bodies and every other route's XML/YAML output remain

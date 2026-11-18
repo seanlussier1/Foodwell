@@ -1495,67 +1495,139 @@ paths:
   /delivery-slots:
     get:
       tags:
-      - planned
-      x-status: planned
-      summary: List delivery slots, optionally by date/availability (Build 3)
+      - implemented
+      x-status: implemented
+      summary: List delivery slots, optionally by date and availability
+      description: >
+        Public list of delivery windows (#39), ordered by start time. Times are
+        UTC. A slot is booked by every order that references it and is not
+        cancelled. `isAvailable` (and `available=true`) means a customer could
+        choose it at checkout now: active, starting in the future and with
+        `availableCapacity` above 0. Filters combine with AND. Empty values are
+        ignored; unknown parameters, repeated/array values and invalid values
+        return 400. Not paginated. JSON only (XML/YAML deferred to #65).
       parameters:
       - in: query
         name: date
+        description: UTC calendar day (YYYY-MM-DD) on which the slot starts
         schema:
           type: string
           format: date
+        example: '2026-11-20'
       - in: query
         name: available
+        description: true = bookable now; false = full, inactive or already started
         schema:
-          type: boolean
+          type: string
+          enum: ['true', 'false']
       responses:
         '200':
-          description: Success
+          description: Matching slots (possibly an empty list)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeliverySlotList'
+        '400':
+          description: Invalid query parameters; error.details names each one
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              example:
+                error:
+                  status: 400
+                  message: Invalid query parameters.
+                  details:
+                    date: date must be a real calendar day written YYYY-MM-DD (UTC).
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: get__delivery_slots
       security: []
       x-access: public
-      x-current-access: not-implemented
+      x-current-access: public
       x-security-enforcement: not-required
     post:
       tags:
-      - planned
-      x-status: planned
-      summary: Create a delivery slot (Build 3)
-      responses:
-        '201':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeliverySlot'
-        '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Permission denied
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      operationId: post__delivery_slots
-      security:
-      - BearerSession: []
-      x-access: staff_or_admin
+      - implemented
+      x-status: implemented
+      summary: Create a delivery slot
+      description: >
+        Staff/administrator only. Times need an explicit zone (`Z` or `+hh:mm`)
+        and are stored in UTC. startsAt must be in the future and at most 365
+        days ahead; endsAt must be after startsAt and at most 12 hours later.
+        capacity is a whole number from 1 to 1000. isActive defaults to true.
+        Unknown fields are rejected. Two slots cannot share the exact same window.
+        Rejected requests change nothing.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/DeliverySlotInput'
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+            example:
+              startsAt: '2026-11-20T19:00:00Z'
+              endsAt: '2026-11-20T21:00:00Z'
+              capacity: 4
+      responses:
+        '201':
+          description: Slot created; the body is read back from the database
+          headers:
+            Location:
+              description: Path of the new slot
+              schema:
+                type: string
+              example: /api/v1/delivery-slots/305
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliverySlot'
+        '400':
+          $ref: '#/components/responses/MalformedJson'
+        '401':
+          description: Missing, invalid or expired bearer session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: The session belongs to a customer, not staff or an administrator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '409':
+          description: A slot with the same startsAt and endsAt already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          description: Invalid fields; nothing is saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              example:
+                error:
+                  status: 422
+                  message: Validation failed.
+                  details:
+                    endsAt: endsAt must be later than startsAt.
+                    capacity: capacity must be a whole number from 1 to 1000.
+        '500':
+          $ref: '#/components/responses/ServerError'
+      operationId: post__delivery_slots
+      security:
+      - BearerSession: []
+      x-access: staff_or_admin
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
   /delivery-slots/{id}:
     parameters:
     - in: path
@@ -1563,91 +1635,154 @@ paths:
       required: true
       schema:
         type: integer
+        minimum: 1
     get:
       tags:
-      - planned
-      x-status: planned
-      summary: Get one delivery slot (Build 3)
+      - implemented
+      x-status: implemented
+      summary: Get one delivery slot
+      description: Public. Includes booking counts and whether it can be chosen at checkout now.
       responses:
         '200':
-          description: Success
+          description: The slot
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeliverySlot'
         '404':
           description: Delivery slot not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: get__delivery_slots__id_
       security: []
       x-access: public
-      x-current-access: not-implemented
+      x-current-access: public
       x-security-enforcement: not-required
     put:
       tags:
-      - planned
-      x-status: planned
-      summary: Update a delivery slot (Build 3)
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeliverySlot'
-        '404':
-          description: Delivery slot not found
-        '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Permission denied
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      operationId: put__delivery_slots__id_
-      security:
-      - BearerSession: []
-      x-access: staff_or_admin
+      - implemented
+      x-status: implemented
+      summary: Update a delivery slot
+      description: >
+        Staff/administrator only. Replaces startsAt, endsAt and capacity (same
+        rules as POST); leaving isActive out keeps its current value. While the
+        slot has booked (non-cancelled) orders its window cannot move and its
+        capacity cannot go below the booked count (409). Deactivating is always
+        allowed: existing bookings stay, new checkouts are refused. A changed
+        window must start in the future; a past slot can still be edited if its
+        window stays the same. The slot is locked during the update, so a
+        checkout cannot book it at the same moment.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/DeliverySlotInput'
-      x-current-access: not-implemented
-      x-security-enforcement: planned
-    delete:
-      tags:
-      - planned
-      x-status: planned
-      summary: Delete a delivery slot (Build 3)
       responses:
-        '204':
-          description: Delivery slot deleted
-        '404':
-          description: Delivery slot not found
+        '200':
+          description: Updated slot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliverySlot'
+        '400':
+          $ref: '#/components/responses/MalformedJson'
         '401':
-          description: Authentication required
+          description: Missing, invalid or expired bearer session
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Permission denied
+          description: The session belongs to a customer, not staff or an administrator
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '404':
+          description: Delivery slot not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '409':
+          description: >
+            Booked orders prevent the change (window moved or capacity below
+            bookings), or another slot already has this exact window
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          description: Invalid fields; nothing is saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+      operationId: put__delivery_slots__id_
+      security:
+      - BearerSession: []
+      x-access: staff_or_admin
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
+    delete:
+      tags:
+      - implemented
+      x-status: implemented
+      summary: Delete a delivery slot
+      description: >
+        Staff/administrator only. Only slots that no order has ever used can be
+        deleted; any order (even cancelled or delivered) keeps its slot as
+        history, so those return 409. Deactivate them with PUT instead.
+      responses:
+        '204':
+          description: Delivery slot deleted; no body
+        '401':
+          description: Missing, invalid or expired bearer session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: The session belongs to a customer, not staff or an administrator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Delivery slot not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '409':
+          description: Orders reference this slot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
       operationId: delete__delivery_slots__id_
       security:
       - BearerSession: []
       x-access: staff_or_admin
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
   /auth/sessions:
     post:
       tags:
@@ -3880,15 +4015,21 @@ components:
         startsAt:
           type: string
           format: date-time
+          description: ISO 8601 with Z or +hh:mm; stored in UTC. Future, at most 365 days ahead.
+          example: '2026-11-20T19:00:00Z'
         endsAt:
           type: string
           format: date-time
+          description: After startsAt, at most 12 hours later
+          example: '2026-11-20T21:00:00Z'
         capacity:
           type: integer
           minimum: 1
+          maximum: 1000
+          description: Maximum number of non-cancelled orders
         isActive:
           type: boolean
-          default: true
+          description: POST default true; PUT omitted = keep the current value
       required:
       - startsAt
       - endsAt
@@ -3904,32 +4045,51 @@ components:
         startsAt:
           type: string
           format: date-time
+          description: UTC
+          example: '2026-11-20T19:00:00Z'
         endsAt:
           type: string
           format: date-time
+          description: UTC
+          example: '2026-11-20T21:00:00Z'
         capacity:
           type: integer
           minimum: 1
-        isActive:
-          type: boolean
-          default: true
-        createdAt:
-          type: string
-          format: date-time
+        bookedCount:
+          type: integer
+          minimum: 0
           readOnly: true
-        updatedAt:
-          type: string
-          format: date-time
-          readOnly: true
+          description: Orders using this slot that are not cancelled
         availableCapacity:
           type: integer
           minimum: 0
           readOnly: true
+          description: capacity - bookedCount (never below 0)
+        isAvailable:
+          type: boolean
+          readOnly: true
+          description: Active, starts in the future and availableCapacity > 0, so checkout accepts it now
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          readOnly: true
+          example: '2026-11-17 18:20:05'
+        updatedAt:
+          type: string
+          readOnly: true
+          example: '2026-11-17 18:20:05'
       required:
       - id
       - startsAt
       - endsAt
       - capacity
+      - bookedCount
+      - availableCapacity
+      - isAvailable
+      - isActive
+      - createdAt
+      - updatedAt
     CartQuantityInput:
       type: object
       properties:
