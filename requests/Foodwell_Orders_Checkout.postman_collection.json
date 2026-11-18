@@ -1,0 +1,508 @@
+{
+  "info": {
+    "name": "Foodwell Order and Checkout Integrity",
+    "description": "Uses the disposable schema and synthetic demo accounts provisioned by composer test:orders.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Sign in as alex",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/sessions",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"alex@example.com\",\"password\":\"FoodwellDemo!2026\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const response = pm.response.json();",
+              "pm.collectionVariables.set(\"alexToken\", response.accessToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sign in as sam",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/sessions",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"sam@example.com\",\"password\":\"FoodwellDemo!2026\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const response = pm.response.json();",
+              "pm.collectionVariables.set(\"samToken\", response.accessToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sign in as staff",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/sessions",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"staff@example.com\",\"password\":\"FoodwellDemo!2026\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const response = pm.response.json();",
+              "pm.collectionVariables.set(\"staffToken\", response.accessToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject checkout for another customer",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{samToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"customerId\":7,\"deliverySlotId\":304,\"deliveryAddress\":\"123 Synthetic Street\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "const response = pm.response.json();"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject checkout with an empty cart",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{samToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"customerId\":8,\"deliverySlotId\":304,\"deliveryAddress\":\"123 Synthetic Street\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+              "const response = pm.response.json();",
+              "pm.test(\"empty cart\", () => pm.expect(response.error.message).to.include(\"cart is empty\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Checkout and capture order",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{alexToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"customerId\":7,\"deliverySlotId\":304,\"deliveryAddress\":\"123 Synthetic Street\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const response = pm.response.json();",
+              "pm.collectionVariables.set(\"orderId\", response.id);",
+              "pm.test(\"pending order and exact total\", () => { pm.expect(response.status).to.eql(\"pending\"); pm.expect(response.total).to.eql(12.97); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject resubmission of consumed cart",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{alexToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"customerId\":7,\"deliverySlotId\":304,\"deliveryAddress\":\"123 Synthetic Street\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+              "const response = pm.response.json();",
+              "pm.test(\"cart consumed\", () => pm.expect(response.error.message).to.include(\"cart is empty\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject another customer's order detail",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{samToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/{{orderId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "const response = pm.response.json();"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject customer status update",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{alexToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/{{orderId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"status\":\"cancelled\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "const response = pm.response.json();"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject skipped status transition",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{staffToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/{{orderId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"status\":\"delivered\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+              "const response = pm.response.json();"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cancel the order",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{staffToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/{{orderId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"status\":\"cancelled\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const response = pm.response.json();",
+              "pm.test(\"cancelled status\", () => pm.expect(response.status).to.eql(\"cancelled\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Retry the cancellation",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{staffToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/{{orderId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"status\":\"cancelled\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const response = pm.response.json();",
+              "pm.test(\"cancelled status\", () => pm.expect(response.status).to.eql(\"cancelled\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Verify exactly one cancellation event",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{alexToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/{{orderId}}/status-events"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const response = pm.response.json();",
+              "pm.test(\"single cancellation by authenticated staff\", () => {",
+              "  pm.expect(response.data.map(event => event.newStatus)).to.eql([\"pending\", \"cancelled\"]);",
+              "  pm.expect(response.data[1].changedBy).to.eql(9);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Filter customer orders by cancelled status",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{alexToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/customers/7/orders?status=cancelled&limit=2"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const response = pm.response.json();",
+              "pm.test(\"cancelled history includes the new order\", () => {",
+              "  pm.expect(response.map(order => order.id)).to.include(Number(pm.collectionVariables.get(\"orderId\")));",
+              "  pm.expect(response.every(order => order.status === \"cancelled\")).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
