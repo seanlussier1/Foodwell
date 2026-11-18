@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="CheckoutStockTest" file="tests\orders\CheckoutStockTest.php" tests="2" assertions="6" errors="0" warnings="0" failures="0" skipped="0" time="0.029288">
+    <testsuite name="CheckoutStockTest::testRejectsUnfulfillableLineBeforePreparingAnyWrites" tests="2" assertions="6" errors="0" warnings="0" failures="0" skipped="0" time="0.029288">
+      <testcase name="testRejectsUnfulfillableLineBeforePreparingAnyWrites with data set &quot;zero quantity&quot;" class="CheckoutStockTest" classname="CheckoutStockTest" file="tests\orders\CheckoutStockTest.php" line="11" assertions="3" time="0.028922"/>
+      <testcase name="testRejectsUnfulfillableLineBeforePreparingAnyWrites with data set &quot;quantity exceeds current stock&quot;" class="CheckoutStockTest" classname="CheckoutStockTest" file="tests\orders\CheckoutStockTest.php" line="11" assertions="3" time="0.000366"/>
+    </testsuite>
+  </testsuite>
+</testsuites>

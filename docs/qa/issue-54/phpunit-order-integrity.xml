@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="CheckoutIntegrityTest" file="tests\orders\CheckoutIntegrityTest.php" tests="3" assertions="83" errors="0" warnings="0" failures="0" skipped="0" time="5.014958">
+    <testcase name="testCheckoutRejectsEmptyCartStockCapacityAndUnauthorizedRequests" class="CheckoutIntegrityTest" classname="CheckoutIntegrityTest" file="tests\orders\CheckoutIntegrityTest.php" line="38" assertions="29" time="1.585824"/>
+    <testcase name="testRollbackDuplicateCheckoutAndCancellationRetry" class="CheckoutIntegrityTest" classname="CheckoutIntegrityTest" file="tests\orders\CheckoutIntegrityTest.php" line="55" assertions="34" time="1.940394"/>
+    <testcase name="testCompetingSlotRequestsRetainLosingCartForRetry" class="CheckoutIntegrityTest" classname="CheckoutIntegrityTest" file="tests\orders\CheckoutIntegrityTest.php" line="96" assertions="20" time="1.488741"/>
+  </testsuite>
+</testsuites>
