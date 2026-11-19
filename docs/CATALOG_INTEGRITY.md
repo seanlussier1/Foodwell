@@ -38,3 +38,15 @@ After every refused write, the script compares the `products`, `categories`, `in
 - Category POST ignores unknown body fields and returns no `Location` header; product POST rejects unknown fields and returns one.
 - A product id above the column maximum (e.g. `/products/99999999999999999999`) returns 404 with the id shown as `9223372036854775807`.
 - `HEAD` returns 405 on all routes.
+
+## Automated tests (#42)
+
+The end-to-end checks above are complemented by PHPUnit and Newman:
+
+| Command | What runs | Result on this branch |
+| --- | --- | --- |
+| `composer test:unit` | `ProductInputTest` and `DeliverySlotInputTest` (no database), plus the existing customer and order unit tests | 67 tests, 104 assertions passed |
+| `composer test:catalog` | `CatalogRepositoryTest` against a disposable MariaDB database, then the `Foodwell_Catalog_Slots` Newman collection on a fresh seed | 17 tests / 56 assertions and 38 requests / 90 assertions passed |
+
+Writing the validation tests showed that `ProductInput` keeps a trimmed name in its cleaned data even when the name is invalid. This is harmless because controllers only use the cleaned data when there are no errors, so the tests check the reported errors rather than the data in that case.
+

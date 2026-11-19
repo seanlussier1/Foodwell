@@ -4,7 +4,10 @@ declare(strict_types=1);
 // Isolated collection runner: never load the application's .env.
 $root = dirname(__DIR__);
 $orders = in_array('--orders', $argv, true);
-$artifactDir = $orders ? ($root . '/.issue-53-tests') : sys_get_temp_dir();
+// --catalog (#42): catalog/slot repository tests, then the catalog Newman collection.
+// Its JUnit reports go to var/test-results/catalog (var/ is git-ignored).
+$catalog = !$orders && in_array('--catalog', $argv, true);
+$artifactDir = $orders ? ($root . '/.issue-53-tests') : ($catalog ? ($root . '/var/test-results/catalog') : sys_get_temp_dir());
 if (!is_dir($artifactDir) && !mkdir($artifactDir, 0700, true) && !is_dir($artifactDir)) {
     throw new RuntimeException('Cannot create the test artifact directory.');
 }
@@ -51,11 +54,21 @@ try {
             '--log-junit', "$artifactDir/phpunit.xml", $root . '/tests/orders/CheckoutIntegrityTest.php'], $root, $env);
         $pdo->exec(file_get_contents($root . '/database/schema.sql'));
         $pdo->exec(file_get_contents($root . '/database/seed.sql'));
+    } elseif ($catalog) {
+        $phpunit = $root . '/vendor/phpunit/phpunit/phpunit';
+        if (!is_file($phpunit)) { throw new RuntimeException('PHPUnit is missing. Run composer install first.'); }
+        // The repository tests reload the schema and seed before each test, so
+        // reload once more afterwards: Newman must start from the plain seed data.
+        runTest([PHP_BINARY, $phpunit, '--no-configuration', '--do-not-cache-result',
+            '--bootstrap', "$root/vendor/autoload.php", '--log-junit', "$artifactDir/phpunit-catalog-repositories.xml",
+            "$root/tests/catalog/CatalogRepositoryTest.php"], $root, $env);
+        $pdo->exec(file_get_contents($root . '/database/schema.sql'));
+        $pdo->exec(file_get_contents($root . '/database/seed.sql'));
     }
-    $collection = $orders ? 'Foodwell_Orders_Checkout' : 'Foodwell_Customer_Auth_Cart';
+    $collection = $orders ? 'Foodwell_Orders_Checkout' : ($catalog ? 'Foodwell_Catalog_Slots' : 'Foodwell_Customer_Auth_Cart');
     $command = ['node', $newman, 'run', "$root/requests/$collection.postman_collection.json",
         '--env-var', "baseUrl=http://127.0.0.1:{$ports[0]}/api/v1", '--bail', '--disable-unicode', '--color', 'off'];
-    if ($orders) {
+    if ($orders || $catalog) {
         array_push($command, '--reporters', 'cli,junit', '--reporter-junit-export', "$artifactDir/newman.xml");
     }
     runTest($command, $root, $env);
