@@ -1,0 +1,66 @@
+  ok: disposable database and API server started
+  [database] start {"products":10,"categories":4,"slots":4}
+
+== 1. Browsing the catalog (no login)
+GET /products?category=2&sort=-price&limit=2 => 200
+  ok: Dairy sorted by price, page 1 of 2 (Old Cheddar, Whole Milk), total 3
+  ok: the next link keeps the filters and points to page 2
+GET /products/101 => 200
+  ok: the same product as XML when the client asks for XML
+GET /delivery-slots?available=true => 200
+  ok: only slot 304 can be booked right now (the others are full or past)
+
+== 2. Logins and permissions
+POST /auth/sessions => 201
+POST /auth/sessions => 201
+  ok: signed in as Alex (customer) and Taylor (staff)
+POST /products => 401
+  ok: no login: 401 and the API asks for a Bearer token
+POST /products => 403
+  ok: a customer is logged in but not allowed: 403
+  [database] after the refused requests (nothing changed) {"products":10,"categories":4,"slots":4}
+
+== 3. Staff manages products and categories
+POST /categories => 201
+  ok: new category Frozen (id 5)
+POST /categories => 409
+  ok: the same name again (any case, extra spaces) is a 409 duplicate
+POST /products => 201
+  ok: new product 111 in Frozen, with a Location header
+PUT /products/111 => 200
+  ok: price lowered and product deactivated; stock untouched (it only changes through inventory adjustments)
+  [database] after creating the category and product {"products":11,"categories":5,"slots":4}
+DELETE /categories/5 => 409
+  ok: Frozen still has a product, so it cannot be deleted: 409
+DELETE /products/109 => 409
+  ok: Basmati Rice has stock history, so it cannot be deleted: 409 (deactivate instead)
+DELETE /products/111 => 204
+  ok: the new product (no history) is deleted: 204
+DELETE /categories/5 => 200
+  ok: now the empty category can be deleted
+  [database] back to the seeded catalog {"products":10,"categories":4,"slots":4}
+
+== 4. Delivery slots and checkout
+POST /delivery-slots => 201
+  ok: new 2-hour slot 305 in 5 days, capacity 2, bookable
+POST /orders => 201
+  ok: Alex checks out with that slot: order 905
+GET /delivery-slots/305 => 200
+  ok: the slot now shows 1 booked, 1 place left
+  [database] after checkout {"products":10,"categories":4,"slots":5,"ordersOnNewSlot":1}
+PUT /delivery-slots/305 => 409
+  ok: moving a booked window is refused: 409
+PUT /delivery-slots/305 => 200
+  ok: deactivating is allowed: no new bookings, and Alex keeps the booking
+DELETE /delivery-slots/305 => 409
+  ok: a slot used by an order cannot be deleted: 409
+  [database] after the slot changes {"products":10,"categories":4,"slots":5,"order905Slot":305}
+
+== 5. Bad input gets a clear answer
+GET /products?sort=price&sort=name => 400
+  ok: a repeated sort key is a 400 that says what is wrong
+  ok: the error carries the same request id as the X-Request-ID header (for finding it in the log)
+POST /delivery-slots => 422
+  ok: a slot ending before it starts, with capacity 0: one 422 naming both fields
+
+PASS: catalog and delivery slot demo rehearsal. The disposable database is dropped now.
