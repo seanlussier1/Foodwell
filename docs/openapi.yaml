@@ -2,11 +2,12 @@ openapi: 3.0.3
 info:
   title: Foodwell API
   version: 1.1.0-expanded-contract
-  description: 'Foodwell contract: 48 operations. Delivery-area options combine Zippopotam.us/GeoNames
-    prefix data with configured Foodwell service areas and database slot availability. Customer/cart
-    management remain local demos; intended role/ownership enforcement is still planned. See
-    per-operation implementation/access metadata. Security requirements describe intended access,
-    not current enforcement; see x-current-access and x-security-enforcement for the actual boundary.'
+  description: 'Foodwell contract: 48 operations, 32 implemented and 16 planned (tag `planned`,
+    `x-status: planned`; addresses, favorites, reviews and inventory adjustments). Delivery-area
+    options combine Zippopotam.us/GeoNames prefix data with configured Foodwell service areas and
+    database slot availability. Every implemented operation that lists BearerSession enforces it:
+    401 without a working login, 403 for the wrong account or role (see x-access). Security on
+    planned operations describes the intended access only, since those routes do not exist yet.'
 servers:
 - url: http://localhost/foodwell-api/api/v1
   description: WampServer (Apache, www/foodwell-api)
@@ -16,9 +17,9 @@ tags:
 - name: implemented
   description: Working routes; see each operation for its implementation scope
 - name: planned
-  description: Contract only - not implemented yet (Build 2 / Build 3)
+  description: Contract only - not implemented yet; the route returns 404 or 405
 - name: Sessions
-  description: Planned expanded resource
+  description: Implemented expanded resource
 - name: Addresses
   description: Planned expanded resource
 - name: Favorites
@@ -28,7 +29,7 @@ tags:
 - name: Inventory
   description: Planned expanded resource
 - name: Order history
-  description: Planned expanded resource
+  description: Implemented expanded resource
 paths:
   /products:
     get:
@@ -641,7 +642,7 @@ paths:
       summary: Register a customer
       description: JSON registration only. Email is trimmed and lowercased. Passwords are
         hashed; role and activation are assigned by the server. Unknown fields are rejected.
-        Profile reads/updates and sessions remain planned.
+        Log in afterwards with POST /auth/sessions.
       requestBody:
         required: true
         content:
@@ -705,14 +706,12 @@ paths:
     get:
       tags:
       - implemented
-      x-status: local-demo
+      x-status: implemented
       operationId: get__customers
-      summary: Filter and paginate customers (local demo)
-      description: Requires APP_CUSTOMER_PROFILE_DEMO=1 and loopback access; otherwise 403.
-        Intended staff/admin authorization is not implemented. Returns customer-role accounts
+      summary: Filter and paginate customers
+      description: Requires a staff or administrator login. Returns customer-role accounts
         only, ordered by ID ascending. Both filters combine with AND. Empty and beyond-final
         pages return 200 with empty data. Unknown or array-valued query parameters are rejected.
-        No customer listing authentication is claimed.
       security:
       - BearerSession: []
       x-access: staff_or_admin
@@ -772,8 +771,10 @@ paths:
                         type: object
                         additionalProperties:
                           type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Local demo disabled or request not from loopback
+          description: Logged in, but not as staff or an administrator
           content:
             application/json:
               schema:
@@ -794,8 +795,8 @@ paths:
     get:
       tags:
       - implemented
-      x-status: local-demo
-      summary: Get a customer profile (local demo)
+      x-status: implemented
+      summary: Get a customer profile
       responses:
         '200':
           description: A single customer
@@ -803,15 +804,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Customer'
-        '404':
-          description: Customer ID not found or outside the supported ID range
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Logged in, but not as this customer or an administrator
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '403':
-          description: Local demo is disabled or client is not loopback; future owner/admin
-            enforcement remains planned
+        '404':
+          description: Customer ID not found or outside the supported ID range
           content:
             application/json:
               schema:
@@ -824,17 +826,15 @@ paths:
       security:
       - BearerSession: []
       x-access: owner_or_admin
-      description: 'Requires APP_CUSTOMER_PROFILE_DEMO=1 and a loopback client address. Otherwise
-        returns 403. This is a local synthetic-data demo without authentication; owner/admin
-        session enforcement is planned under #45/#46. BearerSession below documents the intended
-        future access contract, not implemented security.'
+      description: Requires a login as this customer or an administrator. Returns the
+        profile without password or session data.
       x-current-access: bearer-session-required
       x-security-enforcement: enforced
     put:
       tags:
       - implemented
-      x-status: local-demo
-      summary: Update a customer profile (local demo)
+      x-status: implemented
+      summary: Update a customer profile
       requestBody:
         required: true
         content:
@@ -848,25 +848,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Customer'
-        '404':
-          description: Customer ID not found or outside the supported ID range
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Local demo is disabled or client is not loopback; future owner/admin
-            enforcement remains planned
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '400':
           description: Malformed JSON or non-object body
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Logged in, but not as this customer or an administrator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Customer ID not found or outside the supported ID range
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
         '409':
           description: Normalized email belongs to another account
           content:
@@ -880,7 +883,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '422':
-          description: Invalid registration fields; no customer is created
+          description: Invalid profile fields; nothing is changed
           content:
             application/json:
               schema:
@@ -899,30 +902,24 @@ paths:
                         type: object
                         additionalProperties:
                           type: string
-        '406':
-          $ref: '#/components/responses/NotAcceptable'
         '500':
           $ref: '#/components/responses/ServerError'
       operationId: put__customers__id_
       security:
       - BearerSession: []
       x-access: owner_or_admin
-      description: 'Requires APP_CUSTOMER_PROFILE_DEMO=1 and a loopback client address. Otherwise
-        returns 403. This is a local synthetic-data demo without authentication; owner/admin
-        session enforcement is planned under #45/#46. BearerSession below documents the intended
-        future access contract, not implemented security. Replaces profile fields; omitted
-        address/phone become null. Password, role and activation cannot be changed. Missing
-        required fields are invalid.'
+      description: Requires a login as this customer or an administrator. Replaces profile
+        fields; omitted address/phone become null. Password, role and activation cannot be
+        changed. Missing required fields are invalid.
       x-current-access: bearer-session-required
       x-security-enforcement: enforced
     patch:
       tags:
       - implemented
-      x-status: local-demo
+      x-status: implemented
       operationId: patch__customers__id_
-      summary: Deactivate a customer (local demo)
-      description: Requires explicit local demo flag and loopback address. Intended staff/admin
-        enforcement remains planned. Only customer-role accounts can be deactivated. Profile/history
+      summary: Deactivate a customer
+      description: Requires a staff or administrator login. Only customer-role accounts can be deactivated. Profile/history
         records are retained and existing sessions are revoked atomically. Repeated deactivation
         returns 200. No reactivation or arbitrary field patching is supported.
       security:
@@ -947,8 +944,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Demo disabled, non-loopback request, or target is staff/admin
+          description: Logged in, but not as staff or an administrator; or the target account is staff/admin
           content:
             application/json:
               schema:
@@ -959,6 +958,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
         '415':
           description: Missing or unsupported Content-Type; application/json required
           content:
@@ -966,7 +967,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '422':
-          description: Invalid registration fields; no customer is created
+          description: Invalid deactivation body; nothing is changed
           content:
             application/json:
               schema:
@@ -985,8 +986,6 @@ paths:
                         type: object
                         additionalProperties:
                           type: string
-        '406':
-          $ref: '#/components/responses/NotAcceptable'
         '500':
           $ref: '#/components/responses/ServerError'
       x-current-access: bearer-session-required
@@ -995,8 +994,8 @@ paths:
     get:
       tags:
       - implemented
-      x-status: local-demo
-      summary: Get a customer's active cart (Build 2)
+      x-status: implemented
+      summary: Get a customer's active cart
       parameters:
       - in: path
         name: id
@@ -1010,14 +1009,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Cart'
-        '404':
-          description: Customer, product or scoped cart item does not exist, as applicable
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Logged in, but not as this customer or an administrator; or the target account is inactive or not a customer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden role or inactive/non-customer target
+        '404':
+          description: Customer, product or scoped cart item does not exist, as applicable
           content:
             application/json:
               schema:
@@ -1037,8 +1038,8 @@ paths:
     post:
       tags:
       - implemented
-      x-status: local-demo
-      summary: Add an item to the cart (Build 2)
+      x-status: implemented
+      summary: Add an item to the cart
       parameters:
       - in: path
         name: id
@@ -1052,21 +1053,28 @@ paths:
             schema:
               $ref: '#/components/schemas/CartItemInput'
       responses:
+        '200':
+          description: Updated cart; POST increased an existing product line
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
         '201':
           description: New product line added; creates the reusable cart if needed
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Cart'
-        '409':
-          description: Product inactive, unavailable stock, or combined quantity exceeds the
-            per-line maximum; no cart change is committed
+        '400':
+          description: Malformed JSON or body is not an object
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Forbidden role or inactive/non-customer target
+          description: Logged in, but not as this customer or an administrator; or the target account is inactive or not a customer
           content:
             application/json:
               schema:
@@ -1077,14 +1085,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '200':
-          description: Updated cart; POST increased an existing product line
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Cart'
-        '400':
-          description: Malformed JSON or body is not an object
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '409':
+          description: Product inactive, unavailable stock, or combined quantity exceeds the
+            per-line maximum; no cart change is committed
           content:
             application/json:
               schema:
@@ -1096,7 +1101,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '422':
-          description: Invalid registration fields; no customer is created
+          description: Invalid cart item fields; the cart is unchanged
           content:
             application/json:
               schema:
@@ -1115,8 +1120,6 @@ paths:
                         type: object
                         additionalProperties:
                           type: string
-        '406':
-          $ref: '#/components/responses/NotAcceptable'
         '500':
           $ref: '#/components/responses/ServerError'
       operationId: post__customers__id__cart_items
@@ -1141,8 +1144,8 @@ paths:
     put:
       tags:
       - implemented
-      x-status: local-demo
-      summary: Update a cart item's quantity (Build 2)
+      x-status: implemented
+      summary: Update a cart item's quantity
       requestBody:
         required: true
         content:
@@ -1156,20 +1159,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Cart'
+        '400':
+          description: Malformed JSON or body is not an object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Logged in, but not as this customer or an administrator; or the target account is inactive or not a customer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: Customer, product or scoped cart item does not exist, as applicable
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden role or inactive/non-customer target
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '400':
-          description: Malformed JSON or body is not an object
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '409':
+          description: Product inactive, unavailable stock, or combined quantity exceeds the
+            per-line maximum; no cart change is committed
           content:
             application/json:
               schema:
@@ -1181,7 +1195,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '422':
-          description: Invalid registration fields; no customer is created
+          description: Invalid quantity; the cart is unchanged
           content:
             application/json:
               schema:
@@ -1200,15 +1214,6 @@ paths:
                         type: object
                         additionalProperties:
                           type: string
-        '409':
-          description: Product inactive, unavailable stock, or combined quantity exceeds the
-            per-line maximum; no cart change is committed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '406':
-          $ref: '#/components/responses/NotAcceptable'
         '500':
           $ref: '#/components/responses/ServerError'
       operationId: put__customers__id__cart_items__itemId_
@@ -1221,19 +1226,21 @@ paths:
     delete:
       tags:
       - implemented
-      x-status: local-demo
-      summary: Remove an item from the cart (Build 2)
+      x-status: implemented
+      summary: Remove an item from the cart
       responses:
         '204':
           description: Item removed; no response body
-        '404':
-          description: Customer, product or scoped cart item does not exist, as applicable
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Logged in, but not as this customer or an administrator; or the target account is inactive or not a customer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden role or inactive/non-customer target
+        '404':
+          description: Customer, product or scoped cart item does not exist, as applicable
           content:
             application/json:
               schema:
@@ -1253,7 +1260,7 @@ paths:
     post:
       tags:
       - implemented
-      x-status: local-demo
+      x-status: implemented
       summary: Create an order from a customer's cart
       description: >
         Creates an order using the customer's existing cart.
@@ -1265,10 +1272,9 @@ paths:
         are removed only after the order and its item snapshots are saved
         successfully.
 
-        Current access is restricted to a local demonstration:
-        APP_CART_DEMO=1 and a loopback client address are required.
-        Authentication and customer ownership enforcement are not implemented
-        yet and remain planned work.
+        Requires a login as the customer named in customerId, or an
+        administrator. A missing or invalid customerId returns 422 before the
+        permission check.
       requestBody:
         required: true
         content:
@@ -1291,8 +1297,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Order demo is disabled or customer account is not eligible
+          description: Logged in, but not as this customer or an administrator; or the customer account is not eligible
           content:
             application/json:
               schema:
@@ -1303,6 +1311,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
         '409':
           description: Cart is empty, product is unavailable, stock is insufficient, or delivery slot is unavailable
           content:
@@ -1321,8 +1331,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationError'
-        '406':
-          $ref: '#/components/responses/NotAcceptable'
         '500':
           $ref: '#/components/responses/ServerError'
       operationId: post__orders
@@ -1345,17 +1353,15 @@ paths:
     get:
       tags:
       - implemented
-      x-status: local-demo
+      x-status: implemented
       summary: Retrieve a saved order
       description: >
         Retrieves a previously created order, including its customer ID,
         status, delivery information, total and saved item details.
         The returned item details are read from the persisted order records.
 
-        Current access is restricted to a local demonstration:
-        APP_CART_DEMO=1 and a loopback client address are required.
-        Authentication and customer ownership enforcement are not implemented
-        yet and remain planned work.
+        Requires a login as the order's customer or an administrator. An
+        unknown order returns 404 before the permission check.
       responses:
         '200':
           description: Order successfully retrieved
@@ -1363,8 +1369,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Order demo is disabled
+          description: Logged in, but not as the order's customer or an administrator
           content:
             application/json:
               schema:
@@ -1387,6 +1395,7 @@ paths:
       x-security-enforcement: enforced
     patch:
       tags:
+      - implemented
       - Order history
       x-status: implemented
       summary: Update an order's status
@@ -1450,6 +1459,7 @@ paths:
   /customers/{id}/orders:
     get:
       tags:
+      - implemented
       - Order history
       x-status: implemented
       summary: Get a customer's order history
@@ -1779,6 +1789,7 @@ paths:
   /auth/sessions:
     post:
       tags:
+      - implemented
       - Sessions
       x-status: implemented
       operationId: post__auth_sessions
@@ -1841,6 +1852,7 @@ paths:
   /auth/sessions/current:
     get:
       tags:
+      - implemented
       - Sessions
       x-status: implemented
       operationId: get__auth_sessions_current
@@ -1890,6 +1902,7 @@ paths:
     parameters: []
     delete:
       tags:
+      - implemented
       - Sessions
       x-status: implemented
       operationId: delete__auth_sessions_current
@@ -2847,6 +2860,7 @@ paths:
   /orders/{id}/status-events:
     get:
       tags:
+      - implemented
       - Order history
       x-status: implemented
       operationId: get__orders__id__status_events
@@ -3871,7 +3885,10 @@ components:
           readOnly: true
         previousStatus:
           type: string
+          nullable: true
+          description: null for the order's first event (it had no status before)
           enum:
+          - null
           - pending
           - packed
           - out_for_delivery

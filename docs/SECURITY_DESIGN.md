@@ -4,7 +4,9 @@ Status: design draft ready for resource-owner review, November 1, 2026.
 Owner: Sean (@seanlussier1). Required resource reviews: Will (@Wlszn) and Mohamed (@MohAmine2006). Neither review is recorded yet. No authentication or authorization implementation is delivered by this document.
 
 
-**Implementation update (#45):** Login, current-session and logout are implemented. This document describes the earlier design snapshot; route authorization and private-resource enforcement remain assigned to #46 and the resource owners.
+**Implementation update (#45):** Login, current-session and logout are implemented. This document describes the earlier design snapshot.
+
+**Status at the #43 documentation audit (November 18, 2026):** the design is implemented for every existing route. Sessions (#45), permission and ownership checks (#46) and catalog/slot rules (#40) are enforced, and the old demo flags no longer bypass them. Section 2 below is kept as the Build 2 history. For the current rule of each route, see the [route matrix](SECURITY_ROUTE_MATRIX.md); the 16 planned routes (addresses, favorites, reviews, inventory adjustments) do not exist yet and must apply this design when built.
 
 ## How to read this plan
 
@@ -52,7 +54,9 @@ The [route matrix](SECURITY_ROUTE_MATRIX.md) covers all 48 method/path operation
 
 This snapshot is based on main commit `c55cacd` (customer PRs #70/#72 and category PR #73). Later routes must update both the matrix and OpenAPI. Category PUT is not currently agreed in this contract. The public /delivery-options composite route is added under #37, with prefix-only external disclosure and no booking side effects; see DELIVERY_AREA_INTEGRATION.md. It does not change the private-route permission rules. No route is implicitly public because its policy is missing.
 
-## 2. Current Build 2 limitations: what is and is not enforced
+## 2. Build 2 limitations (historical; resolved in Build 3)
+
+These were the limits before #45, #46 and #40. They no longer describe the code.
 
 - Product GET and category GET are public. Registration is public, validates inputs, hashes passwords and fixes role=customer/is_active=1 server-side.
 - Category POST/DELETE currently have no identity/role check. They are intended staff/admin operations, not safe public administration. OpenAPI now labels the intended policy and explicitly records current public access. Restrict this snapshot to controlled synthetic development; #46 and Mohamed's resource checks must enforce the intended policy before shared deployment.

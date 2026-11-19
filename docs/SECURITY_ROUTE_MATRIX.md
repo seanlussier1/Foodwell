@@ -23,7 +23,7 @@ Draft for Will and Mohamed to review, November 1, 2026. This file lists all 48 A
 | Customer role / customer author | A signed-in customer; author means the customer who wrote the review. |
 | Owner, staff or administrator | The owner can read their own record, and the listed staff/admin roles have explicit access. |
 
-**Working local demo** means the existing demo flag and a request from the same computer are required. It does not check who the person is or enforce the intended roles. **Working; public access** means anyone may call it on purpose (public reads). **Bearer session enforced** means the route checks the login session and role on every request (401 without a working login, 403 for the wrong role). **Not implemented yet** means the contract describes a future operation.
+**Working; public access** means anyone may call it on purpose (public reads). **Bearer session enforced** means the route checks the login session and role on every request (401 without a working login, 403 for the wrong role). **Not implemented yet** means the contract describes a future operation.
 
 The permission rules do not give administrators unrestricted access to everything. Only the exceptions explicitly named in the tables apply.
 
@@ -61,25 +61,25 @@ Resource owner: **Sean**.
 |---|---|---|---|---|
 
 | POST | `/customers` | Public | Working; public access | Registration always creates a regular customer; callers cannot choose a role. |
-| GET | `/customers` | Staff or administrator | Working local demo | List customer accounts only; do not include staff/admin accounts or secrets. |
-| GET | `/customers/{id}` | Owner or administrator | Working local demo | Return safe profile fields; never return passwords or password hashes. |
-| PUT | `/customers/{id}` | Owner or administrator | Working local demo | Profile changes cannot change password, role or activation. |
-| PATCH | `/customers/{id}` | Staff or administrator | Working local demo | Deactivate customer accounts only; cancel their sessions and retain history. |
+| GET | `/customers` | Staff or administrator | Bearer session enforced | List customer accounts only; do not include staff/admin accounts or secrets. |
+| GET | `/customers/{id}` | Owner or administrator | Bearer session enforced | Return safe profile fields; never return passwords or password hashes. |
+| PUT | `/customers/{id}` | Owner or administrator | Bearer session enforced | Profile changes cannot change password, role or activation. |
+| PATCH | `/customers/{id}` | Staff or administrator | Bearer session enforced | Deactivate customer accounts only; cancel their sessions and retain history. |
 
 
 ## Carts
 
 Resource owner: **Sean**.
 
-Cart implementation status was updated for #35 on top of main `0c3613d`. These routes now use the separate `APP_CART_DEMO=1` setting and loopback access. They check the target account and cart/item relationships, but do not authenticate the caller or enforce the intended owner/admin policy. See [the checkout handoff](CART_CHECKOUT_HANDOFF.md). The other rows retain the earlier reviewed snapshot described above.
+Cart and order routes require a bearer session for the path customer (or an administrator) since #46, and still check the target account and cart/item relationships. See [the checkout handoff](CART_CHECKOUT_HANDOFF.md). Status column updated in the #43 documentation audit.
 
 | Method | Path | Who should be allowed | What works today | Important check |
 |---|---|---|---|---|
 
-| GET | `/customers/{id}/cart` | Owner or administrator | Working local demo | Check that the cart belongs to the customer and the item belongs to that cart. |
-| POST | `/customers/{id}/cart/items` | Owner or administrator | Working local demo | Check that the cart belongs to the customer and the item belongs to that cart. |
-| PUT | `/customers/{id}/cart/items/{itemId}` | Owner or administrator | Working local demo | Check that the cart belongs to the customer and the item belongs to that cart. |
-| DELETE | `/customers/{id}/cart/items/{itemId}` | Owner or administrator | Working local demo | Check that the cart belongs to the customer and the item belongs to that cart. |
+| GET | `/customers/{id}/cart` | Owner or administrator | Bearer session enforced | Check that the cart belongs to the customer and the item belongs to that cart. |
+| POST | `/customers/{id}/cart/items` | Owner or administrator | Bearer session enforced | Check that the cart belongs to the customer and the item belongs to that cart. |
+| PUT | `/customers/{id}/cart/items/{itemId}` | Owner or administrator | Bearer session enforced | Check that the cart belongs to the customer and the item belongs to that cart. |
+| DELETE | `/customers/{id}/cart/items/{itemId}` | Owner or administrator | Bearer session enforced | Check that the cart belongs to the customer and the item belongs to that cart. |
 
 
 ## Orders and status history
@@ -89,8 +89,8 @@ Resource owner: **Mohamed**.
 | Method | Path | Who should be allowed | What works today | Important check |
 |---|---|---|---|---|
 
-| POST | `/orders` | Owner or administrator | Not implemented yet | Verify customerId against the caller; check cart and address ownership. |
-| GET | `/orders/{id}` | Owner or administrator | Not implemented yet | Staff access to full order details is not currently agreed; Mohamed must confirm. |
+| POST | `/orders` | Owner or administrator | Bearer session enforced | The caller must be the customer in `customerId` (or an administrator); a missing or invalid `customerId` is 422 before the check. Staff get 403. |
+| GET | `/orders/{id}` | Owner or administrator | Bearer session enforced | An unknown order is 404 before the check. Staff get 403 here; they use the status-events and status-update routes. |
 | PATCH | `/orders/{id}` | Staff or administrator | Bearer session enforced | Record the signed-in actor on each status change. |
 | GET | `/customers/{id}/orders` | Owner or administrator | Bearer session enforced | Match the requested customer to the signed-in account for owner access. |
 | GET | `/orders/{id}/status-events` | Owner, staff or administrator | Bearer session enforced | Resolve ownership from the stored order. |

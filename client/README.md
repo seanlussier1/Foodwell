@@ -4,7 +4,7 @@
 
 New customers can choose **Sign in → Create an account**, enter their name, email and password, and then sign in. Registration uses the public customer endpoint and does not accept role or activation fields. The form checks matching passwords and displays API validation or duplicate-email errors. Use synthetic accounts when testing locally.
 
-The local synthetic checkout demonstration is at `/client/shop.html` (or `shop.html` on the separate client server). Enable `APP_CART_DEMO=1` and use an active customer ID. Browse and search products, add and update cart lines, optionally check a postal area and select an offered window, then enter an address and place an order. The confirmation reads the saved order back. Cart and order routes require loopback access; customer identity and ownership are not authenticated. Delivery-area lookup is advisory and does not validate the address. A selected window is rechecked for time and capacity at checkout.
+The checkout page is at `/client/shop.html` (or `shop.html` on the separate client server). Sign in as an active customer first; the page uses that account's cart. Browse and search products, add and update cart lines, optionally check a postal area and select an offered window, then enter an address and place an order. The confirmation reads the saved order back. Cart and order routes require the signed-in customer's bearer session and only allow that customer's own cart and orders (or an administrator). Delivery-area lookup is advisory and does not validate the address. A selected window is rechecked for time and capacity at checkout.
 
 See [checkout demonstration and evidence](../docs/CHECKOUT_DEMO.md) for the PHP consumer, concurrent booking check and manifest contribution.
 
@@ -15,7 +15,7 @@ The separate `delivery.html` page provides the #37 public delivery-area checker.
 ## Start with Wamp
 
 1. Keep Wamp running and use an updated development database with synthetic data.
-2. In the application's `.env`, use the intended database settings and `APP_CUSTOMER_PROFILE_DEMO=1` for local testing.
+2. In the application's `.env`, use the intended database settings and set `AUTH_LIMITER_SECRET` (needed for sign-in). The old `APP_CUSTOMER_PROFILE_DEMO` flag no longer changes access.
 3. Open `http://localhost/foodwell-api/client/`. The dashboard infers the API base `http://localhost/foodwell-api/api/v1`.
 
 Alternatively, to demonstrate cross-origin browser consumption, run from the repository root:
@@ -36,7 +36,7 @@ Leave that terminal open and visit `http://localhost:8081`. Its default API is t
 - Deactivate a synthetic customer with PATCH. Confirm the action, then select Inactive to see it. The account/history remain in the database and existing sessions are revoked. Reactivation is not provided.
 - Blank required fields are caught in JavaScript without a request. Detailed rules remain server-side: a nonempty invalid email or a short nonempty password produces the backend's structured 422 feedback. Forms use novalidate deliberately so the lab can demonstrate both layers.
 
-The same local-demo restrictions apply to collection/profile/PATCH routes. This is not login or role/ownership enforcement. Keep the demo flag off on shared/deployed servers; #45/#46 must supply actual authorization. Browser fetches do not send cross-origin credentials.
+The collection and deactivation routes require a staff or administrator sign-in; profile routes allow the customer themself or an administrator. The session token is kept in memory and sent as a bearer header; browser fetches do not send cross-origin cookies.
 
 ## Verification
 

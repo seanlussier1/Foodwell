@@ -11,7 +11,7 @@ Prepared by Sean for Mohamed. Status: cart implemented and tested locally; check
 | PUT | /customers/{id}/cart/items/{itemId} | Replace that line's quantity |
 | DELETE | /customers/{id}/cart/items/{itemId} | Remove that line; 204 with no body |
 
-These are JSON, local-demo endpoints. Enable `APP_CART_DEMO=1` and use localhost. The path account must be an active customer. The setting defaults off, and it does not authenticate the person making the request: any local caller can choose another customer ID while enabled. A nested item ID is always checked against the specified customer's cart, but real session-based ownership is still pending. Do not deploy this as a secured cart service.
+These are JSON endpoints. They require a bearer session for the path customer, or an administrator (#46); the old `APP_CART_DEMO` flag no longer changes access. The path account must be an active customer, and a nested item ID is always checked against that customer's cart.
 
 Cart response fields: id, customerId, items, subtotal, itemCount and totalQuantity. Each line includes id (the **cart item ID**), productId, productName, unit, quantity, unitPrice, lineTotal, availableStock and isActive. The item ID and product ID are different; PUT/DELETE use the item ID.
 
