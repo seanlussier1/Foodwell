@@ -510,13 +510,10 @@ try {
             $before = $pdo->query('SELECT (SELECT COUNT(*) FROM products) + (SELECT COUNT(*) FROM categories) + (SELECT COUNT(*) FROM delivery_slots) + (SELECT COUNT(*) FROM customers) + (SELECT COUNT(*) FROM orders) + (SELECT COUNT(*) FROM cart_items)')->fetchColumn();
             [$status, , $raw] = http($method, $path, JSON_TYPE, $token, $body, $contentType);
             $after = $pdo->query('SELECT (SELECT COUNT(*) FROM products) + (SELECT COUNT(*) FROM categories) + (SELECT COUNT(*) FROM delivery_slots) + (SELECT COUNT(*) FROM customers) + (SELECT COUNT(*) FROM orders) + (SELECT COUNT(*) FROM cart_items)')->fetchColumn();
-            // Two documented exceptions (see the matrix, "Request bodies"):
-            //  - POST /orders reads customerId from the JSON body for its permission
+            // POST /orders reads customerId from the JSON body for its permission
             //    check, so a non-JSON body is refused one step earlier: 422.
-            //  - POST /auth/sessions doesn't check Content-Type; a non-JSON body
-            //    can't be read as JSON, so it's 400 "Invalid input." (open item for Sean).
             // Either way the request is refused and nothing is saved.
-            $expected = ['/orders' => 422, '/auth/sessions' => 400][$path] ?? 415;
+            $expected = $path === '/orders' ? 422 : 415;
             check(($status === $expected || ($path === '/orders' && $status === 415)) && $before === $after,
                 "$method $path with Content-Type $contentType: $expected, nothing saved");
         }
