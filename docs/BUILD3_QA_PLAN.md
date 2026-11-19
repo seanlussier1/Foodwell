@@ -77,4 +77,6 @@ The first attempt started Newman while npm was still unpacking its dependencies.
 
 ## November 27 handoff
 
+See the [November 19 final candidate QA follow-up](FINAL_CANDIDATE_QA.md) for the clean run after favorites, inventory adjustments, saved addresses and reviews merged.
+
 Carry forward the [candidate results](qa/issue-66/results.json), [suite transcript](qa/issue-66/suite-results.txt), the domain evidence above, the issue tracker links, and the separate [release setup evidence](RELEASE_REPRODUCIBILITY.md). At this checkpoint, the three owner handoffs and the consolidated run are recorded. The independent peer reruns and November 27 retests are pending. For each later report entry use the actual tested commit and date, and record whether each affected row remained unchanged after a rejected mutation. Keep deployment validation and the November 27 team report on their own evidence.

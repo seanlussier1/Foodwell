@@ -48,7 +48,7 @@ Cart routes require a login as that customer or an administrator (the old `APP_C
 
 Totals come from current catalog prices and are not checkout guarantees. Inactive/out-of-stock products and excessive combined quantities return 409 without partial changes. Cart edits do not change product stock. Item IDs must belong to the specified customer's cart, and the bearer session must belong to that customer (or an administrator).
 
-Import [the saved Postman demonstration](requests/Foodwell_Cart.postman_collection.json) to show the workflow using a newly created synthetic customer. Read [the checkout handoff](docs/CART_CHECKOUT_HANDOFF.md) for the shared lock order, cart-clearing rules and Mohamed's #36 transaction requirements. His confirmation is still required before #35 is Done. No checkout is implemented here.
+Run `composer test:orders` to verify authenticated checkout on a disposable MariaDB database. For a demonstration, use the [orders and checkout collection](requests/Foodwell_Orders_Checkout.postman_collection.json) or the [checkout walkthrough](docs/CHECKOUT_DEMO.md). Checkout accepts an owned saved address, copies it onto the order, and updates the cart, stock and order history together. See the [checkout handoff](docs/CART_CHECKOUT_HANDOFF.md) for the transaction and locking rules.
 
 Run `php scripts/check-cart.php` with the same SCHEMA_TEST settings as above: 79 checks cover persistence, rollback, stock, item scoping, repeated requests and concurrent additions in temporary databases. No schema reset/migration is needed for these endpoints if the existing 14-table foundation is installed.
 
