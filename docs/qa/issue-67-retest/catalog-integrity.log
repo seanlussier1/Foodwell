@@ -1,0 +1,253 @@
+PASS: Temporary database and API server started
+
+-- 1. Bad list queries get 400 with a clear reason
+PASS: GET /products?page=0 -> 400 (page must be)
+PASS: GET /products?page=-1 -> 400 (page must be)
+PASS: GET /products?page=abc -> 400 (page must be)
+PASS: GET /products?page=1.5 -> 400 (page must be)
+PASS: GET /products?page=100001 -> 400 (page must be)
+PASS: GET /products?page=%00 -> 400 (page must be)
+PASS: GET /products?limit=0 -> 400 (limit must be)
+PASS: GET /products?limit=101 -> 400 (limit must be)
+PASS: GET /products?limit=ten -> 400 (limit must be)
+PASS: GET /products?category=0 -> 400 (category must be)
+PASS: GET /products?category=abc -> 400 (category must be)
+PASS: GET /products?category=4294967296 -> 400 (category must be)
+PASS: GET /products?sort=stock -> 400 (sort must be)
+PASS: GET /products?sort=PRICE -> 400 (sort must be)
+PASS: GET /products?sort=price,name -> 400 (sort must be)
+PASS: GET /products?sort[]=price -> 400 (sort must be)
+PASS: GET /products?search=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa... -> 400 (search must be at most 100)
+PASS: GET /products?search[]=milk -> 400 (search must be text)
+PASS: GET /products?sort=price&sort=name -> 400 (sort was given 2 times)
+PASS: GET /products?page=1&page=2 -> 400 (page was given 2 times)
+PASS: GET /products?sort[]=price&sort[]=name -> 400 (sort was given 2 times)
+PASS: GET /products?Sort=price -> 400 (Unknown query parameter "Sort")
+PASS: GET /products?foo=bar -> 400 (Unknown query parameter "foo")
+PASS: GET /products?pagee=2 -> 400 (Unknown query parameter "pagee")
+PASS: GET /products?page=1&limit=100 is allowed (200)
+PASS: GET /products?search=&sort= is allowed (200)
+PASS: GET /products?page=1&&limit=5 is allowed (200)
+PASS: GET /products?category=999 is allowed (200)
+PASS: A category with no products gives an empty list, not an error
+PASS: search=% finds only "100% Juice" (% is not a wildcard)
+PASS: search=_ finds only "snake_case Snacks" (_ is not a wildcard)
+PASS: A SQL-injection-looking search is just text (0 matches, no error)
+
+-- 2. Paging returns every product exactly once, in order
+PASS: default order, 3 per page: every product exactly once, in the right order
+PASS: default order: totalPages matches the number of pages walked (5)
+PASS: default order: first page has no previous link, last page has no next link
+PASS: sort=name, 3 per page: every product exactly once, in the right order
+PASS: sort=name: totalPages matches the number of pages walked (5)
+PASS: sort=name: first page has no previous link, last page has no next link
+PASS: sort=-name, 3 per page: every product exactly once, in the right order
+PASS: sort=-name: totalPages matches the number of pages walked (5)
+PASS: sort=-name: first page has no previous link, last page has no next link
+PASS: sort=price, 3 per page: every product exactly once, in the right order
+PASS: sort=price: totalPages matches the number of pages walked (5)
+PASS: sort=price: first page has no previous link, last page has no next link
+PASS: sort=-price, 3 per page: every product exactly once, in the right order
+PASS: sort=-price: totalPages matches the number of pages walked (5)
+PASS: sort=-price: first page has no previous link, last page has no next link
+PASS: category=1&sort=price, 2 per page: correct products in order
+PASS: ...and the next link keeps the category and sort filters
+PASS: page=99 is an empty 200 whose previous link goes to the last page (3)
+PASS: limit=100 (the maximum) returns everything on one page
+
+-- 3. Broken request bodies are refused and change nothing
+PASS: POST /products with body {"name": -> 400
+PASS: ...and the database is unchanged
+PASS: POST /products with body (empty) -> 400
+PASS: ...and the database is unchanged
+PASS: POST /products with body [] -> 400
+PASS: ...and the database is unchanged
+PASS: POST /products with body null -> 400
+PASS: ...and the database is unchanged
+PASS: POST /products with body "just text" -> 400
+PASS: ...and the database is unchanged
+PASS: POST /products with body 42 -> 400
+PASS: ...and the database is unchanged
+PASS: POST /products with body [[[[[[[[[... -> 400
+PASS: ...and the database is unchanged
+PASS: POST /products with Content-Type text/plain -> 415
+PASS: ...and the database is unchanged
+PASS: POST /products with form encoding -> 415
+PASS: ...and the database is unchanged
+PASS: PUT /products/101 with body {"name": -> 400
+PASS: ...and the database is unchanged
+PASS: PUT /products/101 with body (empty) -> 400
+PASS: ...and the database is unchanged
+PASS: PUT /products/101 with body [] -> 400
+PASS: ...and the database is unchanged
+PASS: PUT /products/101 with body null -> 400
+PASS: ...and the database is unchanged
+PASS: PUT /products/101 with body "just text" -> 400
+PASS: ...and the database is unchanged
+PASS: PUT /products/101 with body 42 -> 400
+PASS: ...and the database is unchanged
+PASS: PUT /products/101 with body [[[[[[[[[... -> 400
+PASS: ...and the database is unchanged
+PASS: PUT /products/101 with Content-Type text/plain -> 415
+PASS: ...and the database is unchanged
+PASS: PUT /products/101 with form encoding -> 415
+PASS: ...and the database is unchanged
+PASS: POST /categories with body {"name": -> 400
+PASS: ...and the database is unchanged
+PASS: POST /categories with body (empty) -> 400
+PASS: ...and the database is unchanged
+PASS: POST /categories with body [] -> 400
+PASS: ...and the database is unchanged
+PASS: POST /categories with body null -> 400
+PASS: ...and the database is unchanged
+PASS: POST /categories with body "just text" -> 400
+PASS: ...and the database is unchanged
+PASS: POST /categories with body 42 -> 400
+PASS: ...and the database is unchanged
+PASS: POST /categories with body [[[[[[[[[... -> 400
+PASS: ...and the database is unchanged
+PASS: POST /categories with Content-Type text/plain -> 415
+PASS: ...and the database is unchanged
+PASS: POST /categories with form encoding -> 415
+PASS: ...and the database is unchanged
+PASS: Content-Type "application/json; charset=utf-8" is accepted
+
+-- 4. Invalid fields get 422 naming each field, and change nothing
+PASS: POST /products with no fields -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names exactly: categoryId, name, price
+PASS: POST /products with empty name -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names exactly: name
+PASS: POST /products with name of 151 characters -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names exactly: name
+PASS: POST /products with name as a number -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names exactly: name
+PASS: POST /products with price as text -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names exactly: price
+PASS: POST /products with negative price -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names exactly: price
+PASS: POST /products with price with 3 decimals -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names exactly: price
+PASS: POST /products with huge price -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names exactly: price
+PASS: POST /products with categoryId as text -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names exactly: categoryId
+PASS: POST /products with categoryId 0 -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names exactly: categoryId
+PASS: POST /products with negative stock -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names exactly: stock
+PASS: POST /products with stock 1.5 -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names exactly: stock
+PASS: POST /products with an id in the body -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names exactly: id
+PASS: POST /products with several problems at once -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names exactly: categoryId, name, price
+PASS: PUT /products/101 missing name and categoryId -> 422
+PASS: ...and the database is unchanged
+PASS: POST /categories with no name -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names the name field
+PASS: POST /categories with empty name -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names the name field
+PASS: POST /categories with only spaces -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names the name field
+PASS: POST /categories with name as a number -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names the name field
+PASS: POST /categories with name of 101 characters -> 422
+PASS: ...and the database is unchanged
+PASS: ...and the error names the name field
+PASS: POST /categories "Dairy" (already exists) -> 409
+PASS: ...and the database is unchanged
+PASS: POST /categories "dairy" (already exists) -> 409
+PASS: ...and the database is unchanged
+PASS: POST /categories "  DAIRY  " (already exists) -> 409
+PASS: ...and the database is unchanged
+PASS: A category name of 60 accented letters is accepted (characters, not bytes)
+PASS: A category name of 101 accented letters -> 422
+PASS: ...and the database is unchanged
+
+-- 5. Unsupported formats and methods
+PASS: GET /products with Accept text/html -> 406 (JSON error)
+PASS: GET /products/101 with Accept image/png -> 406 (JSON error)
+PASS: GET /categories with Accept application/xml -> 406 (JSON error)
+PASS: GET /categories/1 with Accept text/csv -> 406 (JSON error)
+PASS: POST /products asking for an XML response -> 406
+PASS: ...and the database is unchanged
+PASS: A 404 asked for as XML is XML and carries the same request id
+PASS: A 400 asked for as YAML is YAML and carries the same request id
+PASS: PATCH /products/101 (method not supported) -> 405
+PASS: ...and the database is unchanged
+PASS: DELETE /products (method not supported) -> 405
+PASS: ...and the database is unchanged
+PASS: PUT /categories/1 (method not supported) -> 405
+PASS: ...and the database is unchanged
+PASS: PATCH /categories/1 (method not supported) -> 405
+PASS: ...and the database is unchanged
+PASS: POST /products/101 (method not supported) -> 405
+PASS: ...and the database is unchanged
+PASS: GET /products/abc -> 404 (not a valid id)
+PASS: GET /products/-1 -> 404 (not a valid id)
+PASS: GET /products/1.5 -> 404 (not a valid id)
+PASS: GET /categories/abc -> 404 (not a valid id)
+PASS: GET /products/999 -> 404 (no such row)
+PASS: GET /products/0 -> 404 (no such row)
+PASS: GET /categories/999 -> 404 (no such row)
+PASS: GET /categories/0 -> 404 (no such row)
+PASS: PUT /products/999 (no such product) -> 404
+PASS: ...and the database is unchanged
+PASS: DELETE /products/999 (no such product) -> 404
+PASS: ...and the database is unchanged
+PASS: DELETE /categories/999 (no such category) -> 404
+PASS: ...and the database is unchanged
+
+-- 6. Foreign keys: missing parents and rows still in use
+PASS: POST /products with a category that does not exist -> 422
+PASS: ...and the database is unchanged
+PASS: PUT /products/101 moving it to a category that does not exist -> 422
+PASS: ...and the database is unchanged
+PASS: DELETE /categories/1 (Produce still has products) -> 409
+PASS: ...and the database is unchanged
+PASS: DELETE /products/109 (it has inventory history) -> 409
+PASS: ...and the database is unchanged
+PASS: DELETE /products/110 (only in a past order) is allowed (204)
+PASS: ...and the order line keeps its name and price, with the product link cleared
+PASS: DELETE /products/104 (in a cart) is allowed (204)
+PASS: ...and its cart line is removed with it
+
+-- 6b. The same foreign keys when the data changes mid-request
+PASS: POST /products whose category disappears mid-request -> 422
+PASS: ...and the database is unchanged
+PASS: PUT /products/101 whose new category disappears mid-request -> 422
+PASS: ...and the database is unchanged
+PASS: DELETE /products/103 when stock history appears mid-request -> 409
+PASS: ...and the database is unchanged
+PASS: DELETE an empty category when a product is added mid-request -> 409
+PASS: ...and the database is unchanged
+PASS: ...and once nothing interferes, the empty category deletes normally
+
+-- 7. A real server error is safe and traceable
+PASS: A database failure gives the client a plain 500
+PASS: ...whose requestId matches the X-Request-ID header
+PASS: ...and the client does not see the database error or SQL
+PASS: ...and nothing was saved
+PASS: The server log has an error entry with the SAME request id and the real cause
+PASS: The server log contains no login token, token fingerprint, password or password hash
+PASS: Every one of the 105 error responses carried a requestId matching its X-Request-ID header
+
+235 catalog integrity checks passed. Application database was not used.

@@ -1,8 +1,14 @@
 # Release reproducibility and QA handoff (#67)
 
+## November 18 retest after PR #102
+
+The working candidate includes GitHub `main` at `d6bbb63877b63c1b8fb485089cc34fbccb088b12`, the release handoff changes, and a catalog test-harness fix. The clean checkout tested was `2e565ab70f2fb4158e5c7e4ad75ca05c7d99a2d5`. Composer and npm dependencies were freshly installed from their lockfiles. All 15 release checks passed, including 235 catalog integrity assertions; all three supported upgrade paths preserved their test data and matched the fresh schema. [Retest results and logs](qa/issue-67-retest/results.json) and [upgrade output](qa/issue-67-retest/upgrade-paths.log) are retained here.
+
+On the unmodified main snapshot, 14 checks passed and the catalog integrity check failed twice when it tried to parse a server log entry. Its PHP error log and server stderr shared one file, so writes could overlap on Windows. The candidate separates these logs without changing application behavior or weakening the assertions; the full suite above passed after that fix. This is local QA evidence, not a record of teammates' individual review or deployment validation.
+
 ## Snapshot and limits
 
-- Tested GitHub `main` commit: `adf29bdeca43ce09933ba1776bef37d8d3fbf311` (PR #101). This is a reproducible snapshot, **not an agreed final release candidate**. Team owners must confirm the candidate SHA and repeat any checks affected by later merges.
+- The original evidence below tested GitHub `main` commit `adf29bdeca43ce09933ba1776bef37d8d3fbf311` (PR #101). See the retest above for the newer working candidate. Repeat checks affected by later merges.
 - Verified on November 18, 2026, in a fresh local checkout, using Windows, PHP 8.0.30, MariaDB 11.4.9, Node 24.11.1 and the committed Composer/npm lockfiles. `composer install` and `npm ci` succeeded; npm reported deprecation warnings for transitive test dependencies.
 - Fixture Git blob IDs: schema `eedd8a13ee9061fece749852863849261f088796`, seed `61df6c260cdac97d42d604d91f944d8627cdd6b8`, Composer lock `9846c8cd68e1980f43dab9728e36d1a00f1a4598`, npm lock `7e23d92b3d61327b086714f2d0840fc51e074600`. Seed accounts, addresses, orders and credentials are synthetic. Seed delivery dates are relative to import time.
 - Dependencies were installed from the lockfiles into the clean checkout. The upgrade-path verifier in this change was added to the tested snapshot without modifying application runtime files.

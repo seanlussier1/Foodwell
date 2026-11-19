@@ -1,0 +1,73 @@
+(node:28888) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+newman
+
+Foodwell customer, authentication and cart (#48)
+
+Root Create synthetic customer
+  POST http://127.0.0.1:62267/api/v1/customers [201 Created, 412B, 117ms]
+  Pass  Created without credential fields
+
+Root Duplicate registration
+  POST http://127.0.0.1:62267/api/v1/customers [409 Conflict, 412B, 70ms]
+  Pass  Duplicate email is rejected
+
+Root Wrong password
+  POST http://127.0.0.1:62267/api/v1/auth/sessions [401 Unauthorized, 451B, 62ms]
+  Pass  Invalid credentials are rejected
+
+Root Log in
+  POST http://127.0.0.1:62267/api/v1/auth/sessions [201 Created, 691B, 63ms]
+  Pass  Login supplies one bearer token
+
+Root Read own profile
+  GET http://127.0.0.1:62267/api/v1/customers/11 [200 OK, 432B, 19ms]
+  Pass  Owner can read profile without credentials
+
+Root Read another profile
+  GET http://127.0.0.1:62267/api/v1/customers/7 [403 Forbidden, 406B, 18ms]
+  Pass  Another profile is forbidden
+
+Root Read own cart
+  GET http://127.0.0.1:62267/api/v1/customers/11/cart [200 OK, 388B, 20ms]
+  Pass  Owner cart starts empty
+
+Root Add item
+  POST http://127.0.0.1:62267/api/v1/customers/11/cart/items [201 Created, 547B, 23ms]
+  Pass  Item is added with a server price
+
+Root Update item
+  PUT http://127.0.0.1:62267/api/v1/customers/11/cart/items/503 [200 OK, 542B, 22ms]
+  Pass  Quantity is updated
+
+Root Remove item
+  DELETE http://127.0.0.1:62267/api/v1/customers/11/cart/items/503 [204 No Content, 273B, 21ms]
+  Pass  Item is removed
+
+Root Log out
+  DELETE http://127.0.0.1:62267/api/v1/auth/sessions/current [204 No Content, 273B, 20ms]
+  Pass  Session is revoked
+
+Root Reject revoked session
+  GET http://127.0.0.1:62267/api/v1/customers/11/cart [401 Unauthorized, 452B, 8ms]
+  Pass  Revoked token cannot access cart
+
+------------------------------------------------------------------
+|                         |          executed |           failed |
+--------------------------+-------------------+-------------------
+|              iterations |                 1 |                0 |
+--------------------------+-------------------+-------------------
+|                requests |                12 |                0 |
+--------------------------+-------------------+-------------------
+|            test-scripts |                12 |                0 |
+--------------------------+-------------------+-------------------
+|      prerequest-scripts |                 1 |                0 |
+--------------------------+-------------------+-------------------
+|              assertions |                12 |                0 |
+------------------------------------------------------------------
+| total run duration: 1467ms                                     |
+------------------------------------------------------------------
+| total data received: 1.63kB (approx)                           |
+------------------------------------------------------------------
+| average response time: 38ms [min: 8ms, max: 117ms, s.d.: 31ms] |
+------------------------------------------------------------------
