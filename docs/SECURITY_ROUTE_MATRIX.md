@@ -110,7 +110,7 @@ Resource owner: **Will**.
 
 Customers attach a slot to their own order through `POST /orders` (`deliverySlotId`); that route's owner check applies.
 
-All eight catalog and slot writes above are tested together by `php scripts/check-catalog-authorization.php` (#40): public reads, no/broken/expired/logged-out/deactivated logins (401), customers (403), staff and admin (allowed), and no database change after any refusal. The planned inventory-adjustment and review routes below are **not** protected yet because they do not exist yet; they must use the same staff check when they are built.
+All eight catalog and slot writes above are tested together by `php scripts/check-catalog-authorization.php` (#40): public reads, no/broken/expired/logged-out/deactivated logins (401), customers (403), staff and admin (allowed), and no database change after any refusal. The three inventory-adjustment routes use the same staff check and are tested by `php scripts/check-inventory-adjustments.php`. The planned review routes below are **not** protected yet because they do not exist yet.
 
 
 ## Login sessions
@@ -170,10 +170,9 @@ Resource owner: **Will**.
 
 | Method | Path | Who should be allowed | What works today | Important check |
 |---|---|---|---|---|
-
-| GET | `/products/{id}/inventory-adjustments` | Staff or administrator | Not implemented yet | Record the signed-in actor; existing audit entries cannot be edited/deleted. |
-| POST | `/products/{id}/inventory-adjustments` | Staff or administrator | Not implemented yet | Record the signed-in actor; existing audit entries cannot be edited/deleted. |
-| GET | `/inventory-adjustments/{adjustmentId}` | Staff or administrator | Not implemented yet | Record the signed-in actor; existing audit entries cannot be edited/deleted. |
+| GET | `/products/{id}/inventory-adjustments` | Staff or administrator | Enforced | Customers get 403; no login gets 401. |
+| POST | `/products/{id}/inventory-adjustments` | Staff or administrator | Enforced | actorId comes from the session and stock before/after from the locked product row; client-sent actorId/balances are refused (422). |
+| GET | `/inventory-adjustments/{adjustmentId}` | Staff or administrator | Enforced | Read-only: no PUT/PATCH/DELETE route exists (405), so audit entries cannot be edited or deleted. |
 
 
 ## Delivery-area lookup
