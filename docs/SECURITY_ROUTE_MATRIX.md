@@ -132,11 +132,11 @@ Resource owner: **Mohamed**.
 | Method | Path | Who should be allowed | What works today | Important check |
 |---|---|---|---|---|
 
-| GET | `/customers/{id}/addresses` | Customer owner only | Not implemented yet | Check that this address belongs to the customer in the URL. |
-| POST | `/customers/{id}/addresses` | Customer owner only | Not implemented yet | Check that this address belongs to the customer in the URL. |
-| GET | `/customers/{id}/addresses/{addressId}` | Customer owner only | Not implemented yet | Check that this address belongs to the customer in the URL. |
-| PATCH | `/customers/{id}/addresses/{addressId}` | Customer owner only | Not implemented yet | Check that this address belongs to the customer in the URL. |
-| DELETE | `/customers/{id}/addresses/{addressId}` | Customer owner only | Not implemented yet | Check that this address belongs to the customer in the URL. |
+| GET | `/customers/{id}/addresses` | Customer owner only | Enforced | Check that this address belongs to the customer in the URL. |
+| POST | `/customers/{id}/addresses` | Customer owner only | Enforced | Check that this address belongs to the customer in the URL. |
+| GET | `/customers/{id}/addresses/{addressId}` | Customer owner only | Enforced | Check that this address belongs to the customer in the URL. |
+| PATCH | `/customers/{id}/addresses/{addressId}` | Customer owner only | Enforced | Check that this address belongs to the customer in the URL. |
+| DELETE | `/customers/{id}/addresses/{addressId}` | Customer owner only | Enforced | Check that this address belongs to the customer in the URL. |
 
 
 ## Favorites
@@ -157,11 +157,11 @@ Resource owner: **Mohamed**.
 | Method | Path | Who should be allowed | What works today | Important check |
 |---|---|---|---|---|
 
-| GET | `/products/{id}/reviews` | Public | Not implemented yet | Anyone may read published reviews. |
-| POST | `/products/{id}/reviews` | Customer role (session author) | Not implemented yet | The signed-in customer is the author; do not accept a different author ID. |
-| GET | `/reviews/{reviewId}` | Public | Not implemented yet | Anyone may read published reviews. |
-| PATCH | `/reviews/{reviewId}` | Customer author only | Not implemented yet | Only the customer who wrote the review may edit it. |
-| DELETE | `/reviews/{reviewId}` | Customer author or administrator | Not implemented yet | The author may delete their review; an administrator may moderate it. |
+| GET | `/products/{id}/reviews` | Public | Public | Anyone may read published reviews. |
+| POST | `/products/{id}/reviews` | Customer role (session author) | Enforced | The signed-in customer is the author; do not accept a different author ID. |
+| GET | `/reviews/{reviewId}` | Public | Public | Anyone may read published reviews. |
+| PATCH | `/reviews/{reviewId}` | Customer author only | Enforced | Only the customer who wrote the review may edit it. |
+| DELETE | `/reviews/{reviewId}` | Customer author or administrator | Enforced | The author may delete their review; an administrator may moderate it. |
 
 
 ## Inventory adjustments

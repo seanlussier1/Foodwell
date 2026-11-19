@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Foodwell\Security;
 
 use Foodwell\Http\Response;
+use Foodwell\Http\ResourceInput;
 use PDO;
 use Throwable;
 
@@ -14,7 +15,8 @@ final class Authorization
 
     public function protect(callable $handler, string $policy): callable
     {
-        if (!in_array($policy, ['staff', 'owner', 'customer_owner', 'order', 'order_history', 'checkout'], true)) {
+        if (!in_array($policy, ['staff', 'owner', 'customer_owner', 'customer', 'order', 'order_history', 'checkout',
+            'review_author', 'review_author_or_admin'], true)) {
             throw new \InvalidArgumentException('Unknown authorization policy.');
         }
         return function (array $params) use ($handler, $policy): void {
@@ -43,15 +45,31 @@ final class Authorization
                     $order->execute([$ownerId]);
                     $ownerId = $order->fetchColumn();
                     if ($ownerId === false) { $this->db->rollBack(); Response::error(404, 'Order not found.'); return; }
+                } elseif ($policy === 'review_author' || $policy === 'review_author_or_admin') {
+                    $review = $this->db->prepare('SELECT customer_id FROM product_reviews WHERE id = ? FOR UPDATE');
+                    $review->execute([ResourceInput::id($params['reviewId'])]);
+                    $ownerId = $review->fetchColumn();
+                    if ($ownerId === false) {
+                        $this->db->rollBack();
+                        Response::error(404, 'Review not found.');
+                        return;
+                    }
                 } elseif ($policy === 'checkout') {
                     $body = json_decode((string)file_get_contents('php://input'), true);
                     $ownerId = is_array($body) ? ($body['customerId'] ?? null) : null;
                     if (!is_int($ownerId) || $ownerId < 1) { $this->db->rollBack(); Response::error(422, 'Valid customerId required.'); return; }
                 }
-                $allowed = $policy === 'customer_owner' ? ($actor['role'] === 'customer' && (string)$actor['id'] === (string)$ownerId)
-                    : ($policy === 'staff' ? in_array($actor['role'], ['staff', 'admin'], true)
-                    : ($actor['role'] === 'admin' || (string)$actor['id'] === (string)$ownerId
-                        || ($policy === 'order_history' && $actor['role'] === 'staff')));
+                $isOwner = (string) $actor['id'] === (string) $ownerId;
+                $isCustomer = $actor['role'] === 'customer';
+                $isAdmin = $actor['role'] === 'admin';
+                $allowed = match ($policy) {
+                    'customer' => $isCustomer,
+                    'customer_owner', 'review_author' => $isCustomer && $isOwner,
+                    'review_author_or_admin' => $isAdmin || ($isCustomer && $isOwner),
+                    'staff' => in_array($actor['role'], ['staff', 'admin'], true),
+                    'order_history' => $isOwner || $isAdmin || $actor['role'] === 'staff',
+                    default => $isAdmin || $isOwner,
+                };
                 if (!$allowed) { $this->db->rollBack(); Response::error(403, 'Forbidden.'); return; }
                 $params['actorId'] = (int) $actor['id'];
                 ob_start();
