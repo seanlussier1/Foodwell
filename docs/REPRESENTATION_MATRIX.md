@@ -49,10 +49,10 @@ Media types: **JSON** `application/json` · **XML** `application/xml` · **YAML*
 | GET | `/orders/{id}` | Mohamed | JSON only (406) | — |
 | PATCH | `/orders/{id}` | Mohamed | JSON only (406) | JSON only (415) |
 | GET | `/customers/{id}/orders`, `/orders/{id}/status-events` | Mohamed | JSON only (406) | — |
+| GET, POST, PATCH, DELETE | `/customers/{id}/addresses[/{addressId}]` | Mohamed | JSON only (406), DELETE returns 204 | POST and PATCH use JSON (415) |
+| GET, POST, PATCH, DELETE | `/products/{id}/reviews`, `/reviews/{reviewId}` | Mohamed | JSON only (406), DELETE returns 204 | POST and PATCH use JSON (415) |
 | GET | `/delivery-options` | Sean | JSON only (406) | — |
 
-The 10 planned operations (addresses, reviews) have
-no routes yet (404/405) and therefore no formats.
 
 ### Exceptions to "415 for a non-JSON body"
 

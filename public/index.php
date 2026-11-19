@@ -113,6 +113,8 @@ require $autoload;
 
 use Foodwell\Controllers\AuthController;
 use Foodwell\Controllers\FavoriteController;
+use Foodwell\Controllers\AddressController;
+use Foodwell\Controllers\ReviewController;
 use Foodwell\Controllers\InventoryAdjustmentController;
 use Foodwell\Security\Authorization;
 use Foodwell\Controllers\ProductController;
@@ -201,6 +203,8 @@ try {
 
     $auth = new AuthController(Database::connection());
     $favorites = new FavoriteController(Database::connection());
+    $addresses = new AddressController(Database::connection());
+    $reviews = new ReviewController(Database::connection());
     $inventory = new InventoryAdjustmentController(new InventoryAdjustmentRepository(Database::connection()));
     $authorization = new Authorization(Database::connection());
     $router = new Router();
@@ -220,6 +224,16 @@ try {
     $router->get(API_PREFIX . '/customers/{id}/favorites', $authorization->protect([$favorites, 'index'], 'customer_owner'));
     $router->put(API_PREFIX . '/customers/{id}/favorites/{productId}', $authorization->protect([$favorites, 'save'], 'customer_owner'));
     $router->delete(API_PREFIX . '/customers/{id}/favorites/{productId}', $authorization->protect([$favorites, 'remove'], 'customer_owner'));
+    $router->get(API_PREFIX . '/customers/{id}/addresses', $authorization->protect([$addresses, 'index'], 'customer_owner'));
+    $router->post(API_PREFIX . '/customers/{id}/addresses', $authorization->protect([$addresses, 'create'], 'customer_owner'));
+    $router->get(API_PREFIX . '/customers/{id}/addresses/{addressId}', $authorization->protect([$addresses, 'show'], 'customer_owner'));
+    $router->patch(API_PREFIX . '/customers/{id}/addresses/{addressId}', $authorization->protect([$addresses, 'update'], 'customer_owner'));
+    $router->delete(API_PREFIX . '/customers/{id}/addresses/{addressId}', $authorization->protect([$addresses, 'delete'], 'customer_owner'));
+    $router->get(API_PREFIX . '/products/{id}/reviews', [$reviews, 'index']);
+    $router->post(API_PREFIX . '/products/{id}/reviews', $authorization->protect([$reviews, 'create'], 'customer'));
+    $router->get(API_PREFIX . '/reviews/{reviewId}', [$reviews, 'show']);
+    $router->patch(API_PREFIX . '/reviews/{reviewId}', $authorization->protect([$reviews, 'update'], 'review_author'));
+    $router->delete(API_PREFIX . '/reviews/{reviewId}', $authorization->protect([$reviews, 'delete'], 'review_author_or_admin'));
 
     $router->get(API_PREFIX . '/delivery-options', [$deliveryOptions, 'index']);
 
