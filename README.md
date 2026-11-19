@@ -1,6 +1,6 @@
 # Foodwell API
 
-> For the current clean-setup verification, see [release reproducibility and QA handoff](docs/RELEASE_REPRODUCIBILITY.md). The [documentation audit](docs/DOCUMENTATION_AUDIT.md) records how OpenAPI and these docs were checked against the code, and the known gaps.
+> For automated checks and local test setup, see the [testing guide](docs/TESTING.md).
 
 Foodwell is a PHP/MariaDB REST API for an online grocery store. Customers browse products, manage carts and place delivery orders; staff manage stock and fulfillment.
 
@@ -245,7 +245,7 @@ Run `composer test:catalog` (needs `npm ci` and the same `SCHEMA_TEST_*` setting
 
 JUnit reports are written to `var/test-results/catalog/` (git-ignored). The test file refuses to run against any database not named `foodwell_newman_<random>`.
 
-To rehearse the catalog and delivery slot demo, run `php scripts/demo-catalog-rehearsal.php` (same `SCHEMA_TEST_*` settings): it plays the demo in presentation order on a disposable database and prints each status and the database state. The clean-checkout results and peer-test steps are in [docs/BUILD3_CATALOG_QA.md](docs/BUILD3_CATALOG_QA.md) (#44).
+To rehearse the catalog and delivery slot demo, run `php scripts/demo-catalog-rehearsal.php` (same `SCHEMA_TEST_*` settings): it plays the demo in presentation order on a disposable database and prints each status and the database state.
 
 ## Automated customer, session and cart checks (#48)
 

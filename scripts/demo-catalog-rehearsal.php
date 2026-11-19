@@ -17,7 +17,7 @@ declare(strict_types=1);
  * deletes them at the end. Your real foodwell database is never touched.
  * Login uses the real POST /auth/sessions with the synthetic seed accounts.
  *
- * To show the same thing live in Postman instead, see docs/BUILD3_CATALOG_QA.md.
+ * To run catalog requests with Newman, see the testing guide in docs/TESTING.md.
  */
 
 require dirname(__DIR__) . '/vendor/autoload.php';
