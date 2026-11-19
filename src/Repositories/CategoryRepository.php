@@ -88,8 +88,11 @@ final class CategoryRepository
                 return null;
             }
 
+            // LOCK IN SHARE MODE reads the latest saved products. Inside a
+            // transaction, a plain SELECT can show an older snapshot and miss
+            // a product that was just added to this category (#41).
             $stmt = $this->pdo->prepare(
-                'SELECT COUNT(*) FROM products WHERE category_id = :id'
+                'SELECT COUNT(*) FROM products WHERE category_id = :id LOCK IN SHARE MODE'
             );
             $stmt->execute(['id' => $id]);
 
@@ -119,4 +122,4 @@ final class CategoryRepository
             throw $e;
         }
     }
-}
+}

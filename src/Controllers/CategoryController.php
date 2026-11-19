@@ -59,7 +59,10 @@ final class CategoryController
 
         $name = trim($name);
 
-        if ($name === '' || strlen($name) > 100) {
+        // mb_strlen counts characters. strlen would count bytes, and letters
+        // like "é" take 2 bytes, so a valid 60-letter name would be refused.
+        // The database column is VARCHAR(100), which also counts characters (#41).
+        if ($name === '' || mb_strlen($name) > 100) {
             Response::error(
                 422,
                 'Validation failed.',
@@ -89,7 +92,19 @@ final class CategoryController
     {
         $id = (int) $params['id'];
 
-        $category = $this->categories->delete($id);
+        try {
+            $category = $this->categories->delete($id);
+        } catch (PDOException $e) {
+            // 1451 = "row is still referenced". The repository checks for
+            // products first, but if one is added in the split second between
+            // that check and the DELETE, the database's foreign key refuses
+            // the delete. Same answer as the normal "in use" case: 409, not 500 (#41).
+            if (($e->errorInfo[1] ?? null) === 1451) {
+                Response::error(409, 'Cannot delete a category that still has products.');
+                return;
+            }
+            throw $e;
+        }
 
         if ($category === null) {
             Response::error(404, 'Category not found.');
@@ -142,4 +157,4 @@ final class CategoryController
 
         return (array) $input;
     }
-}
+}

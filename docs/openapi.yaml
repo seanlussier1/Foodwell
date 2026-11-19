@@ -43,9 +43,11 @@ paths:
         tie-breaker, so pages never overlap. An empty result, or a page past
         the last one, is still 200 with `"data": []`. `next`/`previous` are
         relative links that keep every filter, the sort and the limit, and are
-        null when that page does not exist. Unknown query parameters are
-        ignored; invalid values return 400. Inactive products are included
-        (see `isActive`).
+        null when that page does not exist. Invalid values, unknown or
+        misspelled parameters (e.g. `Sort`) and repeated parameters (e.g.
+        `sort=price&sort=name`, which PHP would otherwise reduce to the last
+        value) return 400 (#41). Inactive products are included (see
+        `isActive`).
 
 
         **Formats (#33):** JSON (default), XML or YAML, chosen with the
@@ -161,7 +163,8 @@ paths:
         '400':
           description: >
             Invalid query parameter (for example page=0, limit=500, sort=stock,
-            category=abc). All problems are listed in one message. Sent in the
+            category=abc), an unknown parameter, or a parameter given more
+            than once. All problems are listed in one message. Sent in the
             negotiated format.
           content:
             application/json:
