@@ -1,0 +1,228 @@
+newman
+
+Foodwell Catalog and Delivery Slots
+
+Root Sign in as staff
+  POST http://127.0.0.1:39675/api/v1/auth/sessions [201 Created, 664B, 114ms]
+  Pass  HTTP 201
+
+Root Sign in as customer
+  POST http://127.0.0.1:39675/api/v1/auth/sessions [201 Created, 700B, 73ms]
+  Pass  HTTP 201
+
+Root List products (public, default order)
+  GET http://127.0.0.1:39675/api/v1/products [200 OK, 2.21kB, 4ms]
+  Pass  HTTP 200
+  Pass  10 seeded products, ordered by id
+  Pass  One page, no links
+
+Root Filter, sort and page 1
+  GET http://127.0.0.1:39675/api/v1/products?category=2&sort=-price&limit=2 [200 OK, 788B, 4ms]
+  Pass  HTTP 200
+  Pass  Dairy by price, highest first
+  Pass  Total counts all 3 matches, not just this page
+  Pass  Next link keeps the filters
+
+Root Filter, sort and page 2
+  GET http://127.0.0.1:39675/api/v1/products?category=2&sort=-price&limit=2&page=2 [200 OK, 609B, 4ms]
+  Pass  HTTP 200
+  Pass  The last Dairy product
+  Pass  Last page: no next, previous goes to page 1
+
+Root Products as XML
+  GET http://127.0.0.1:39675/api/v1/products?limit=1 [200 OK, 882B, 5ms]
+  Pass  HTTP 200
+  Pass  Content-Type is XML
+  Pass  XML root element is <products>
+
+Root Reject repeated sort keys
+  GET http://127.0.0.1:39675/api/v1/products?sort=price&sort=name [400 Bad Request, 440B, 3ms]
+  Pass  HTTP 400
+  Pass  Says sort was repeated
+  Pass  Error carries the X-Request-ID
+
+Root Unknown product is 404
+  GET http://127.0.0.1:39675/api/v1/products/999 [404 Not Found, 392B, 3ms]
+  Pass  HTTP 404
+  Pass  Error carries the X-Request-ID
+
+Root Create product without login
+  POST http://127.0.0.1:39675/api/v1/products [401 Unauthorized, 451B, 4ms]
+  Pass  HTTP 401
+  Pass  Asks for a Bearer token
+  Pass  Error carries the X-Request-ID
+
+Root Create product as a customer
+  POST http://127.0.0.1:39675/api/v1/products [403 Forbidden, 405B, 4ms]
+  Pass  HTTP 403
+  Pass  Error carries the X-Request-ID
+
+Root Create product as staff
+  POST http://127.0.0.1:39675/api/v1/products [201 Created, 483B, 6ms]
+  Pass  HTTP 201
+  Pass  Saved as sent
+  Pass  Location points at the new product
+
+Root Create product with invalid fields
+  POST http://127.0.0.1:39675/api/v1/products [422 Unknown Status Code, 546B, 3ms]
+  Pass  HTTP 422
+  Pass  Names each bad field
+  Pass  Error carries the X-Request-ID
+
+Root Update product as staff
+  PUT http://127.0.0.1:39675/api/v1/products/111 [200 OK, 450B, 5ms]
+  Pass  HTTP 200
+  Pass  Changed and deactivated
+  Pass  Stock is untouched by PUT
+
+Root Read the updated product
+  GET http://127.0.0.1:39675/api/v1/products/111 [200 OK, 425B, 4ms]
+  Pass  HTTP 200
+  Pass  GET shows the update
+
+Root Refuse deleting a product with stock history
+  DELETE http://127.0.0.1:39675/api/v1/products/109 [409 Conflict, 506B, 3ms]
+  Pass  HTTP 409
+  Pass  Suggests deactivating instead
+  Pass  Error carries the X-Request-ID
+
+Root Delete the new product
+  DELETE http://127.0.0.1:39675/api/v1/products/111 [204 No Content, 272B, 4ms]
+  Pass  HTTP 204
+  Pass  No body
+
+Root Deleted product is gone
+  GET http://127.0.0.1:39675/api/v1/products/111 [404 Not Found, 392B, 2ms]
+  Pass  HTTP 404
+
+Root List categories
+  GET http://127.0.0.1:39675/api/v1/categories [200 OK, 389B, 3ms]
+  Pass  HTTP 200
+  Pass  The 4 seeded categories in id order
+
+Root Create category as staff
+  POST http://127.0.0.1:39675/api/v1/categories [201 Created, 340B, 4ms]
+  Pass  HTTP 201
+  Pass  Saved
+
+Root Refuse a duplicate category name (any case)
+  POST http://127.0.0.1:39675/api/v1/categories [409 Conflict, 435B, 4ms]
+  Pass  HTTP 409
+  Pass  Error carries the X-Request-ID
+
+Root Refuse deleting a category with products
+  DELETE http://127.0.0.1:39675/api/v1/categories/1 [409 Conflict, 443B, 3ms]
+  Pass  HTTP 409
+  Pass  Says it still has products
+  Pass  Error carries the X-Request-ID
+
+Root Refuse deleting a category as a customer
+  DELETE http://127.0.0.1:39675/api/v1/categories/5 [403 Forbidden, 405B, 3ms]
+  Pass  HTTP 403
+  Pass  Error carries the X-Request-ID
+
+Root Delete the new category
+  DELETE http://127.0.0.1:39675/api/v1/categories/5 [200 OK, 387B, 4ms]
+  Pass  HTTP 200
+  Pass  Returns the deleted category
+
+Root List bookable slots
+  GET http://127.0.0.1:39675/api/v1/delivery-slots?available=true [200 OK, 520B, 3ms]
+  Pass  HTTP 200
+  Pass  Only slot 304 is bookable in the seed data
+
+Root Reject an impossible date filter
+  GET http://127.0.0.1:39675/api/v1/delivery-slots?date=2026-02-30 [400 Bad Request, 477B, 3ms]
+  Pass  HTTP 400
+  Pass  Names the date parameter
+  Pass  Error carries the X-Request-ID
+
+Root Create slot as a customer
+  POST http://127.0.0.1:39675/api/v1/delivery-slots [403 Forbidden, 405B, 3ms]
+  Pass  HTTP 403
+  Pass  Error carries the X-Request-ID
+
+Root Create slot as staff
+  POST http://127.0.0.1:39675/api/v1/delivery-slots [201 Created, 577B, 5ms]
+  Pass  HTTP 201
+  Pass  Saved in UTC, empty and bookable
+  Pass  Location points at the new slot
+
+Root Refuse the same window twice
+  POST http://127.0.0.1:39675/api/v1/delivery-slots [409 Conflict, 459B, 6ms]
+  Pass  HTTP 409
+  Pass  Says the window exists
+  Pass  Error carries the X-Request-ID
+
+Root Refuse a slot that ends before it starts
+  POST http://127.0.0.1:39675/api/v1/delivery-slots [422 Unknown Status Code, 482B, 4ms]
+  Pass  HTTP 422
+  Pass  Names endsAt
+  Pass  Error carries the X-Request-ID
+
+Root Check out with the new slot
+  POST http://127.0.0.1:39675/api/v1/orders [201 Created, 662B, 6ms]
+  Pass  HTTP 201
+  Pass  The order is attached to the slot
+
+Root The slot now has one booking
+  GET http://127.0.0.1:39675/api/v1/delivery-slots/305 [200 OK, 509B, 3ms]
+  Pass  HTTP 200
+  Pass  1 booked, 1 place left
+
+Root Refuse moving a booked window
+  PUT http://127.0.0.1:39675/api/v1/delivery-slots/305 [409 Conflict, 536B, 4ms]
+  Pass  HTTP 409
+  Pass  Says the window cannot change
+  Pass  Error carries the X-Request-ID
+
+Root Refuse capacity below the bookings
+  GET http://127.0.0.1:39675/api/v1/delivery-slots/301 [200 OK, 510B, 3ms]
+  PUT http://127.0.0.1:39675/api/v1/delivery-slots/301 [409 Conflict, 478B, 3ms]
+  Pass  HTTP 409
+  Pass  Says capacity cannot be lower
+  Pass  Error carries the X-Request-ID
+
+Root Deactivate the slot (bookings kept)
+  PUT http://127.0.0.1:39675/api/v1/delivery-slots/305 [200 OK, 536B, 4ms]
+  Pass  HTTP 200
+  Pass  Inactive, not bookable, booking kept
+
+Root Refuse deleting a slot used by an order
+  DELETE http://127.0.0.1:39675/api/v1/delivery-slots/305 [409 Conflict, 508B, 3ms]
+  Pass  HTTP 409
+  Pass  Suggests deactivating instead
+  Pass  Error carries the X-Request-ID
+
+Root Create an unused slot
+  POST http://127.0.0.1:39675/api/v1/delivery-slots [201 Created, 577B, 5ms]
+  Pass  HTTP 201
+
+Root Delete the unused slot
+  DELETE http://127.0.0.1:39675/api/v1/delivery-slots/307 [204 No Content, 272B, 5ms]
+  Pass  HTTP 204
+
+Root Deleted slot is gone
+  GET http://127.0.0.1:39675/api/v1/delivery-slots/307 [404 Not Found, 398B, 3ms]
+  Pass  HTTP 404
+  Pass  Error carries the X-Request-ID
+
+-----------------------------------------------------------------
+|                         |         executed |           failed |
+--------------------------+------------------+-------------------
+|              iterations |                1 |                0 |
+--------------------------+------------------+-------------------
+|                requests |               39 |                0 |
+--------------------------+------------------+-------------------
+|            test-scripts |               38 |                0 |
+--------------------------+------------------+-------------------
+|      prerequest-scripts |                3 |                0 |
+--------------------------+------------------+-------------------
+|              assertions |               90 |                0 |
+-----------------------------------------------------------------
+| total run duration: 851ms                                     |
+-----------------------------------------------------------------
+| total data received: 9.16kB (approx)                          |
+-----------------------------------------------------------------
+| average response time: 8ms [min: 2ms, max: 114ms, s.d.: 20ms] |
+-----------------------------------------------------------------

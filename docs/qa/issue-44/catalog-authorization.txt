@@ -1,0 +1,260 @@
+PASS: Temporary database and API server started
+
+-- Every catalog/slot write route goes through the staff check
+PASS: index.php registers 8 catalog/slot write routes (3 product, 2 category, 3 slot)
+PASS: POST /delivery-slots is wrapped in protect(..., 'staff')
+PASS: PUT /delivery-slots/{id} is wrapped in protect(..., 'staff')
+PASS: DELETE /delivery-slots/{id} is wrapped in protect(..., 'staff')
+PASS: POST /categories is wrapped in protect(..., 'staff')
+PASS: DELETE /categories/{id} is wrapped in protect(..., 'staff')
+PASS: POST /products is wrapped in protect(..., 'staff')
+PASS: PUT /products/{id} is wrapped in protect(..., 'staff')
+PASS: DELETE /products/{id} is wrapped in protect(..., 'staff')
+
+-- Anyone can read the catalog (no login needed)
+PASS: GET /products works without logging in
+PASS: GET /products/101 works without logging in
+PASS: GET /categories works without logging in
+PASS: GET /categories/1 works without logging in
+PASS: GET /delivery-slots works without logging in
+PASS: GET /delivery-slots/304 works without logging in
+PASS: A public read ignores an invalid token
+PASS: A customer can read delivery slots
+
+-- Writes are refused without a working staff/admin login
+PASS: POST /products with no login at all returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: PUT /products/104 with no login at all returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: DELETE /products/110 with no login at all returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: POST /categories with no login at all returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: DELETE /categories/4 with no login at all returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: POST /delivery-slots with no login at all returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: PUT /delivery-slots/304 with no login at all returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: DELETE /delivery-slots/304 with no login at all returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: POST /products with a token for no session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: PUT /products/104 with a token for no session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: DELETE /products/110 with a token for no session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: POST /categories with a token for no session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: DELETE /categories/4 with a token for no session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: POST /delivery-slots with a token for no session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: PUT /delivery-slots/304 with a token for no session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: DELETE /delivery-slots/304 with a token for no session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: POST /products with an expired staff session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: PUT /products/104 with an expired staff session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: DELETE /products/110 with an expired staff session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: POST /categories with an expired staff session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: DELETE /categories/4 with an expired staff session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: POST /delivery-slots with an expired staff session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: PUT /delivery-slots/304 with an expired staff session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: DELETE /delivery-slots/304 with an expired staff session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: POST /products with a logged-out staff session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: PUT /products/104 with a logged-out staff session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: DELETE /products/110 with a logged-out staff session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: POST /categories with a logged-out staff session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: DELETE /categories/4 with a logged-out staff session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: POST /delivery-slots with a logged-out staff session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: PUT /delivery-slots/304 with a logged-out staff session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: DELETE /delivery-slots/304 with a logged-out staff session returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: POST /products with a deactivated staff account returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: PUT /products/104 with a deactivated staff account returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: DELETE /products/110 with a deactivated staff account returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: POST /categories with a deactivated staff account returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: DELETE /categories/4 with a deactivated staff account returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: POST /delivery-slots with a deactivated staff account returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: PUT /delivery-slots/304 with a deactivated staff account returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: DELETE /delivery-slots/304 with a deactivated staff account returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: POST /products with a header that is not "Bearer <64 hex>" returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: PUT /products/104 with a header that is not "Bearer <64 hex>" returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: DELETE /products/110 with a header that is not "Bearer <64 hex>" returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: POST /categories with a header that is not "Bearer <64 hex>" returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: DELETE /categories/4 with a header that is not "Bearer <64 hex>" returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: POST /delivery-slots with a header that is not "Bearer <64 hex>" returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: PUT /delivery-slots/304 with a header that is not "Bearer <64 hex>" returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: DELETE /delivery-slots/304 with a header that is not "Bearer <64 hex>" returns 401
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response asks for a Bearer token
+PASS: ...and the response leaks no secrets
+PASS: POST /products with a customer returns 403
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response leaks no secrets
+PASS: PUT /products/104 with a customer returns 403
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response leaks no secrets
+PASS: DELETE /products/110 with a customer returns 403
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response leaks no secrets
+PASS: POST /categories with a customer returns 403
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response leaks no secrets
+PASS: DELETE /categories/4 with a customer returns 403
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response leaks no secrets
+PASS: POST /delivery-slots with a customer returns 403
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response leaks no secrets
+PASS: PUT /delivery-slots/304 with a customer returns 403
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response leaks no secrets
+PASS: DELETE /delivery-slots/304 with a customer returns 403
+PASS: ...and nothing in the catalog changed
+PASS: ...and the response leaks no secrets
+PASS: A customer sending a bad body still just gets 403 (no validation details)
+PASS: A customer gets 403 even for a slot that does not exist (no 404 hint)
+
+-- Staff and admin can change the catalog
+PASS: Staff creates a product (201)
+PASS: Staff updates a product (200)
+PASS: Staff deletes a product (204)
+PASS: Staff creates a category (201)
+PASS: Staff deletes an empty category (200)
+PASS: Staff creates a delivery slot (201)
+PASS: Staff updates a delivery slot (200)
+PASS: Staff deletes a delivery slot (204)
+PASS: Admin creates a product (201)
+PASS: Admin updates a product (200)
+PASS: Admin deletes a product (204)
+PASS: Admin creates and deletes a category
+PASS: Admin creates and deletes a delivery slot
+PASS: Staff with a bad body gets the normal 422 validation error
+
+250 catalog authorization checks passed. Application database was not used.

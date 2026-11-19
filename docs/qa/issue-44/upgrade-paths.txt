@@ -1,0 +1,29 @@
+PASS: Build 1 to current preserves categories rows
+PASS: Build 1 to current preserves products rows
+PASS: Build 1 + 002 + 003 + 004 matches fresh schema
+PASS: Nine-table to current preserves auth_sessions rows
+PASS: Nine-table to current preserves cart_items rows
+PASS: Nine-table to current preserves carts rows
+PASS: Nine-table to current preserves categories rows
+PASS: Nine-table to current preserves customers rows
+PASS: Nine-table to current preserves delivery_slots rows
+PASS: Nine-table to current preserves order_items rows
+PASS: Nine-table to current preserves orders rows
+PASS: Nine-table to current preserves products rows
+PASS: Nine-table + 003 + 004 matches fresh schema
+PASS: Fourteen-table to current preserves auth_sessions rows
+PASS: Fourteen-table to current preserves cart_items rows
+PASS: Fourteen-table to current preserves carts rows
+PASS: Fourteen-table to current preserves categories rows
+PASS: Fourteen-table to current preserves customer_addresses rows
+PASS: Fourteen-table to current preserves customer_favorites rows
+PASS: Fourteen-table to current preserves customers rows
+PASS: Fourteen-table to current preserves delivery_slots rows
+PASS: Fourteen-table to current preserves inventory_adjustments rows
+PASS: Fourteen-table to current preserves order_items rows
+PASS: Fourteen-table to current preserves order_status_events rows
+PASS: Fourteen-table to current preserves orders rows
+PASS: Fourteen-table to current preserves product_reviews rows
+PASS: Fourteen-table to current preserves products rows
+PASS: Fourteen-table + 004 matches fresh schema
+All supported upgrade paths matched the fresh schema.

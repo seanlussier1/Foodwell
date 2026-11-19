@@ -227,6 +227,8 @@ Run `composer test:catalog` (needs `npm ci` and the same `SCHEMA_TEST_*` setting
 
 JUnit reports are written to `var/test-results/catalog/` (git-ignored). The test file refuses to run against any database not named `foodwell_newman_<random>`.
 
+To rehearse the catalog and delivery slot demo, run `php scripts/demo-catalog-rehearsal.php` (same `SCHEMA_TEST_*` settings): it plays the demo in presentation order on a disposable database and prints each status and the database state. The clean-checkout results and peer-test steps are in [docs/BUILD3_CATALOG_QA.md](docs/BUILD3_CATALOG_QA.md) (#44).
+
 ## Automated customer, session and cart checks (#48)
 
 Install development dependencies with `composer install` and `npm ci` (PHP 8.0 or newer, including PDO SQLite for the unit tests, and Node.js). Run `composer test:unit` for validation and password-hashing checks. The repository test uses an in-memory SQLite database; it does not replace the MariaDB API checks.
