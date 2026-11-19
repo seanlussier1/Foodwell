@@ -5,5 +5,54 @@
 <p class="notice">Sign in to access your cart and checkout. Use synthetic data for local demonstrations.</p>
 <form id="customer-form" class="panel"><label for="customer-id">Customer ID</label><div class="inline"><input id="customer-id" type="number" min="1" max="4294967295" required><button>Load cart</button></div></form>
 <p id="feedback" class="feedback" role="status" aria-live="polite" hidden></p>
-<div class="workspace"><section class="panel"><h2>Browse products</h2><form id="search-form"><label for="search">Search</label><div class="inline"><input id="search" type="search"><button>Search</button></div></form><div id="products"></div><div class="inline"><button id="previous" type="button">Previous</button><span id="page"></span><button id="next" type="button">Next</button></div></section>
-<section class="panel"><h2>Your favorites</h2><div id="favorites"><p>Sign in to view your favorites.</p></div><div class="inline"><button id="favorites-previous" type="button">Previous</button><span id="favorites-page"></span><button id="favorites-next" type="button">Next</button></div><h2>Your cart</h2><div id="cart"><p>Enter a customer ID to load a cart.</p></div><h2>Delivery and checkout</h2><form id="delivery-form"><label for="postal">Canadian postal code</label><div class="inline"><input id="postal" placeholder="H3N 1X1"><button>Check delivery windows</button></div></form><p id="delivery-message" role="status"></p><form id="checkout-form"><label for="address">Delivery address</label><input id="address" maxlength="500" required><label for="slot">Delivery window (optional)</label><select id="slot"><option value="">No window selected</option></select><p class="muted">Windows are not reserved until checkout and availability is checked again.</p><button id="checkout">Place test order</button></form><section id="confirmation" aria-live="polite"></section></section></div></main></body></html>
+<div class="workspace">
+<section class="panel">
+  <h2>Browse products</h2><form id="search-form"><label for="search">Search</label><div class="inline"><input id="search" type="search"><button>Search</button></div></form>
+  <div id="products"></div><div class="inline"><button id="previous" type="button">Previous</button><span id="page"></span><button id="next" type="button">Next</button></div>
+  <section id="review-panel" class="shop-section" aria-labelledby="review-title" hidden>
+    <h2 id="review-title" tabindex="-1">Product reviews</h2>
+    <p id="review-feedback" class="feedback" role="status" hidden></p>
+    <div id="reviews" aria-live="polite"></div>
+    <div class="pagination"><button id="reviews-previous" type="button">Previous reviews</button><span id="reviews-page"></span><button id="reviews-next" type="button">Next reviews</button></div>
+    <p id="review-signin"><a href="./?page=signin">Sign in</a> as a customer to write a review.</p>
+    <form id="review-form" class="shop-editor" hidden>
+      <h3 id="review-form-title">Write a review</h3>
+      <label for="review-rating">Rating</label>
+      <select id="review-rating" name="rating" required><option value="">Select a rating</option><option value="5">5 stars</option><option value="4">4 stars</option><option value="3">3 stars</option><option value="2">2 stars</option><option value="1">1 star</option></select>
+      <label for="review-comment">Comment</label><textarea id="review-comment" name="comment" maxlength="2000" rows="4"></textarea>
+      <div class="form-actions"><button type="submit">Save review</button><button id="review-cancel" class="secondary" type="button" hidden>Cancel edit</button></div>
+    </form>
+  </section>
+</section>
+<section class="panel">
+  <h2>Your favorites</h2><div id="favorites"><p>Sign in to view your favorites.</p></div>
+  <div class="inline"><button id="favorites-previous" type="button">Previous</button><span id="favorites-page"></span><button id="favorites-next" type="button">Next</button></div>
+  <h2>Your cart</h2><div id="cart"><p>Sign in to view your cart.</p></div>
+  <section id="address-panel" class="shop-section" aria-labelledby="address-heading" hidden>
+    <h2 id="address-heading">Saved addresses</h2>
+    <p id="address-feedback" class="feedback" role="status" hidden></p>
+    <div id="addresses" aria-live="polite"></div>
+    <details id="address-editor" class="shop-editor">
+      <summary id="address-editor-title">Add an address</summary>
+      <form id="address-form">
+        <label for="saved-label">Label</label><input id="saved-label" name="label" maxlength="50" required>
+        <label for="saved-recipient">Recipient name</label><input id="saved-recipient" name="recipientName" maxlength="200" required>
+        <label for="saved-line1">Address line 1</label><input id="saved-line1" name="addressLine1" maxlength="150" required>
+        <label for="saved-line2">Address line 2 (optional)</label><input id="saved-line2" name="addressLine2" maxlength="150">
+        <label for="saved-city">City</label><input id="saved-city" name="city" maxlength="100" required>
+        <label for="saved-province">Province</label><input id="saved-province" name="province" maxlength="50" required>
+        <label for="saved-postal">Postal code</label><input id="saved-postal" name="postalCode" maxlength="20" required>
+        <label for="saved-phone">Phone (optional)</label><input id="saved-phone" name="phone" type="tel" maxlength="30">
+        <div class="form-actions"><button type="submit">Save address</button><button id="address-cancel" class="secondary" type="button">Cancel</button></div>
+      </form>
+    </details>
+  </section>
+  <h2>Delivery and checkout</h2><form id="delivery-form"><label for="postal">Canadian postal code</label><div class="inline"><input id="postal" placeholder="H3N 1X1"><button>Check delivery windows</button></div></form><p id="delivery-message" role="status"></p>
+  <form id="checkout-form">
+    <div id="saved-address-choice" hidden><label for="saved-address">Delivery address source</label><select id="saved-address"><option value="">Enter an address manually</option></select></div>
+    <div id="manual-address"><label for="address">Delivery address</label><input id="address" maxlength="500" required></div>
+    <label for="slot">Delivery window (optional)</label><select id="slot"><option value="">No window selected</option></select>
+    <p class="muted">Windows are not reserved until checkout and availability is checked again.</p><button id="checkout">Place test order</button>
+  </form><section id="confirmation" aria-live="polite"></section>
+</section>
+</div></main></body></html>

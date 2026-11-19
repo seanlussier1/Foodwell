@@ -232,7 +232,7 @@ Customer profile, cart, checkout and order detail routes require a valid bearer 
 
 ## Response formats (#65)
 
-Product, category and delivery slot routes answer in JSON, XML or YAML, chosen with the `Accept` header (`application/json`, `application/xml`, `application/yaml`); other types get 406. Request bodies are JSON on every route (415 otherwise). Customer, cart, order, session and delivery-option routes answer in JSON only and give 406 for XML/YAML. The full route-by-route contract, the negotiation rules and two documented exceptions are in the [representation matrix](docs/REPRESENTATION_MATRIX.md). Run `php scripts/check-representations.php` (same `SCHEMA_TEST_*` settings) to compare real JSON, XML and YAML responses value by value (457 checks).
+Product, category and delivery slot routes answer in JSON, XML or YAML, chosen with the `Accept` header (`application/json`, `application/xml`, `application/yaml`); other types get 406. Request bodies are JSON on every route; checkout can return 422 before checking an unsupported Content-Type when its authorization check cannot read a valid customer ID. Customer, cart, order, session and delivery-option routes answer in JSON only and give 406 for XML/YAML. The full route-by-route contract and negotiation rules are in the [representation matrix](docs/REPRESENTATION_MATRIX.md). Run `php scripts/check-representations.php` (same `SCHEMA_TEST_*` settings) to compare real JSON, XML and YAML responses value by value.
 
 ## Automated catalog and delivery slot checks (#42)
 
