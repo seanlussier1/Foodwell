@@ -6,7 +6,7 @@ Owner: Sean (@seanlussier1). Required resource reviews: Will (@Wlszn) and Mohame
 
 **Implementation update (#45):** Login, current-session and logout are implemented. This document describes the earlier design snapshot.
 
-**Status at the #43 documentation audit (November 18, 2026):** the design is implemented for every existing route. Sessions (#45), permission and ownership checks (#46) and catalog/slot rules (#40) are enforced, and the old demo flags no longer bypass them. Section 2 below is kept as the Build 2 history. For the current rule of each route, see the [route matrix](SECURITY_ROUTE_MATRIX.md); the 10 planned routes (addresses, reviews) do not exist yet and must apply this design when built.
+**Implementation status:** Sessions (#45), permission and ownership checks (#46), and catalog and slot rules (#40) are enforced. The old demo flags no longer bypass them. Section 2 records the Build 2 design history. See the [route matrix](SECURITY_ROUTE_MATRIX.md) for the current rules, including saved addresses, reviews and inventory adjustments.
 
 ## How to read this plan
 

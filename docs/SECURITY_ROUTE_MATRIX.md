@@ -2,7 +2,7 @@
 
 Draft for Will and Mohamed to review, November 1, 2026. This file lists all 48 API operations and their intended access rules. Read the [security plan](SECURITY_DESIGN.md) for the full rules, explanations and implementation tasks. No endpoint or permission check is implemented by this document.
 
-**Implementation update (#46):** Current implemented customer, cart, checkout, order detail, product-write and category-write routes use bearer-session role and ownership checks. The remaining planned routes still require their owners to implement and test them.
+**Implementation update (#46):** Current implemented customer, cart, checkout, order detail, product-write and category-write routes use bearer-session role and ownership checks.
 
 ## How to read the tables
 
@@ -110,7 +110,7 @@ Resource owner: **Will**.
 
 Customers attach a slot to their own order through `POST /orders` (`deliverySlotId`); that route's owner check applies.
 
-All eight catalog and slot writes above are tested together by `php scripts/check-catalog-authorization.php` (#40): public reads, no/broken/expired/logged-out/deactivated logins (401), customers (403), staff and admin (allowed), and no database change after any refusal. The three inventory-adjustment routes use the same staff check and are tested by `php scripts/check-inventory-adjustments.php`. The planned review routes below are **not** protected yet because they do not exist yet.
+Catalog, slot and inventory writes above are tested together by `php scripts/check-catalog-authorization.php` (#40): public reads, no/broken/expired/logged-out/deactivated logins (401), customers (403), staff and admin (allowed), and no database change after any refusal. The three inventory-adjustment routes use the same staff check and are tested by `php scripts/check-inventory-adjustments.php`.
 
 
 ## Login sessions
@@ -132,11 +132,11 @@ Resource owner: **Mohamed**.
 | Method | Path | Who should be allowed | What works today | Important check |
 |---|---|---|---|---|
 
-| GET | `/customers/{id}/addresses` | Customer owner only | Not implemented yet | Check that this address belongs to the customer in the URL. |
-| POST | `/customers/{id}/addresses` | Customer owner only | Not implemented yet | Check that this address belongs to the customer in the URL. |
-| GET | `/customers/{id}/addresses/{addressId}` | Customer owner only | Not implemented yet | Check that this address belongs to the customer in the URL. |
-| PATCH | `/customers/{id}/addresses/{addressId}` | Customer owner only | Not implemented yet | Check that this address belongs to the customer in the URL. |
-| DELETE | `/customers/{id}/addresses/{addressId}` | Customer owner only | Not implemented yet | Check that this address belongs to the customer in the URL. |
+| GET | `/customers/{id}/addresses` | Customer owner only | Enforced | Check that this address belongs to the customer in the URL. |
+| POST | `/customers/{id}/addresses` | Customer owner only | Enforced | Check that this address belongs to the customer in the URL. |
+| GET | `/customers/{id}/addresses/{addressId}` | Customer owner only | Enforced | Check that this address belongs to the customer in the URL. |
+| PATCH | `/customers/{id}/addresses/{addressId}` | Customer owner only | Enforced | Check that this address belongs to the customer in the URL. |
+| DELETE | `/customers/{id}/addresses/{addressId}` | Customer owner only | Enforced | Check that this address belongs to the customer in the URL. |
 
 
 ## Favorites
@@ -157,11 +157,11 @@ Resource owner: **Mohamed**.
 | Method | Path | Who should be allowed | What works today | Important check |
 |---|---|---|---|---|
 
-| GET | `/products/{id}/reviews` | Public | Not implemented yet | Anyone may read published reviews. |
-| POST | `/products/{id}/reviews` | Customer role (session author) | Not implemented yet | The signed-in customer is the author; do not accept a different author ID. |
-| GET | `/reviews/{reviewId}` | Public | Not implemented yet | Anyone may read published reviews. |
-| PATCH | `/reviews/{reviewId}` | Customer author only | Not implemented yet | Only the customer who wrote the review may edit it. |
-| DELETE | `/reviews/{reviewId}` | Customer author or administrator | Not implemented yet | The author may delete their review; an administrator may moderate it. |
+| GET | `/products/{id}/reviews` | Public | Public | Anyone may read published reviews. |
+| POST | `/products/{id}/reviews` | Customer role (session author) | Enforced | The signed-in customer is the author; do not accept a different author ID. |
+| GET | `/reviews/{reviewId}` | Public | Public | Anyone may read published reviews. |
+| PATCH | `/reviews/{reviewId}` | Customer author only | Enforced | Only the customer who wrote the review may edit it. |
+| DELETE | `/reviews/{reviewId}` | Customer author or administrator | Enforced | The author may delete their review; an administrator may moderate it. |
 
 
 ## Inventory adjustments

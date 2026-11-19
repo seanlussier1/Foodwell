@@ -224,6 +224,9 @@ final class OrderRepository
                 $addressParts[] = $savedAddress['country_code'];
 
                 $deliveryAddress = implode(', ', $addressParts);
+                if (mb_strlen($deliveryAddress, 'UTF-8') > 500) {
+                    throw new OrderException(422, 'The saved delivery address exceeds 500 characters.');
+                }
             }
 
             if ($deliveryAddress === null || trim($deliveryAddress) === '') {

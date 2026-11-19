@@ -2,12 +2,10 @@ openapi: 3.0.3
 info:
   title: Foodwell API
   version: 1.1.0-expanded-contract
-  description: 'Foodwell contract: 48 operations, 38 implemented and 10 planned (tag `planned`,
-    `x-status: planned`; addresses and reviews). Delivery-area
+  description: 'Foodwell contract: 48 implemented operations. Delivery-area
     options combine Zippopotam.us/GeoNames prefix data with configured Foodwell service areas and
     database slot availability. Every implemented operation that lists BearerSession enforces it:
-    401 without a working login, 403 for the wrong account or role (see x-access). Security on
-    planned operations describes the intended access only, since those routes do not exist yet.'
+    401 without a working login, 403 for the wrong account or role (see x-access).'
 servers:
 - url: http://localhost/foodwell-api/api/v1
   description: WampServer (Apache, www/foodwell-api)
@@ -21,11 +19,11 @@ tags:
 - name: Sessions
   description: Implemented expanded resource
 - name: Addresses
-  description: Planned expanded resource
+  description: Customer-owned saved delivery addresses
 - name: Favorites
   description: Planned expanded resource
 - name: Reviews
-  description: Planned expanded resource
+  description: Public product reviews with authenticated author controls
 - name: Inventory
   description: Implemented expanded resource (staff/admin audit log of manual stock changes)
 - name: Order history
@@ -2199,12 +2197,11 @@ paths:
   /customers/{id}/addresses:
     get:
       tags:
-      - planned
       - Addresses
-      x-status: planned
+      x-status: implemented
       operationId: get__customers__id__addresses
-      summary: List addresses
-      x-access: owner
+      summary: List saved addresses
+      x-access: customer_owner
       security:
       - BearerSession: []
       responses:
@@ -2226,12 +2223,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '409':
-          description: Resource conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '401':
           description: Missing, expired, revoked or invalid session
           content:
@@ -2244,6 +2235,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
       parameters:
       - in: query
         name: page
@@ -2258,10 +2251,9 @@ paths:
           minimum: 1
           default: 20
           maximum: 100
-      description: Planned bounded pagination, ordered by a stable identifier. Access is checked
-        before rows are returned.
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+      description: Bounded pagination ordered by address ID.
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
     parameters:
     - in: path
       name: id
@@ -2271,12 +2263,11 @@ paths:
         minimum: 1
     post:
       tags:
-      - planned
       - Addresses
-      x-status: planned
+      x-status: implemented
       operationId: post__customers__id__addresses
       summary: Save an address
-      x-access: owner
+      x-access: customer_owner
       security:
       - BearerSession: []
       responses:
@@ -2298,12 +2289,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '409':
-          description: Resource conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '401':
           description: Missing, expired, revoked or invalid session
           content:
@@ -2312,6 +2297,16 @@ paths:
                 $ref: '#/components/schemas/Error'
         '403':
           description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          description: Invalid, missing or unexpected fields
           content:
             application/json:
               schema:
@@ -2322,17 +2317,16 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AddressInput'
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
   /customers/{id}/addresses/{addressId}:
     get:
       tags:
-      - planned
       - Addresses
-      x-status: planned
+      x-status: implemented
       operationId: get__customers__id__addresses__addressId_
-      summary: Manage one saved address
-      x-access: owner
+      summary: Read a saved address
+      x-access: customer_owner
       security:
       - BearerSession: []
       responses:
@@ -2342,20 +2336,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Address'
-        '400':
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '404':
           description: Resource not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Resource conflict
           content:
             application/json:
               schema:
@@ -2372,8 +2354,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
     parameters:
     - in: path
       name: id
@@ -2389,12 +2373,11 @@ paths:
         minimum: 1
     patch:
       tags:
-      - planned
       - Addresses
-      x-status: planned
+      x-status: implemented
       operationId: patch__customers__id__addresses__addressId_
-      summary: Manage one saved address
-      x-access: owner
+      summary: Update a saved address
+      x-access: customer_owner
       security:
       - BearerSession: []
       responses:
@@ -2416,12 +2399,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '409':
-          description: Resource conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '401':
           description: Missing, expired, revoked or invalid session
           content:
@@ -2430,6 +2407,16 @@ paths:
                 $ref: '#/components/schemas/Error'
         '403':
           description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          description: Invalid, missing or unexpected fields
           content:
             application/json:
               schema:
@@ -2440,35 +2427,22 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AddressPatch'
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
     delete:
       tags:
-      - planned
       - Addresses
-      x-status: planned
+      x-status: implemented
       operationId: delete__customers__id__addresses__addressId_
-      summary: Manage one saved address
-      x-access: owner
+      summary: Delete a saved address
+      x-access: customer_owner
       security:
       - BearerSession: []
       responses:
         '204':
           description: Success; no response body
-        '400':
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '404':
           description: Resource not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Resource conflict
           content:
             application/json:
               schema:
@@ -2485,8 +2459,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
   /customers/{id}/favorites:
     get:
       tags:
@@ -2663,9 +2639,8 @@ paths:
   /products/{id}/reviews:
     get:
       tags:
-      - planned
       - Reviews
-      x-status: planned
+      x-status: implemented
       operationId: get__products__id__reviews
       summary: List public product reviews
       x-access: public
@@ -2689,12 +2664,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '409':
-          description: Resource conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
       parameters:
       - in: query
         name: page
@@ -2709,9 +2680,8 @@ paths:
           minimum: 1
           default: 20
           maximum: 100
-      description: Planned bounded pagination, ordered by a stable identifier. Access is checked
-        before rows are returned.
-      x-current-access: not-implemented
+      description: Bounded pagination ordered by creation time descending, then review ID descending.
+      x-current-access: public
       x-security-enforcement: not-required
     parameters:
     - in: path
@@ -2722,9 +2692,8 @@ paths:
         minimum: 1
     post:
       tags:
-      - planned
       - Reviews
-      x-status: planned
+      x-status: implemented
       operationId: post__products__id__reviews
       summary: Create the customer's review
       x-access: customer
@@ -2767,22 +2736,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          description: Invalid, missing or unexpected fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ReviewInput'
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
   /reviews/{reviewId}:
     get:
       tags:
-      - planned
       - Reviews
-      x-status: planned
+      x-status: implemented
       operationId: get__reviews__reviewId_
-      summary: Read, edit or remove a review
+      summary: Read a public review
       x-access: public
       security: []
       responses:
@@ -2792,25 +2770,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Review'
-        '400':
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '404':
           description: Resource not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '409':
-          description: Resource conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      x-current-access: not-implemented
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+      x-current-access: public
       x-security-enforcement: not-required
     parameters:
     - in: path
@@ -2821,11 +2789,10 @@ paths:
         minimum: 1
     patch:
       tags:
-      - planned
       - Reviews
-      x-status: planned
+      x-status: implemented
       operationId: patch__reviews__reviewId_
-      summary: Read, edit or remove a review
+      summary: Edit a review as its author
       x-access: author
       security:
       - BearerSession: []
@@ -2848,12 +2815,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '409':
-          description: Resource conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '401':
           description: Missing, expired, revoked or invalid session
           content:
@@ -2862,6 +2823,16 @@ paths:
                 $ref: '#/components/schemas/Error'
         '403':
           description: Wrong role or another customer's resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          description: Invalid, missing or unexpected fields
           content:
             application/json:
               schema:
@@ -2872,35 +2843,22 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ReviewPatch'
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
     delete:
       tags:
-      - planned
       - Reviews
-      x-status: planned
+      x-status: implemented
       operationId: delete__reviews__reviewId_
-      summary: Read, edit or remove a review
+      summary: Delete a review as its author or an administrator
       x-access: author_or_admin
       security:
       - BearerSession: []
       responses:
         '204':
           description: Success; no response body
-        '400':
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '404':
           description: Resource not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Resource conflict
           content:
             application/json:
               schema:
@@ -2917,8 +2875,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
   /products/{id}/inventory-adjustments:
     get:
       tags:
@@ -4252,8 +4212,6 @@ components:
           - out_for_delivery
           - delivered
           - cancelled
-
-          nullable: true
         newStatus:
           type: string
           enum:

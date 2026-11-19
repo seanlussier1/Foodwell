@@ -6,9 +6,11 @@ Foodwell is a PHP/MariaDB REST API for an online grocery store. Customers browse
 
 ## Current status
 
-The database has **14 tables** and the [OpenAPI contract](docs/openapi.yaml) documents **48 operations**: **38 implemented** and **10 planned** (saved addresses and reviews, tagged `planned` in OpenAPI; their routes do not exist yet).
+The database has **14 tables** and the [OpenAPI contract](docs/openapi.yaml) documents **48 operations** with all **48 implemented**.
 
-Implemented: products, categories and delivery slots (public reads; staff/admin writes), the public delivery-area lookup, customer registration, login sessions, customer profiles and administration, favorites, inventory adjustments, carts, checkout, order detail, order status updates and order history. Every route that needs a login enforces it with a bearer session: **401** without a working login and **403** for the wrong account or role. The rules for each route are in the [permission matrix](docs/SECURITY_ROUTE_MATRIX.md).
+Implemented features include products, categories, delivery slots, delivery-area lookup, customer accounts, saved addresses, favorites, product reviews, inventory adjustments, carts, checkout and order history. Protected routes require a bearer session and return **401** without a working login or **403** for the wrong account or role. See the [permission matrix](docs/SECURITY_ROUTE_MATRIX.md).
+
+Customers can manage their own saved addresses at `/customers/{id}/addresses` and pass an `addressId` at checkout. An order stores the delivery address as a snapshot. Product reviews are public to read. Customers can write one review per product and edit or delete their own reviews. Administrators can also delete reviews. Both lists accept `page` and `limit`.
 
 Customers can save and remove favorites from the shop and browse their saved products. The owner-only favorites API supports paginated `GET /customers/{id}/favorites` (page defaults to 1, limit to 20, maximum 100) and idempotent `PUT` and `DELETE /customers/{id}/favorites/{productId}`. Saving an unknown product returns 404; removing an absent favorite returns 204. Staff and administrators cannot access another customer's favorites. Product changes are reflected in the list; unavailable products remain visible until removed.
 
@@ -80,7 +82,7 @@ Run `php scripts/check-catalog-integrity.php` with the SCHEMA_TEST settings abov
 
 ## Security preparation
 
-The [security design](docs/SECURITY_DESIGN.md) and [48-operation permission matrix](docs/SECURITY_ROUTE_MATRIX.md) define intended roles, ownership, account administration and opaque-session behavior for #63. Build 3 implemented that design: login sessions (#45), the shared permission and ownership checks (#46) and the catalog and slot rules (#40), with denial tests in #41, #47 and #52. The matrix records the enforced rule for every implemented route and marks the 10 planned routes as not yet protected.
+The [security design](docs/SECURITY_DESIGN.md) and [48-operation permission matrix](docs/SECURITY_ROUTE_MATRIX.md) define roles, ownership, account administration and opaque-session behavior. The matrix records the enforced rules for implemented routes.
 
 ## Team responsibilities
 
@@ -171,7 +173,7 @@ Run each migration once. Do not import `schema.sql` or the full seed over existi
 composer start
 ```
 
-Open [the product page](http://localhost:8080/), load the product list, then look up product `101`. In phpMyAdmin, select `foodwell` to inspect the 14 tables and seeded records. The 10 planned endpoints (addresses, reviews) have no PHP implementation yet and return 404 or 405.
+Open [the product page](http://localhost:8080/), load the product list, then look up product `101`. In phpMyAdmin, select `foodwell` to inspect the 14 tables and seeded records.
 
 For Apache instead, set the site DocumentRoot to `public/`, enable `mod_rewrite`, and allow the supplied `.htaccess`. If using an Apache subfolder URL, set `APP_BASE_PATH` to that URL prefix, such as `/foodwell-api`.
 
