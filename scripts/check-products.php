@@ -340,7 +340,11 @@ try {
 
     [$status, $body] = api($apiPort, 'GET', '/products/102', null, ['Accept' => 'text/html']);
     check($status === 406 && str_contains($body['error']['message'], 'application/yaml'), 'Unsupported Accept returns 406 listing the formats');
-    check(api($apiPort, 'POST', '/products', '{}', ['Accept' => 'application/xml'])[0] === 406, 'Writes are JSON-only: POST with Accept XML is 406');
+    // Since #65, product writes also ANSWER in XML/YAML (request bodies stay JSON).
+    [$status, , $raw, $headers] = api($apiPort, 'POST', '/products', '{}', ['Accept' => 'application/xml']);
+    check($status === 422 && str_starts_with($headers['content-type'], 'application/xml') && str_contains($raw, '<error>'),
+        'Writes answer in the requested format: POST with Accept XML gets its 422 as XML');
+    check(api($apiPort, 'POST', '/products', '{}', ['Accept' => 'text/html'])[0] === 406, 'POST with an unsupported Accept is 406');
     check(api($apiPort, 'GET', '/customers', null, ['Accept' => 'application/xml'])[0] === 406, 'JSON-only routes (customers) return 406 for XML');
     check(api($apiPort, 'GET', '/nope', null, ['Accept' => 'application/xml'])[0] === 404, 'Unknown route stays 404 whatever Accept says');
     [$status, , $errorXml] = api($apiPort, 'GET', '/products/999999', null, ['Accept' => 'application/xml']);

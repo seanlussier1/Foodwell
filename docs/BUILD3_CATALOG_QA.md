@@ -39,7 +39,7 @@ Bold rows are Will's areas. The Composer entries were run through their underlyi
 ### Contract and format evidence
 
 - **OpenAPI against the running API:** the #43 audit ([DOCUMENTATION_AUDIT.md](DOCUMENTATION_AUDIT.md)) replayed the catalog, customer and order collections and validated all 64 JSON responses against the documented schemas with no mismatches. It also confirmed that all 32 routes match their documented access rules.
-- **Formats in Will's areas:** product reads (`GET /products`, `GET /products/{id}`) return JSON, XML or YAML and give 406 for anything else; errors use the format the client asked for. Category and delivery slot routes are JSON only and give 406 for other `Accept` values. Product and slot writes accept `application/json` only (415 otherwise). Completing the remaining formats is [#65](https://github.com/seanlussier1/Foodwell/issues/65) (see [REPRESENTATION_MATRIX.md](REPRESENTATION_MATRIX.md)).
+- **Formats in Will's areas** (at the tested snapshot): product reads returned JSON, XML or YAML; category and slot routes were JSON only; bodies were JSON only. **Updated by #65:** all product, category and delivery slot routes now answer in JSON, XML or YAML, and bodies stay JSON-only by agreement. See [REPRESENTATION_MATRIX.md](REPRESENTATION_MATRIX.md) and `php scripts/check-representations.php`.
 
 ### Evidence files
 
@@ -73,6 +73,6 @@ Bold rows are Will's areas. The Composer entries were run through their underlyi
 ## Open items
 
 - PHP 8.0 has not been executed for the catalog, category and slot code (static scan only, see above).
-- XML/YAML beyond product reads is deferred to #65.
+- XML/YAML for catalog routes was completed afterwards in #65 (not part of the tested snapshot above).
 - Minor behaviour noted in [CATALOG_INTEGRITY.md](CATALOG_INTEGRITY.md) (category POST ignores unknown fields and has no `Location` header; `HEAD` returns 405) is unchanged.
 - Peer execution and the November 27 retests are pending.

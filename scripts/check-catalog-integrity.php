@@ -375,12 +375,15 @@ try {
     // ===================================================== 5. media types and methods
     echo "\n-- 5. Unsupported formats and methods\n";
 
-    foreach ([['/products', 'text/html'], ['/products/101', 'image/png'], ['/categories', 'application/xml'], ['/categories/1', 'text/csv']]
+    // (Since #65, categories and slots also answer in XML/YAML, so the
+    // unsupported types here are ones no route offers.)
+    foreach ([['/products', 'text/html'], ['/products/101', 'image/png'], ['/categories', 'text/html'], ['/categories/1', 'text/csv'],
+              ['/delivery-slots', 'application/pdf']]
              as [$path, $accept]) {
         [$status, , $headers] = api('GET', $path, null, ['Accept' => $accept]);
         check($status === 406 && str_starts_with($headers['content-type'], 'application/json'), "GET $path with Accept $accept -> 406 (JSON error)");
     }
-    refused($pdo, 406, 'POST', '/products', $good, 'POST /products asking for an XML response', 'Not acceptable', ['Accept' => 'application/xml']);
+    refused($pdo, 406, 'POST', '/products', $good, 'POST /products asking for an HTML response', 'Not acceptable', ['Accept' => 'text/html']);
 
     // Errors come back in the format the client asked for, when that format is supported.
     [$status, , $headers, $raw] = api('GET', '/products/999', null, ['Accept' => 'application/xml']);

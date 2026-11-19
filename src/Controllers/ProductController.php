@@ -99,7 +99,8 @@ final class ProductController
             throw $e;
         }
 
-        Response::json(201, $product, ['Location' => $this->itemPath($product['id'])]);
+        // send() answers in the format negotiated from Accept (JSON, XML or YAML, #65).
+        Response::send(201, $product, ['Location' => $this->itemPath($product['id'])], 'product');
     }
 
     public function update(array $params): void
@@ -135,7 +136,7 @@ final class ProductController
             throw $e;
         }
 
-        Response::json(200, $product);
+        Response::send(200, $product, [], 'product');
     }
 
     public function destroy(array $params): void

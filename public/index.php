@@ -220,29 +220,33 @@ try {
     // the login and role before the controller runs: no login = 401,
     // customer = 403. Customers attach a slot to their order at
     // checkout by sending "deliverySlotId" to POST /orders.
-    $router->get(API_PREFIX . '/delivery-slots', [$deliverySlots, 'index']);
-    $router->get(API_PREFIX . '/delivery-slots/{id}', [$deliverySlots, 'show']);
-    $router->post(API_PREFIX . '/delivery-slots', $authorization->protect([$deliverySlots, 'store'], 'staff'));
-    $router->put(API_PREFIX . '/delivery-slots/{id}', $authorization->protect([$deliverySlots, 'update'], 'staff'));
-    $router->delete(API_PREFIX . '/delivery-slots/{id}', $authorization->protect([$deliverySlots, 'destroy'], 'staff'));
+    // Representation matrix (#65): every catalog route (products, categories,
+    // delivery slots) ANSWERS in JSON, XML or YAML, chosen by the Accept header
+    // (anything else is 406). Request BODIES stay JSON-only on every route: a
+    // POST/PUT with another Content-Type gets 415. See docs/REPRESENTATION_MATRIX.md.
+    $catalogFormats = [Negotiation::JSON, Negotiation::XML, Negotiation::YAML];
 
-    $router->get(API_PREFIX . '/categories', [$categories, 'index']);
-    $router->get(API_PREFIX . '/categories/{id}', [$categories, 'show']);
-    $router->post(API_PREFIX . '/categories', $authorization->protect([$categories, 'store'], 'staff'));
-    $router->delete(API_PREFIX . '/categories/{id}', $authorization->protect([$categories, 'destroy'], 'staff'));
+    $router->get(API_PREFIX . '/delivery-slots', [$deliverySlots, 'index'], $catalogFormats);
+    $router->get(API_PREFIX . '/delivery-slots/{id}', [$deliverySlots, 'show'], $catalogFormats);
+    $router->post(API_PREFIX . '/delivery-slots', $authorization->protect([$deliverySlots, 'store'], 'staff'), $catalogFormats);
+    $router->put(API_PREFIX . '/delivery-slots/{id}', $authorization->protect([$deliverySlots, 'update'], 'staff'), $catalogFormats);
+    $router->delete(API_PREFIX . '/delivery-slots/{id}', $authorization->protect([$deliverySlots, 'destroy'], 'staff'), $catalogFormats);
+
+    $router->get(API_PREFIX . '/categories', [$categories, 'index'], $catalogFormats);
+    $router->get(API_PREFIX . '/categories/{id}', [$categories, 'show'], $catalogFormats);
+    $router->post(API_PREFIX . '/categories', $authorization->protect([$categories, 'store'], 'staff'), $catalogFormats);
+    $router->delete(API_PREFIX . '/categories/{id}', $authorization->protect([$categories, 'destroy'], 'staff'), $catalogFormats);
     $router->post(API_PREFIX . '/orders', $authorization->protect([$orders, 'create'], 'checkout'));
     $router->get(API_PREFIX . '/orders/{id}', $authorization->protect([$orders, 'show'], 'order'));
     $router->patch(API_PREFIX . '/orders/{id}', $authorization->protect([$orders, 'updateStatus'], 'staff'));
     $router->get(API_PREFIX . '/customers/{id}/orders', $authorization->protect([$orders, 'customerHistory'], 'owner'));
     $router->get(API_PREFIX . '/orders/{id}/status-events', $authorization->protect([$orders, 'statusHistory'], 'order_history'));
 
-    $productFormats = [Negotiation::JSON, Negotiation::XML, Negotiation::YAML];
-
-    $router->get(API_PREFIX . '/products', [$products, 'index'], $productFormats);
-    $router->get(API_PREFIX . '/products/{id}', [$products, 'show'], $productFormats);
-    $router->post(API_PREFIX . '/products', $authorization->protect([$products, 'store'], 'staff'));
-    $router->put(API_PREFIX . '/products/{id}', $authorization->protect([$products, 'update'], 'staff'));
-    $router->delete(API_PREFIX . '/products/{id}', $authorization->protect([$products, 'destroy'], 'staff'));
+    $router->get(API_PREFIX . '/products', [$products, 'index'], $catalogFormats);
+    $router->get(API_PREFIX . '/products/{id}', [$products, 'show'], $catalogFormats);
+    $router->post(API_PREFIX . '/products', $authorization->protect([$products, 'store'], 'staff'), $catalogFormats);
+    $router->put(API_PREFIX . '/products/{id}', $authorization->protect([$products, 'update'], 'staff'), $catalogFormats);
+    $router->delete(API_PREFIX . '/products/{id}', $authorization->protect([$products, 'destroy'], 'staff'), $catalogFormats);
 
     $router->dispatch($_SERVER['REQUEST_METHOD'], $path);
 } catch (Throwable $e) {
