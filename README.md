@@ -1,42 +1,44 @@
 # Foodwell API
 
-> For the current clean-setup verification and known documentation gaps, see [release reproducibility and QA handoff](docs/RELEASE_REPRODUCIBILITY.md).
+> For the current clean-setup verification, see [release reproducibility and QA handoff](docs/RELEASE_REPRODUCIBILITY.md). The [documentation audit](docs/DOCUMENTATION_AUDIT.md) records how OpenAPI and these docs were checked against the code, and the known gaps.
 
 Foodwell is a PHP/MariaDB REST API for an online grocery store. Customers browse products, manage carts and place delivery orders; staff manage stock and fulfillment.
 
 ## Current status
 
-The database has **14 tables** and the [OpenAPI contract](docs/openapi.yaml) documents **48 operations**. Product list/item GET, category operations, customer registration and the public delivery-area lookup work in PHP. Customer management and cart operations work as explicitly enabled local demos; authentication and role/owner/admin enforcement remain planned. Product, category and delivery-slot writes require a staff or admin login (#40). Other operations, including checkout, remain planned.
+The database has **14 tables** and the [OpenAPI contract](docs/openapi.yaml) documents **48 operations**: **32 implemented** and **16 planned** (saved addresses, favorites, reviews and inventory adjustments, tagged `planned` in OpenAPI; their routes do not exist yet).
 
-Customer registration accepts JSON with `firstName`, `lastName`, `email`, `password`, and optional nullable `address`/`phone`. Names are trimmed (1-100 characters); email is trimmed and lowercased (maximum 254 characters). Passwords are 8-72 bytes, are not trimmed, and are stored using bcrypt. Registration always creates an active customer; caller-supplied roles, activation and other unknown fields are rejected. Responses never include passwords or hashes. Successful creation returns 201; malformed/non-object JSON returns 400, duplicate email 409, unsupported/missing Content-Type 415 and invalid fields 422 with `error.details`. JSON is the only implemented customer format. Login remains planned; the local customer dashboard is described below.
+Implemented: products, categories and delivery slots (public reads; staff/admin writes), the public delivery-area lookup, customer registration, login sessions, customer profiles and administration, carts, checkout, order detail, order status updates and order history. Every route that needs a login enforces it with a bearer session: **401** without a working login and **403** for the wrong account or role. The rules for each route are in the [permission matrix](docs/SECURITY_ROUTE_MATRIX.md).
 
-### Local customer-profile demonstration
+Customer registration accepts JSON with `firstName`, `lastName`, `email`, `password`, and optional nullable `address`/`phone`. Names are trimmed (1-100 characters); email is trimmed and lowercased (maximum 254 characters). Passwords are 8-72 bytes, are not trimmed, and are stored using bcrypt. Registration always creates an active customer; caller-supplied roles, activation and other unknown fields are rejected. Responses never include passwords or hashes. Successful creation returns 201; malformed/non-object JSON returns 400, duplicate email 409, unsupported/missing Content-Type 415 and invalid fields 422 with `error.details`. JSON is the only implemented customer format. After registering, log in with `POST /api/v1/auth/sessions` (see [Authentication setup](#authentication-setup)).
 
-For synthetic local testing, add `APP_CUSTOMER_PROFILE_DEMO=1` to `.env` and access the API through localhost. The flag defaults to 0; profile reads/writes return 403 unless the flag is enabled and the request comes from a loopback address. This gate is not authentication: any local caller can access any profile while enabled. Keep it off on shared/deployed servers; #45/#46 must implement the documented owner/admin permissions before private deployment.
+### Customer profiles and administration
 
-`GET /api/v1/customers/{id}` returns the saved profile or 404. `PUT /api/v1/customers/{id}` requires `firstName`, `lastName`, `email`, and accepts optional nullable `address`/`phone`; omitted optional fields are cleared. It returns the updated profile with 200. The password is neither required nor accepted; role, activation and unknown fields are rejected. Profile writes preserve credentials/privileged fields, reject duplicate email with 409 and reject invalid fields with 422. Missing IDs return 404. The existing `error.details` response format is retained until the shared #32 error work is integrated.
+Profile reads and updates require a login as that customer or an administrator. Listing and deactivating customers require a staff or administrator login. The old `APP_CUSTOMER_PROFILE_DEMO` flag is a legacy setting and no longer changes access.
 
-`GET /api/v1/customers` uses the same local demo setting and returns only customer-role accounts, ordered by ID ascending. Query parameters: `page` (default 1, maximum 2147483647), `limit` (default 10, range 1-100), `search` (trimmed, up to 100 characters; case-insensitive literal substring in first/last name), and `isActive` (exactly `true` or `false`; omitted means both). Filters combine with AND. Unknown parameters, arrays and invalid values return 400 with field details. The intended customer-list access is staff/admin once authorization is implemented.
+`GET /api/v1/customers/{id}` returns the saved profile or 404. `PUT /api/v1/customers/{id}` requires `firstName`, `lastName`, `email`, and accepts optional nullable `address`/`phone`; omitted optional fields are cleared. It returns the updated profile with 200. The password is neither required nor accepted; role, activation and unknown fields are rejected. Profile writes preserve credentials/privileged fields, reject duplicate email with 409 and reject invalid fields with 422. Missing IDs return 404. Errors use the shared `error` format with `details` and `requestId` (#32).
 
-Collection success responses contain `metadata` (`page`, `limit`, `total`, `totalPages`, `next`, `previous`) and a `data` array of profiles with `isActive`. Navigation URLs are relative, preserve both filters and limit, and retain Apache subfolder prefixes. Empty matches return 200 with zero totalPages and null links. Beyond-final pages return empty data with a previous link back to the final page when matches exist. Shared error/request-ID middleware (#32) is merged. Content negotiation (#33) remains pending; do not claim customer 406 handling is implemented.
+`GET /api/v1/customers` requires a staff or administrator login and returns only customer-role accounts, ordered by ID ascending. Query parameters: `page` (default 1, maximum 2147483647), `limit` (default 10, range 1-100), `search` (trimmed, up to 100 characters; case-insensitive literal substring in first/last name), and `isActive` (exactly `true` or `false`; omitted means both). Filters combine with AND. Unknown parameters, arrays and invalid values return 400 with field details.
 
-`PATCH /api/v1/customers/{id}` accepts exactly `{"isActive": false}` in the local demo. It deactivates only customer-role accounts, retains profile/history records and revokes existing sessions atomically. Repeated requests return 200. Staff/admin targets return 403, missing IDs 404, invalid fields 422, malformed JSON 400 and unsupported Content-Type 415. Reactivation is not implemented. Intended staff/admin authorization remains planned.
+Collection success responses contain `metadata` (`page`, `limit`, `total`, `totalPages`, `next`, `previous`) and a `data` array of profiles with `isActive`. Navigation URLs are relative, preserve both filters and limit, and retain Apache subfolder prefixes. Empty matches return 200 with zero totalPages and null links. Beyond-final pages return empty data with a previous link back to the final page when matches exist. Shared error/request-ID middleware (#32) is merged. Customer routes return JSON only; any other `Accept` gets 406.
+
+`PATCH /api/v1/customers/{id}` requires a staff or administrator login and accepts exactly `{"isActive": false}`. It deactivates only customer-role accounts, retains profile/history records and revokes existing sessions atomically. Repeated requests return 200. Staff/admin targets return 403, missing IDs 404, invalid fields 422, malformed JSON 400 and unsupported Content-Type 415. Reactivation is not implemented.
 
 ### Lab 7 customer client
 
-With Wamp running and the local demo enabled, open `http://localhost/foodwell-api/client/`. Or run `php -S localhost:8081 -t client` from the repository root and visit `http://localhost:8081` to demonstrate cross-origin consumption. Expand API connection if the base URL differs. The client has filtered pagination, registration/profile forms, client validation, backend field-error feedback and a per-customer deactivation button. See [client instructions](client/README.md). Products/categories remain the other owners' client work.
+With Wamp running, open `http://localhost/foodwell-api/client/` and sign in on the Account page (staff or admin for the customer dashboard; seeded accounts and password are listed in [step 4](#4-choose-a-fresh-installation-or-an-upgrade)). Or run `php -S localhost:8081 -t client` from the repository root and visit `http://localhost:8081` to demonstrate cross-origin consumption. Expand API connection if the base URL differs. The client has filtered pagination, registration/profile forms, client validation, backend field-error feedback and a per-customer deactivation button. See [client instructions](client/README.md). Products/categories remain the other owners' client work.
 
 API CORS middleware accepts same-origin requests and configured `CORS_ALLOWED_ORIGINS` (default: `http://localhost:8081,http://127.0.0.1:8081`). OPTIONS returns 204 before connecting to the database; allowed methods are GET/POST/PUT/PATCH/DELETE/OPTIONS and allowed headers are Accept/Content-Type/Authorization. Disallowed origins return 403; unsupported preflight methods/headers are rejected. Allowed origins receive CORS headers on errors too. No cross-origin cookie credentials are enabled. CORS does not enforce identity or ownership.
 
-Run `php scripts/check-registration.php` for 122 isolated registration/profile/collection/deactivation/CORS HTTP and database checks. Like the schema checks below, this uses `SCHEMA_TEST_HOST`, `SCHEMA_TEST_PORT`, `SCHEMA_TEST_USER` and `SCHEMA_TEST_PASS`, creates temporary databases and removes them afterward. It does not load or reset the application database. Optional `FOODWELL_TEST_ROOT` points these checks at another copy of the same application.
+Run `php scripts/check-registration.php` for 124 isolated registration/profile/collection/deactivation/CORS HTTP and database checks. Like the schema checks below, this uses `SCHEMA_TEST_HOST`, `SCHEMA_TEST_PORT`, `SCHEMA_TEST_USER` and `SCHEMA_TEST_PASS`, creates temporary databases and removes them afterward. It does not load or reset the application database. Optional `FOODWELL_TEST_ROOT` points these checks at another copy of the same application.
 
 The expanded resources include sessions, saved addresses, favorites, reviews, manual inventory adjustments and order status history.
 
-### Cart demonstration and checkout handoff
+### Carts and checkout handoff
 
-Enable `APP_CART_DEMO=1` in `.env` for synthetic localhost testing. GET `/api/v1/customers/{id}/cart` reads the cart; POST `/cart/items` under the same customer adds `{productId, quantity}`; PUT `/cart/items/{itemId}` sets `{quantity}`; DELETE removes the line with 204/no body. Quantity must be an integer from 1 to 1,000,000. POST increases an existing product line (200) or creates a new one (201), so do not blindly retry it. GET never creates a cart; a new customer gets an empty response with id=null until their first successful add. Clearing/removing all lines retains the reusable cart row.
+Cart routes require a login as that customer or an administrator (the old `APP_CART_DEMO` flag no longer changes access). GET `/api/v1/customers/{id}/cart` reads the cart; POST `/cart/items` under the same customer adds `{productId, quantity}`; PUT `/cart/items/{itemId}` sets `{quantity}`; DELETE removes the line with 204/no body. Quantity must be an integer from 1 to 1,000,000. POST increases an existing product line (200) or creates a new one (201), so do not blindly retry it. GET never creates a cart; a new customer gets an empty response with id=null until their first successful add. Clearing/removing all lines retains the reusable cart row.
 
-Totals come from current catalog prices and are not checkout guarantees. Inactive/out-of-stock products and excessive combined quantities return 409 without partial changes. Cart edits do not change product stock. Item IDs must belong to the specified customer's cart; real session-based ownership remains pending #45/#46. The cart demo flag is separate from the profile demo flag and defaults off.
+Totals come from current catalog prices and are not checkout guarantees. Inactive/out-of-stock products and excessive combined quantities return 409 without partial changes. Cart edits do not change product stock. Item IDs must belong to the specified customer's cart, and the bearer session must belong to that customer (or an administrator).
 
 Import [the saved Postman demonstration](requests/Foodwell_Cart.postman_collection.json) to show the workflow using a newly created synthetic customer. Read [the checkout handoff](docs/CART_CHECKOUT_HANDOFF.md) for the shared lock order, cart-clearing rules and Mohamed's #36 transaction requirements. His confirmation is still required before #35 is Done. No checkout is implemented here.
 
@@ -72,7 +74,7 @@ Run `php scripts/check-catalog-integrity.php` with the SCHEMA_TEST settings abov
 
 ## Security preparation
 
-The [security design](docs/SECURITY_DESIGN.md) and [48-operation permission matrix](docs/SECURITY_ROUTE_MATRIX.md) define intended roles, ownership, account administration and opaque-session behavior for #63. They distinguish intended permissions from current public/local-demo access and link Build 3 enforcement to #40/#45/#46/#47. The draft still requires Will's and Mohamed's resource-rule reviews; this documentation does not implement login or authorization. Catalog and slot writes are now staff/admin-only (#40, see below). Link the final reviewed design/commit from the #64 Build 2 manifest before marking #63 Done.
+The [security design](docs/SECURITY_DESIGN.md) and [48-operation permission matrix](docs/SECURITY_ROUTE_MATRIX.md) define intended roles, ownership, account administration and opaque-session behavior for #63. Build 3 implemented that design: login sessions (#45), the shared permission and ownership checks (#46) and the catalog and slot rules (#40), with denial tests in #41, #47 and #52. The matrix now records the enforced rule for every implemented route and marks the 16 planned routes as not yet protected. Link the final reviewed design/commit from the #64 Build 2 manifest before marking #63 Done.
 
 ## Team responsibilities
 
@@ -106,7 +108,7 @@ cd Foodwell
 composer install
 ```
 
-If you already have the project, open its folder and run `composer install`. These instructions describe the expanded version; use the branch containing this change until it is merged into main.
+If you already have the project, open its folder and run `composer install`. These instructions describe `main`.
 
 ### 2. Create a local database account
 
@@ -145,7 +147,7 @@ composer db:setup
 
 **This deletes all project tables in DB_NAME and reloads synthetic data.** Confirm the database name and back up any records you need before running it.
 
-The seed creates 4 categories, 10 products, 4 demo accounts, 2 inactive sessions, 2 carts, 2 cart items, 4 delivery slots, 5 orders, 6 order items, 2 addresses, 3 favorites, 2 reviews, 1 inventory adjustment and 5 order baseline events. All demo accounts use `FoodwellDemo!2026`, stored as a password hash. Login is still planned. These accounts are only for local demonstrations.
+The seed creates 4 categories, 10 products, 4 demo accounts, 2 inactive sessions, 2 carts, 2 cart items, 4 delivery slots, 5 orders, 6 order items, 2 addresses, 3 favorites, 2 reviews, 1 inventory adjustment and 5 order baseline events. All demo accounts use `FoodwellDemo!2026`, stored as a password hash: `alex@example.com` and `sam@example.com` (customers), `staff@example.com` (staff) and `admin@example.com` (administrator). Log in with `POST /api/v1/auth/sessions`. These accounts are only for local demonstrations.
 
 **Existing database with records to preserve:** back up first, select that database in phpMyAdmin, then use its Import tab:
 
@@ -163,7 +165,7 @@ Run each migration once. Do not import `schema.sql` or the full seed over existi
 composer start
 ```
 
-Open [the product page](http://localhost:8080/), load the product list, then look up product `101`. In phpMyAdmin, select `foodwell` to inspect the 14 tables and seeded records. Newly planned endpoints will not work until their PHP implementation is added.
+Open [the product page](http://localhost:8080/), load the product list, then look up product `101`. In phpMyAdmin, select `foodwell` to inspect the 14 tables and seeded records. The 16 planned endpoints (addresses, favorites, reviews, inventory adjustments) have no PHP implementation yet and return 404 or 405.
 
 For Apache instead, set the site DocumentRoot to `public/`, enable `mod_rewrite`, and allow the supplied `.htaccess`. If using an Apache subfolder URL, set `APP_BASE_PATH` to that URL prefix, such as `/foodwell-api`.
 
@@ -205,14 +207,14 @@ Request path: browser → `public/index.php` → router → controller → repos
 
 Set `AUTH_LIMITER_SECRET` to a unique, randomly generated secret of at least 32 characters in the environment or `.env`. Keep it private and consistent across all application workers. Without it login returns 503. Apply `database/migrations/004_auth_login_limits.sql` to existing databases; fresh schema includes it. Expire old limiter entries using an operator scheduled task such as `DELETE FROM auth_login_limits WHERE window_start < UTC_TIMESTAMP() - INTERVAL 7 DAY`. Protect database access and logs. Login uses REMOTE_ADDR, not forwarded headers. Use HTTPS outside local development.
 
-The session endpoints do not secure existing customer, cart or order routes; authorization is tracked separately in #46.
+Customer, cart and order routes use these sessions for their permission checks; see [Authorization (#46)](#authorization-46).
 
 Run the isolated authentication checks with `php scripts/check-auth.php`; configure SCHEMA_TEST_HOST, SCHEMA_TEST_PORT, SCHEMA_TEST_USER and SCHEMA_TEST_PASS for a disposable MariaDB server. The test account needs permission to create and drop a randomly named test database.
 
 
 ## Authorization (#46)
 
-Customer profile, cart, checkout and order detail routes require a valid bearer session and the documented owner or administrator rule. Customer listing, deactivation, product writes and category writes require staff or administrator. The former loopback demo flags do not bypass these checks. The browser workspace uses the Account page to sign in, and retains the token in memory while navigating. Some older local-demo test scripts still require updating. Run `php scripts/check-authorization.php` with the same disposable-database configuration as the authentication checks.
+Customer profile, cart, checkout and order detail routes require a valid bearer session and the documented owner or administrator rule. Customer listing, deactivation, product writes and category writes require staff or administrator. The former loopback demo flags do not bypass these checks. The browser workspace uses the Account page to sign in, and retains the token in memory while navigating. All check scripts sign in where needed (updated in #40-#42 and #101). Delivery-slot writes also require staff or administrator (#39/#40). Run `php scripts/check-authorization.php` with the same disposable-database configuration as the authentication checks.
 
 ## Automated catalog and delivery slot checks (#42)
 

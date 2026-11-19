@@ -1,6 +1,6 @@
 # Local checkout demonstration
 
-Run the application with a synthetic database, `APP_CART_DEMO=1`, and loopback access. Open `/client/shop.html`, enter an active customer ID, browse or search, add items, and use the cart controls. Optionally check a postal code and choose an offered window. Enter a synthetic delivery address and place the order; the confirmation fetches the saved order. Authentication and ownership enforcement remain planned, so this is a local demonstration only.
+Run the application with a synthetic database. Open `/client/shop.html`, sign in as an active customer (for example `alex@example.com` with the seed password), browse or search, add items, and use the cart controls. Optionally check a postal code and choose an offered window. Enter a synthetic delivery address and place the order; the confirmation fetches the saved order. Cart, checkout and order detail require the customer's bearer session (#46). The evidence below was recorded before that change, when these routes used the former local demo flag.
 
 ## Observed integration evidence
 
@@ -18,7 +18,7 @@ On 2026-11-04, using a disposable seeded MariaDB database and PHP 8.0, the follo
 
 The database showed stock falling from 34 to 32 and the cart empty after successful checkout. A browser run added products, updated and removed a quantity, placed a two-line order, and showed the saved order and an empty cart. A second browser run used `POSTAL_LOOKUP_MODE=demo-success` (a labelled fixture, not live provider data), selected an offered window and placed order 913; read-back succeeded. See `DELIVERY_AREA_INTEGRATION.md` for the PHP delivery consumer and its separate provider evidence.
 
-The PHP consumer `php scripts/checkout-client.php 8 101 "123 Test Street, Montreal"`, pointed at the same local test API, observed `GET /products?limit=5` 200, `POST /customers/8/cart/items` 201, `POST /orders` 201 and `GET /orders/915` 200. It creates an order and changes stock, so use only a disposable synthetic database. Set `DELIVERY_API_BASE_URL` to the loopback API URL before running it.
+The PHP consumer `php scripts/checkout-client.php 8 101 "123 Test Street, Montreal"`, pointed at the same local test API, observed `GET /products?limit=5` 200, `POST /customers/8/cart/items` 201, `POST /orders` 201 and `GET /orders/915` 200. **Known gap (#43 audit):** this consumer predates #46 and does not log in, so it now stops at `POST /customers/8/cart/items` with 401; it needs a login step before it can be used again. It creates an order and changes stock, so use only a disposable synthetic database. Set `DELIVERY_API_BASE_URL` to the loopback API URL before running it.
 
 `SCHEMA_TEST_PORT=13387 php scripts/check-order-concurrency.php` passed against a separate temporary MariaDB database. Two independent PHP servers received competing orders for a capacity-one slot while the slot row was locked: one returned 201, one 409, exactly one booking was saved and the rejected cart remained. The script creates and deletes its own uniquely named test database; set the `SCHEMA_TEST_HOST`, `SCHEMA_TEST_PORT`, `SCHEMA_TEST_USER` and `SCHEMA_TEST_PASS` environment variables as needed.
 
