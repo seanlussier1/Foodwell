@@ -69,9 +69,9 @@ final class CheckoutIntegrityTest extends TestCase
         self::assertSame([40, 119], $this->stock(101, 104));
         self::assertSame(1, $this->bookings(304));
         self::assertSame(0, $this->cartLines(30));
-        self::assertSame([2, 1], $this->db->query(
+        self::assertSame([2, 1], array_map('intval', $this->db->query(
             "SELECT quantity FROM order_items WHERE order_id = $id ORDER BY product_id"
-        )->fetchAll(PDO::FETCH_COLUMN));
+        )->fetchAll(PDO::FETCH_COLUMN)));
         self::assertSame(['pending'], $this->events($id));
         $this->unchanged(409, 'POST', '/orders', 'alex', $this->checkout(), 'cart is empty');
 

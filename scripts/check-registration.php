@@ -15,6 +15,7 @@ $pdo = new PDO("mysql:host=$host;port=$port;charset=utf8mb4", $user, $pass, [
 $databases = [];
 $servers = [];
 $checks = 0;
+$authorization = null;
 $serverLogs = [];
 function check(bool $condition, string $message): void {
     global $checks;
@@ -23,6 +24,8 @@ function check(bool $condition, string $message): void {
     echo "PASS: $message\n";
 }
 function request(int $port, string $method, string $path, ?string $body = null, string $type = 'application/json', array $headers = [], bool $api = true): array {
+    global $authorization;
+    if ($authorization !== null && $api && $method !== 'OPTIONS') { $headers[] = 'Authorization: Bearer ' . $authorization; }
     $context = stream_context_create(['http' => [
         'method' => $method, 'ignore_errors' => true, 'timeout' => 5,
         'header' => "Content-Type: $type\r\nAccept: application/json\r\n" . implode("\r\n", $headers),
@@ -40,7 +43,14 @@ try {
         $databases[] = $db;
         $pdo->exec("USE `$db`");
         $pdo->exec(file_get_contents($root . '/database/schema.sql'));
-        if ($seeded) { $pdo->exec(file_get_contents($root . '/database/seed.sql')); }
+        $authorization = null;
+        if ($seeded) {
+            $pdo->exec(file_get_contents($root . '/database/seed.sql'));
+            // Synthetic administrator session: private routes require a valid identity.
+            $authorization = bin2hex(random_bytes(32));
+            $session = $pdo->prepare('INSERT INTO auth_sessions(customer_id,token_hash,created_at,expires_at) VALUES (10,?,UTC_TIMESTAMP(),UTC_TIMESTAMP()+INTERVAL 2 HOUR)');
+            $session->execute([hash('sha256', $authorization)]);
+        }
         // Ask the OS for a free loopback port rather than use the app's port.
         $socket = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
         if (!$socket) { throw new RuntimeException('Cannot reserve a test port.'); }
@@ -72,7 +82,9 @@ try {
         }
         check($ready, 'Temporary server starts');
         [$clientStatus, , $clientHtml] = request($serverPort, 'GET', '/client/', null, 'application/json', [], false);
-        check($clientStatus === 200 && str_contains($clientHtml, 'Customer workspace'), 'Front controller serves the client HTML');
+        check($clientStatus === 200 && str_contains($clientHtml, 'shell.js'), 'Front controller serves the current Foodwell workspace shell');
+        [$customerPageStatus, , $customerHtml] = request($serverPort, 'GET', '/client/customers.html', null, 'application/json', [], false);
+        check($customerPageStatus === 200 && str_contains($customerHtml, 'Customer workspace'), 'Customer workspace remains available');
         [$clientStatus, , $clientJs] = request($serverPort, 'GET', '/client/app.js', null, 'application/json', [], false);
         check($clientStatus === 200 && str_contains($clientJs, 'loadCustomers'), 'Front controller serves only explicitly mapped client assets');
         $origin = ['Origin: http://localhost:8081'];
@@ -91,10 +103,10 @@ try {
         }
         check($status === 200 && count($body['data']) === ($seeded ? 10 : 0), 'Original populated/empty product list is preserved');
         if (!$seeded) {
-            check(request($serverPort, 'GET', '/customers')[0] === 403, 'Customer collection requires explicit local demo opt-in');
-            check(request($serverPort, 'GET', '/customers/7')[0] === 403, 'Profile reads are disabled without explicit demo opt-in');
-            check(request($serverPort, 'PUT', '/customers/7', '{}')[0] === 403, 'Profile writes are disabled without explicit demo opt-in');
-            check(request($serverPort, 'PATCH', '/customers/7', '{"isActive":false}')[0] === 403, 'Deactivation requires explicit demo opt-in');
+            check(request($serverPort, 'GET', '/customers')[0] === 401, 'Customer collection requires authentication');
+            check(request($serverPort, 'GET', '/customers/7')[0] === 401, 'Profile reads require authentication');
+            check(request($serverPort, 'PUT', '/customers/7', '{}')[0] === 401, 'Profile writes require authentication');
+            check(request($serverPort, 'PATCH', '/customers/7', '{"isActive":false}')[0] === 401, 'Deactivation requires authentication');
             continue;
         }
         [$status, $body] = request($serverPort, 'GET', '/products/101');
