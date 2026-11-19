@@ -576,12 +576,6 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CategoryInput'
-          application/xml:
-            schema:
-              $ref: '#/components/schemas/CategoryInput'
-          application/yaml:
-            schema:
-              $ref: '#/components/schemas/CategoryInput'
       responses:
         '201':
           description: Category created
