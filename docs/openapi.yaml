@@ -2076,6 +2076,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '415':
+          description: Sign in requires Content-Type application/json
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '503':
           description: Authentication is unavailable due to missing configuration
         '429':

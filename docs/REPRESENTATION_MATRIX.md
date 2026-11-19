@@ -13,7 +13,7 @@ Media types: **JSON** `application/json` · **XML** `application/xml` · **YAML*
 - **Request bodies are JSON on every route.** XML has no number or boolean types, so
   accepting XML bodies would mean converting each field before the strict validators,
   and YAML bodies would need a parser dependency. A POST/PUT/PATCH with any other
-  Content-Type is refused (415, with two exceptions listed below).
+  Content-Type is refused (415, with the order exception listed below).
 - **All other routes answer in JSON only.** Asking them for XML or YAML gives 406 with
   `This route can return: application/json.` Their owners can add formats later with
   the steps at the end of this document.
@@ -43,7 +43,7 @@ Media types: **JSON** `application/json` · **XML** `application/xml` · **YAML*
 | GET, PUT, DELETE | `/customers/{id}/favorites[/{productId}]` | Sean | JSON only (406); writes return 204 | — |
 | GET, POST | `/products/{id}/inventory-adjustments` | Will | JSON only (406) | JSON only (415) |
 | GET | `/inventory-adjustments/{adjustmentId}` | Will | JSON only (406) | — |
-| POST | `/auth/sessions` | Sean | JSON only (406) | JSON read whatever the Content-Type; non-JSON is **400** (see exceptions) |
+| POST | `/auth/sessions` | Sean | JSON only (406) | JSON only (415) |
 | GET, DELETE | `/auth/sessions/current` | Sean | JSON only (406) | — |
 | POST | `/orders` | Mohamed | JSON only (406) | JSON only; non-JSON is **422** (see exceptions) |
 | GET | `/orders/{id}` | Mohamed | JSON only (406) | — |
@@ -56,12 +56,7 @@ Media types: **JSON** `application/json` · **XML** `application/xml` · **YAML*
 
 ### Exceptions to "415 for a non-JSON body"
 
-Both still refuse the request and save nothing; they just answer with a different status.
-
-- **`POST /auth/sessions`** does not check Content-Type. A body that is not JSON
-  gives 400 `Invalid input.`, and a JSON body is accepted even when it is labelled
-  `text/plain`. Open item for the owner (Sean): add the same Content-Type check as the
-  other controllers to return 415.
+The order endpoint refuses the request and saves nothing, but answers with a different status.
 - **`POST /orders`** reads `customerId` from the JSON body for its permission check,
   which runs before the controller. A non-JSON body therefore fails that check first
   with 422 `Valid customerId required.`
@@ -112,7 +107,7 @@ the shop page and all check scripts do).
 ## Request bodies (Content-Type)
 
 POST/PUT/PATCH routes accept only `application/json` (a `charset` parameter is
-allowed), apart from the two exceptions above. Any other or missing Content-Type
+allowed), apart from the order exception above. Any other or missing Content-Type
 returns **415** without reading the body. Broken JSON, or JSON that is not an
 object, returns **400**. Valid JSON with invalid fields returns **422** with
 `error.details`. A refused request never changes the database.

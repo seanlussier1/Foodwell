@@ -17,6 +17,10 @@ final class AuthController
     public function login(array $params = []): void
     {
         header('Cache-Control: no-store');
+        if (strtolower(trim(explode(';', $_SERVER['CONTENT_TYPE'] ?? '')[0])) !== 'application/json') {
+            Response::error(415, 'Sign in requires Content-Type: application/json.');
+            return;
+        }
         $input = json_decode((string) file_get_contents('php://input'), true);
         if (!is_array($input) || array_diff(array_keys($input), ['email', 'password']) || !isset($input['email'], $input['password']) || !is_string($input['email']) || !is_string($input['password']) || strlen($input['email']) > 254 || strlen($input['password']) > 255 || $input['password'] === '' || !filter_var(trim($input['email']), FILTER_VALIDATE_EMAIL)) {
             Response::error(400, 'Invalid input.');

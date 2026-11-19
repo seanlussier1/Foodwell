@@ -1,5 +1,9 @@
 # Customer, authentication, cart and delivery QA handoff (#49)
 
+## November 19 follow-up
+
+On the combined main snapshot `ab080267a32ac9e76db14967148efbf24bd13bbb`, with the login Content-Type correction in this change, the isolated MariaDB checks for favorites, authentication, authorization, cart, registration, delivery and representations all passed. Login now returns 415 for a missing or unsupported Content-Type. Delivery used test doubles, not a live provider. These results are for the working tree containing this correction, not for the unmodified main commit; record the final merged SHA and repeat affected checks before release. Earlier results below remain historical. Browser testing of the newly combined snapshot and independent review are still pending.
+
 This handoff supports the team QA plan (#66) and clean-checkout verification (#67). It records Sean's domain checks and a synthetic-data rehearsal; it is not the team's final release-candidate acceptance or a deployment test.
 
 ## Tested snapshot and environment
