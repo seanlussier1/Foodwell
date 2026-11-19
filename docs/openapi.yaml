@@ -5,7 +5,13 @@ info:
   description: 'Foodwell contract: 48 implemented operations. Delivery-area
     options combine Zippopotam.us/GeoNames prefix data with configured Foodwell service areas and
     database slot availability. Every implemented operation that lists BearerSession enforces it:
-    401 without a working login, 403 for the wrong account or role (see x-access).'
+    401 without a working login, 403 for the wrong account or role (see x-access).
+    Formats: request bodies are JSON on every route (415 otherwise). Product, category and
+    delivery slot responses follow the Accept header: application/json (default), application/xml
+    or application/yaml. The aliases text/xml, application/x-yaml, text/yaml and text/x-yaml are
+    also accepted, and the response Content-Type then names the alias the client asked for (same
+    XML or YAML body). All other routes answer in JSON and give 406 for XML or YAML. See
+    docs/REPRESENTATION_MATRIX.md.'
 servers:
 - url: http://localhost/foodwell-api/api/v1
   description: WampServer (Apache, www/foodwell-api)
@@ -214,12 +220,6 @@ paths:
               unit: each
               stock: 20
               categoryId: 2
-          application/xml:
-            schema:
-              $ref: '#/components/schemas/ProductInput'
-          application/yaml:
-            schema:
-              $ref: '#/components/schemas/ProductInput'
       responses:
         '201':
           description: Product created; the body is the saved product read back from the database
@@ -397,12 +397,6 @@ paths:
               unit: lb
               categoryId: 1
               imageUrl: null
-          application/xml:
-            schema:
-              $ref: '#/components/schemas/ProductUpdate'
-          application/yaml:
-            schema:
-              $ref: '#/components/schemas/ProductUpdate'
       responses:
         '200':
           description: Product updated; the body is the saved product
@@ -1768,12 +1762,6 @@ paths:
               startsAt: '2026-11-20T19:00:00Z'
               endsAt: '2026-11-20T21:00:00Z'
               capacity: 4
-          application/xml:
-            schema:
-              $ref: '#/components/schemas/DeliverySlotInput'
-          application/yaml:
-            schema:
-              $ref: '#/components/schemas/DeliverySlotInput'
       responses:
         '201':
           description: Slot created; the body is read back from the database
@@ -1908,12 +1896,6 @@ paths:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/DeliverySlotInput'
-          application/xml:
-            schema:
-              $ref: '#/components/schemas/DeliverySlotInput'
-          application/yaml:
             schema:
               $ref: '#/components/schemas/DeliverySlotInput'
       responses:
@@ -2890,6 +2872,8 @@ paths:
       security:
       - BearerSession: []
       responses:
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
         '200':
           description: Success
           content:
@@ -2965,6 +2949,8 @@ paths:
       security:
       - BearerSession: []
       responses:
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
         '201':
           description: Adjustment recorded and product stock changed
           headers:
@@ -3045,6 +3031,8 @@ paths:
       security:
       - BearerSession: []
       responses:
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
         '200':
           description: Success
           content:
