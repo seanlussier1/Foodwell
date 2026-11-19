@@ -1,8 +1,19 @@
 # Local checkout demonstration
 
-Run the application with a synthetic database, `APP_CART_DEMO=1`, and loopback access. Open `/client/shop.html`, enter an active customer ID, browse or search, add items, and use the cart controls. Optionally check a postal code and choose an offered window. Enter a synthetic delivery address and place the order; the confirmation fetches the saved order. Authentication and ownership enforcement remain planned, so this is a local demonstration only.
+Run the application on loopback with a disposable synthetic database. Sign in as a seeded customer, then open `/client/shop.html`, add items, and use the cart controls. Optionally check a postal code and choose an offered window. Enter a synthetic delivery address and place the order. The confirmation fetches the saved order.
 
-## Observed integration evidence
+## Authenticated PHP checkout demonstration
+
+Set `CHECKOUT_DEMO_EMAIL` and `CHECKOUT_DEMO_PASSWORD` in the local environment using a seeded customer. For example, `sam@example.com` is customer 8. Use the synthetic seed password documented in the README.
+
+```powershell
+$env:DELIVERY_API_BASE_URL = 'http://localhost:8080/api/v1'
+php scripts/checkout-client.php 8 101 "123 Test Street, Montreal"
+```
+
+The consumer signs in through `POST /auth/sessions`, checks that the signed-in customer matches the supplied ID, and uses the bearer token for cart changes, checkout, and order read-back. It creates a real order and changes stock in the configured test database. Use a fresh seed to demonstrate a single-line checkout with customer 8's empty cart.
+
+## Historical Build 2 integration evidence
 
 On 2026-11-04, using a disposable seeded MariaDB database and PHP 8.0, the following actual local requests were observed:
 

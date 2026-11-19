@@ -12,26 +12,40 @@ $url = parse_url($base);
 if ($url === false || !in_array($url['scheme'] ?? '', ['http','https'], true) || !in_array($url['host'] ?? '', ['localhost','127.0.0.1','::1'], true) || isset($url['user']) || isset($url['pass']) || isset($url['query']) || isset($url['fragment'])) {
     fwrite(STDERR, "Use a loopback DELIVERY_API_BASE_URL without credentials, query or fragment.\n"); exit(1);
 }
-function callApi(string $method, string $path, ?array $body = null): array {
+function callApi(string $method, string $path, ?array $body = null, ?string $token = null): array {
     global $base;
     $ch = curl_init($base . $path);
-    $options = [CURLOPT_CUSTOMREQUEST=>$method, CURLOPT_RETURNTRANSFER=>true, CURLOPT_CONNECTTIMEOUT=>2, CURLOPT_TIMEOUT=>10, CURLOPT_FOLLOWLOCATION=>false, CURLOPT_HTTPHEADER=>['Accept: application/json','Content-Type: application/json']];
+    $headers = ['Accept: application/json', 'Content-Type: application/json'];
+    if ($token !== null) $headers[] = 'Authorization: Bearer ' . $token;
+    $options = [CURLOPT_CUSTOMREQUEST=>$method, CURLOPT_RETURNTRANSFER=>true, CURLOPT_CONNECTTIMEOUT=>2, CURLOPT_TIMEOUT=>10, CURLOPT_FOLLOWLOCATION=>false, CURLOPT_HTTPHEADER=>$headers];
     if ($body !== null) $options[CURLOPT_POSTFIELDS] = json_encode($body, JSON_THROW_ON_ERROR);
     curl_setopt_array($ch, $options); $raw = curl_exec($ch); $status = curl_getinfo($ch, CURLINFO_RESPONSE_CODE); $error = curl_error($ch); curl_close($ch);
     if ($raw === false) throw new RuntimeException('Request failed: ' . $error);
     $data = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
     echo "$method $path -> HTTP $status\n";
-    if ($status >= 400) throw new RuntimeException($data['error']['message'] ?? 'Request rejected.');
+    if ($status < 200 || $status >= 300) throw new RuntimeException($data['error']['message'] ?? 'Request rejected.');
     return $data;
 }
 try {
     $customer=(int)$argv[1]; $product=(int)$argv[2];
+    $email = Foodwell\Env::get('CHECKOUT_DEMO_EMAIL', '');
+    $password = Foodwell\Env::get('CHECKOUT_DEMO_PASSWORD', '');
+    if ($email === '' || $password === '') {
+        throw new RuntimeException('Set CHECKOUT_DEMO_EMAIL and CHECKOUT_DEMO_PASSWORD for a synthetic customer.');
+    }
+    $session = callApi('POST', '/auth/sessions', ['email' => $email, 'password' => $password]);
+    $token = $session['accessToken'] ?? null;
+    if (!is_string($token) || !preg_match('/\A[0-9a-f]{64}\z/i', $token)
+        || ($session['customer']['id'] ?? null) !== $customer
+        || ($session['customer']['role'] ?? null) !== 'customer') {
+        throw new RuntimeException('Sign in as the synthetic customer whose ID you supplied.');
+    }
     $catalog=callApi('GET', '/products?limit=5');
     echo 'Products on first page: ' . count($catalog['data']) . "\n";
-    $cart=callApi('POST', "/customers/$customer/cart/items", ['productId'=>$product,'quantity'=>1]);
+    $cart=callApi('POST', "/customers/$customer/cart/items", ['productId'=>$product,'quantity'=>1], $token);
     echo 'Cart subtotal: ' . $cart['subtotal'] . "\n";
-    $order=callApi('POST', '/orders', ['customerId'=>$customer,'deliveryAddress'=>trim($argv[3])]);
+    $order=callApi('POST', '/orders', ['customerId'=>$customer,'deliveryAddress'=>trim($argv[3])], $token);
     echo 'Created order #' . $order['id'] . "\n";
-    $saved=callApi('GET', '/orders/' . $order['id']);
+    $saved=callApi('GET', '/orders/' . $order['id'], null, $token);
     echo 'Saved order total: ' . $saved['total'] . '; lines: ' . count($saved['items']) . "\n";
 } catch (Throwable $error) { fwrite(STDERR, $error->getMessage() . "\n"); exit(1); }
