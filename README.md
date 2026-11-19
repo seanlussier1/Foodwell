@@ -90,7 +90,7 @@ Each owner supplies database changes, validation, permissions, tests, OpenAPI an
 
 ## Requirements
 
-- PHP 8+ with PDO, `pdo_mysql` and cURL for the external lookup/consumer.
+- PHP 8+ with PDO, `pdo_mysql`, cURL, `mbstring` and `xmlwriter`. Enable these extensions in the PHP configuration used by both your web server and command line.
 - MariaDB, Composer, and Git.
 - WampServer on Windows, or an equivalent PHP/MariaDB installation. Apache is optional when using the PHP development server.
 

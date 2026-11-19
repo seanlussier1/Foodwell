@@ -5,7 +5,9 @@ const base = window.foodwellAuth.base();
 let customer = null, page = 1, pages = 0, busy = false;
 function message(text, error = false) { const el = $('feedback'); el.hidden = false; el.classList.toggle('error', error); el.textContent = text; }
 async function request(path, options = {}) {
-  const response = await fetch(base + path, {method: options.method || 'GET', headers: {'Accept':'application/json', ...window.foodwellAuth.headers(base + path), ...(options.body ? {'Content-Type':'application/json'} : {})}, ...(options.body ? {body:JSON.stringify(options.body)} : {})});
+  const headers = {'Accept':'application/json', ...window.foodwellAuth.headers(base + path), ...(options.body ? {'Content-Type':'application/json'} : {})};
+  const response = await fetch(base + path, {method: options.method || 'GET', headers, ...(options.body ? {body:JSON.stringify(options.body)} : {})});
+  window.foodwellAuth.checkResponse(response, headers.Authorization);
   const body = response.status === 204 ? null : await response.json();
   if (!response.ok) throw new Error(`HTTP ${response.status}: ${body?.error?.message || 'Request failed.'}`);
   return body;
@@ -37,7 +39,7 @@ $('delivery-form').onsubmit=async e=>{e.preventDefault(); const select=$('slot')
 $('checkout-form').onsubmit=async e=>{e.preventDefault(); if(busy)return; if(!customer){if(!window.foodwellAuth.customer()) window.foodwellAuth.navigate('signin'); else message('Choose a customer cart first.',true); return;} busy=true; $('checkout').disabled=true; $('confirmation').replaceChildren(); try {const body={customerId:customer,deliveryAddress:$('address').value.trim()}; if($('slot').value) body.deliverySlotId=Number($('slot').value); const created=await request('/orders',{method:'POST',body}); let order; let warning=''; try {order=await request(`/orders/${created.id}`);} catch(err){order=created; warning=`Order #${created.id} was created, but read-back failed: ${err.message}`;} const out=$('confirmation'); out.append(element('h3',`Order #${order.id} confirmed`),element('p',`Status: ${order.status} · Total: $${order.total.toFixed(2)}`),element('p',`Deliver to: ${order.deliveryAddress}`)); if(order.deliverySlotId !== null) out.append(element('p',`Delivery window #${order.deliverySlotId}`)); for(const item of order.items) out.append(element('p',`${item.productName} · ${item.quantity} × $${item.unitPrice.toFixed(2)}`)); $('slot').replaceChildren(new Option('No window selected','')); $('delivery-message').textContent='Check delivery windows again for current availability.'; try {await loadCart(); await loadProducts();} catch(err){warning=`Order #${created.id} was created, but the cart could not be refreshed: ${err.message}`;} message(warning || `Order #${order.id} placed and read back.`,!!warning); } catch(err){message(err.message,true);} finally {busy=false; $('checkout').disabled=false;}};
 loadProducts();
 
-window.addEventListener('foodwell-auth-change', () => { customer = null; const account = window.foodwellAuth.customer(); if (account?.role === 'customer') { $('customer-id').value = account.id; customer = account.id; loadCart().catch(e => message(e.message,true)); } });
+window.addEventListener('foodwell-auth-change', () => { customer = null; const account = window.foodwellAuth.customer(); $('customer-form').hidden = account?.role !== 'admin'; if (account?.role === 'customer') { $('customer-id').value = account.id; customer = account.id; loadCart().catch(e => message(e.message,true)); } else { $('cart').replaceChildren(element('p', account ? 'Choose a customer cart.' : 'Sign in to view your cart.')); } });
 const activeAccount = window.foodwellAuth.customer();
 $('customer-form').hidden = activeAccount?.role !== 'admin';
 if (activeAccount?.role === 'customer') { customer = activeAccount.id; $('customer-id').value = customer; loadCart().catch(error => message(error.message, true)); }

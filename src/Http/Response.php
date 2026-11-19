@@ -6,6 +6,7 @@ namespace Foodwell\Http;
 final class Response
 {
     private static string $format = Negotiation::JSON;
+    private static string $mediaType = Negotiation::JSON;
     public static function json(int $status, mixed $payload, array $headers = []): void
     {
         http_response_code($status); // Set the HTTP status code ex: 200, 404, 500
@@ -43,7 +44,8 @@ final class Response
 
     public static function useFormat(string $mediaType): void
     {
-        self::$format = $mediaType;
+        self::$mediaType = $mediaType;
+        self::$format = Negotiation::format($mediaType);
     }
 
     public static function send(int $status, array $payload, array $headers = [], string $xmlRoot = 'response', string $xmlItem = 'item'): void
@@ -59,7 +61,7 @@ final class Response
             : Representation::yaml($payload);
 
         http_response_code($status);
-        header('Content-Type: ' . self::$format . '; charset=utf-8');
+        header('Content-Type: ' . self::$mediaType . '; charset=utf-8');
         header('X-Content-Type-Options: nosniff');
         foreach ($headers as $name => $value) {
             header("$name: $value");

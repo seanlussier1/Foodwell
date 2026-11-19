@@ -6,7 +6,9 @@
         "php": ">=8.0",
         "ext-pdo": "*",
         "ext-pdo_mysql": "*",
-        "ext-curl": "*"
+        "ext-curl": "*",
+        "ext-mbstring": "*",
+        "ext-xmlwriter": "*"
     },
     "autoload": {
         "psr-4": {
