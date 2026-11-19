@@ -12,6 +12,8 @@ See [checkout demonstration and evidence](../docs/CHECKOUT_DEMO.md) for the PHP 
 
 This directory contains Sean's customer client. Products and categories remain the other owners' sections; they are not implemented by this client.
 
+The Products page (`products.html`, Will) is visible to staff and administrators. It lists, filters and pages the catalog, creates and edits products, deactivates and deletes them, and previews a product as JSON, XML or YAML. Its **Stock** button opens the inventory-adjustment panel: choose restock, damage or correction, enter the quantity (and an optional note), check the live "before → after" preview, then record it. The panel shows the product's history newest first, five changes per page. Browser checks mirror the API rules; tick **Skip browser checks** to send the values as typed and show the server's 422 or 409.
+
 The separate `delivery.html` page provides the #37 public delivery-area checker. Open it through the dashboard's **Check delivery area** link or directly at `http://localhost/foodwell-api/client/delivery.html`. With the separate client server, use `http://localhost:8081/delivery.html`. It combines Zippopotam.us/GeoNames postal-area details with Foodwell delivery windows and handles partial provider failures. No profile/cart demo flag is needed for normal delivery lookups. See [integration documentation](../docs/DELIVERY_AREA_INTEGRATION.md) for configuration, attribution, limitations, PHP consumption and controlled demo modes.
 
 ## Start with Wamp

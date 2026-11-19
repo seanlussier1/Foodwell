@@ -1,10 +1,16 @@
 # Foodwell API
 
-> For the current clean-setup verification, see [release reproducibility and QA handoff](docs/RELEASE_REPRODUCIBILITY.md). The [documentation audit](docs/DOCUMENTATION_AUDIT.md) records how OpenAPI and these docs were checked against the code, and the known gaps.
+> For automated checks and local test setup, see the [testing guide](docs/TESTING.md).
 
 Foodwell is a PHP/MariaDB REST API for an online grocery store. Customers browse products, manage carts and place delivery orders; staff manage stock and fulfillment.
 
 ## Current status
+
+### Continuous integration
+
+Pushes to `main` and pull requests targeting `main` run the GitHub Actions workflow on PHP 8.0 and 8.2 with an isolated MariaDB service. It installs locked Composer and npm dependencies, then runs unit, client-session, Newman, schema/upgrade, authentication, authorization, domain, representation and concurrency checks. The suite uses synthetic data and delivery-provider doubles; it does not verify a live provider, deployed environment or every manual browser flow.
+
+To run the integration suite locally, use a **dedicated disposable MariaDB server** with permission to create and drop databases. Set `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS` and the corresponding `SCHEMA_TEST_HOST`, `SCHEMA_TEST_PORT`, `SCHEMA_TEST_USER`, `SCHEMA_TEST_PASS`, then set `FOODWELL_DISPOSABLE_TESTS=1` and run `composer test:integration`. The original product regression resets `DB_NAME` and `foodwell_empty`; never point the suite at shared or production data. Run `composer test:unit` and `node --test tests/client/*.test.js` separately. Individual scripts remain available for focused work.
 
 The database has **14 tables** and the [OpenAPI contract](docs/openapi.yaml) documents **48 operations** with all **48 implemented**.
 
@@ -16,7 +22,7 @@ Customers can save and remove favorites from the shop and browse their saved pro
 
 Run `php scripts/check-favorites.php` against a dedicated disposable MariaDB server configured with `SCHEMA_TEST_HOST`, `SCHEMA_TEST_PORT`, `SCHEMA_TEST_USER` and `SCHEMA_TEST_PASS` to verify ownership, pagination and idempotent writes. The script creates and removes its own test database.
 
-Inventory adjustments are the only way to change a product's stock after it is created. Staff and administrators record one with `POST /products/{id}/inventory-adjustments` and a JSON body such as `{"quantityChange": 12, "reason": "restock", "note": "Tuesday delivery"}`. A restock must be positive, damage negative, and a correction can go either way. The product row is locked while the stock changes and the audit row is written in the same transaction, so two adjustments at the same moment never overwrite each other. The acting account and the before/after balances come from the server. A change that would take stock below 0 or above 1,000,000 returns 409 and saves nothing. History is read with paginated `GET /products/{id}/inventory-adjustments` (newest first, limit 20 by default, maximum 100) and `GET /inventory-adjustments/{adjustmentId}`. Adjustments cannot be edited or deleted; fix a mistake with a new `correction`. Customers get 403. Run `php scripts/check-inventory-adjustments.php` with the same `SCHEMA_TEST_*` settings to check permissions, validation, stock limits, pagination and 10 parallel requests.
+Inventory adjustments are the only way to change a product's stock after it is created. Staff and administrators record one with `POST /products/{id}/inventory-adjustments` and a JSON body such as `{"quantityChange": 12, "reason": "restock", "note": "Tuesday delivery"}`. A restock must be positive, damage negative, and a correction can go either way. The product row is locked while the stock changes and the audit row is written in the same transaction, so two adjustments at the same moment never overwrite each other. The acting account and the before/after balances come from the server. A change that would take stock below 0 or above 1,000,000 returns 409 and saves nothing. History is read with paginated `GET /products/{id}/inventory-adjustments` (newest first, limit 20 by default, maximum 100) and `GET /inventory-adjustments/{adjustmentId}`. Adjustments cannot be edited or deleted; fix a mistake with a new `correction`. Customers get 403. Run `php scripts/check-inventory-adjustments.php` with the same `SCHEMA_TEST_*` settings to check permissions, validation, stock limits, pagination and 10 parallel requests (66 checks). `composer test:inventory` runs [the inventory Postman collection](requests/Foodwell_Inventory_Adjustments.postman_collection.json) with Newman on a disposable database (24 requests, 57 assertions; JUnit report in `var/test-results/inventory/`). On the Products page, staff use the **Stock** button on a product row to record an adjustment and page through its history.
 
 Customer registration accepts JSON with `firstName`, `lastName`, `email`, `password`, and optional nullable `address`/`phone`. Names are trimmed (1-100 characters); email is trimmed and lowercased (maximum 254 characters). Passwords are 8-72 bytes, are not trimmed, and are stored using bcrypt. Registration always creates an active customer; caller-supplied roles, activation and other unknown fields are rejected. Responses never include passwords or hashes. Successful creation returns 201; malformed/non-object JSON returns 400, duplicate email 409, unsupported/missing Content-Type 415 and invalid fields 422 with `error.details`. JSON is the only implemented customer format. After registering, log in with `POST /api/v1/auth/sessions` (see [Authentication setup](#authentication-setup)).
 
@@ -48,7 +54,7 @@ Cart routes require a login as that customer or an administrator (the old `APP_C
 
 Totals come from current catalog prices and are not checkout guarantees. Inactive/out-of-stock products and excessive combined quantities return 409 without partial changes. Cart edits do not change product stock. Item IDs must belong to the specified customer's cart, and the bearer session must belong to that customer (or an administrator).
 
-Import [the saved Postman demonstration](requests/Foodwell_Cart.postman_collection.json) to show the workflow using a newly created synthetic customer. Read [the checkout handoff](docs/CART_CHECKOUT_HANDOFF.md) for the shared lock order, cart-clearing rules and Mohamed's #36 transaction requirements. His confirmation is still required before #35 is Done. No checkout is implemented here.
+Run `composer test:orders` to verify authenticated checkout on a disposable MariaDB database. For a demonstration, use the [orders and checkout collection](requests/Foodwell_Orders_Checkout.postman_collection.json) or the [checkout walkthrough](docs/CHECKOUT_DEMO.md). Checkout accepts an owned saved address, copies it onto the order, and updates the cart, stock and order history together. See the [checkout handoff](docs/CART_CHECKOUT_HANDOFF.md) for the transaction and locking rules.
 
 Run `php scripts/check-cart.php` with the same SCHEMA_TEST settings as above: 79 checks cover persistence, rollback, stock, item scoping, repeated requests and concurrent additions in temporary databases. No schema reset/migration is needed for these endpoints if the existing 14-table foundation is installed.
 
@@ -74,7 +80,7 @@ Run `php scripts/check-delivery-slots.php` with the SCHEMA_TEST settings above: 
 
 Anyone can read products, categories and delivery slots. Creating, updating or deleting them requires a bearer login for a **staff** or **admin** account: no login, a broken token, or an expired, logged-out or deactivated session returns **401** with `WWW-Authenticate: Bearer`; a customer login returns **403**. The permission check runs before the request body is read, and a refused request changes nothing.
 
-Run `php scripts/check-catalog-authorization.php` with the SCHEMA_TEST settings above: 250 checks cover all eight catalog/slot write routes, confirm each is wrapped in the staff check in `public/index.php`, and verify public reads. `check-products.php` now logs in as the seeded staff account for its write checks. Planned inventory-adjustment routes are not implemented, so they are not claimed as protected.
+Run `php scripts/check-catalog-authorization.php` with the SCHEMA_TEST settings above: 251 checks cover all nine catalog/slot/inventory write routes (3 product, 1 inventory adjustment, 2 category, 3 slot), confirm each is wrapped in the staff check in `public/index.php`, and verify public reads. `check-products.php` (81 checks) logs in as the seeded staff account for its write checks. The inventory-adjustment reads and writes have their own denial tests in `check-inventory-adjustments.php`.
 
 ### Catalog failure and integrity checks (#41)
 
@@ -226,7 +232,7 @@ Customer profile, cart, checkout and order detail routes require a valid bearer 
 
 ## Response formats (#65)
 
-Product, category and delivery slot routes answer in JSON, XML or YAML, chosen with the `Accept` header (`application/json`, `application/xml`, `application/yaml`); other types get 406. Request bodies are JSON on every route (415 otherwise). Customer, cart, order, session and delivery-option routes answer in JSON only and give 406 for XML/YAML. The full route-by-route contract, the negotiation rules and two documented exceptions are in the [representation matrix](docs/REPRESENTATION_MATRIX.md). Run `php scripts/check-representations.php` (same `SCHEMA_TEST_*` settings) to compare real JSON, XML and YAML responses value by value (448 checks).
+Product, category and delivery slot routes answer in JSON, XML or YAML, chosen with the `Accept` header (`application/json`, `application/xml`, `application/yaml`); other types get 406. Request bodies are JSON on every route (415 otherwise). Customer, cart, order, session and delivery-option routes answer in JSON only and give 406 for XML/YAML. The full route-by-route contract, the negotiation rules and two documented exceptions are in the [representation matrix](docs/REPRESENTATION_MATRIX.md). Run `php scripts/check-representations.php` (same `SCHEMA_TEST_*` settings) to compare real JSON, XML and YAML responses value by value (457 checks).
 
 ## Automated catalog and delivery slot checks (#42)
 
@@ -235,11 +241,11 @@ Product, category and delivery slot routes answer in JSON, XML or YAML, chosen w
 Run `composer test:catalog` (needs `npm ci` and the same `SCHEMA_TEST_*` settings as `composer test:api`). It creates a disposable MariaDB database and API server, then:
 
 1. runs `tests/catalog/CatalogRepositoryTest.php` (17 tests) against the real database: product search, paging totals, sort tie-breakers, LIKE escaping and foreign keys; category listing, case-insensitive uniqueness and the three delete outcomes (also inside an outer transaction); slot booking counts, filters, UTC output, duplicate windows and row locking;
-2. reloads the seed data and runs `requests/Foodwell_Catalog_Slots.postman_collection.json` with Newman (38 requests, 90 assertions): public reads, filters, paging links, XML, 401/403 on writes, 422, 409 conflicts, attaching a slot at checkout and every error's request id.
+2. reloads the seed data and runs `requests/Foodwell_Catalog_Slots.postman_collection.json` with Newman (44 requests, 103 assertions): public reads, filters, paging links, XML, 401/403 on writes, 422, 409 conflicts, attaching a slot at checkout and every error's request id.
 
 JUnit reports are written to `var/test-results/catalog/` (git-ignored). The test file refuses to run against any database not named `foodwell_newman_<random>`.
 
-To rehearse the catalog and delivery slot demo, run `php scripts/demo-catalog-rehearsal.php` (same `SCHEMA_TEST_*` settings): it plays the demo in presentation order on a disposable database and prints each status and the database state. The clean-checkout results and peer-test steps are in [docs/BUILD3_CATALOG_QA.md](docs/BUILD3_CATALOG_QA.md) (#44).
+To rehearse the catalog and delivery slot demo, run `php scripts/demo-catalog-rehearsal.php` (same `SCHEMA_TEST_*` settings): it plays the demo in presentation order on a disposable database and prints each status and the database state.
 
 ## Automated customer, session and cart checks (#48)
 

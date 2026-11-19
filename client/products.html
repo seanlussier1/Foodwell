@@ -22,13 +22,13 @@
         <p class="eyebrow">CATALOG MANAGEMENT</p>
         <h1>Keep the shelves up to date.</h1>
         <p>
-          Browse the catalog, add products, update prices and retire items you
-          no longer sell.
+          Browse the catalog, add products, update prices, adjust stock and retire
+          items you no longer sell.
         </p>
       </div>
       <p class="notice">
-        Sign in as staff or administrator to change products. Use synthetic products
-        (planned for Build 3).
+        Sign in as a staff or administrator account to change products and stock.
+        Use synthetic products only.
       </p>
 
       <details class="connection">
@@ -192,6 +192,93 @@
               </button>
             </div>
           </form>
+          <!-- Inventory adjustments: the only way to change stock after a product
+               is created. Opened with the "Stock" button on a product row. -->
+          <div
+            id="stock-panel"
+            class="stock-panel"
+            aria-labelledby="stock-title"
+            hidden
+          >
+            <div class="section-head">
+              <div>
+                <p class="eyebrow" id="stock-mode">ADJUST STOCK</p>
+                <h2 id="stock-title">Product</h2>
+              </div>
+              <button id="stock-close" class="secondary" type="button">
+                Close
+              </button>
+            </div>
+            <p class="muted">
+              Current stock: <strong id="stock-current">0</strong>. Every change
+              is saved in the history below and cannot be edited or deleted; fix
+              a mistake with a correction.
+            </p>
+            <form id="stock-form" novalidate>
+              <div class="name-fields">
+                <label
+                  >Reason<select id="adj-reason">
+                    <option value="restock">Restock (adds stock)</option>
+                    <option value="damage">Damage (removes stock)</option>
+                    <option value="correction">Correction (+ or −)</option></select
+                  ><small class="field-error" data-field="reason"></small
+                ></label>
+                <label
+                  ><span id="adj-quantity-label">Quantity to add</span
+                  ><input
+                    id="adj-quantity"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    placeholder="12" /><small class="field-error"
+                    data-field="quantityChange"
+                  ></small
+                ></label>
+              </div>
+              <label
+                >Note <span class="optional">optional</span
+                ><input
+                  id="adj-note"
+                  maxlength="600"
+                  autocomplete="off"
+                  placeholder="e.g. Tuesday delivery" /><small
+                  class="field-error"
+                  data-field="note"
+                ></small
+              ></label>
+              <p id="adj-preview" class="stock-preview" aria-live="polite"></p>
+              <label class="check"
+                ><input id="adj-skip-checks" type="checkbox" /> Skip browser
+                checks (send the data as typed to see the server's 422 or
+                409)</label
+              >
+              <div class="form-actions">
+                <button id="adj-save" type="submit">Record adjustment</button>
+              </div>
+            </form>
+            <p class="eyebrow history-title">HISTORY (NEWEST FIRST)</p>
+            <div class="table-wrap history">
+              <table>
+                <thead>
+                  <tr>
+                    <th>When</th>
+                    <th>Change</th>
+                    <th>Stock</th>
+                    <th>Reason</th>
+                    <th>By</th>
+                  </tr>
+                </thead>
+                <tbody id="adj-history"></tbody>
+              </table>
+            </div>
+            <div class="pagination">
+              <button id="adj-previous" class="secondary" type="button" disabled>
+                ← Newer</button
+              ><span id="adj-page-label">Page 1</span
+              ><button id="adj-next" class="secondary" type="button" disabled>
+                Older →
+              </button>
+            </div>
+          </div>
           <!-- #33 demo: the same product in each format -->
           <div class="format-preview">
             <p class="eyebrow">RESPONSE FORMATS</p>

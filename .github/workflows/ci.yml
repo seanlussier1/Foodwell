@@ -1,0 +1,67 @@
+name: Foodwell CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: PHP ${{ matrix.php }} / MariaDB
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.0', '8.2']
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: ci-only-password
+          MARIADB_ROOT_HOST: '%'
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    env:
+      FOODWELL_DISPOSABLE_TESTS: '1'
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_NAME: foodwell_ci
+      DB_USER: root
+      DB_PASS: ci-only-password
+      SCHEMA_TEST_HOST: 127.0.0.1
+      SCHEMA_TEST_PORT: '3306'
+      SCHEMA_TEST_USER: root
+      SCHEMA_TEST_PASS: ci-only-password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl, mbstring, pdo_mysql, pdo_sqlite, xmlwriter
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          npm ci --no-audit --no-fund
+      - name: Validate Composer metadata
+        run: composer validate --no-check-publish
+      - name: PHP unit tests
+        run: composer test:unit
+      - name: Browser session tests
+        run: node --test tests/client/*.test.js
+      - name: Database and API integration tests
+        run: php scripts/test-all.php

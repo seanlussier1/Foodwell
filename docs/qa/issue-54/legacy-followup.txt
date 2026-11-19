@@ -1,4 +1,0 @@
-GET /client/ 200 (Foodwell landing page)
-GET /client/customers.html 200 (Customer workspace)
-Anonymous GET /customers/7/cart 401
-Signed-in GET /customers/7/cart 200 (cart 30, 2 lines, subtotal 12.97)

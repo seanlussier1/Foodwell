@@ -333,8 +333,10 @@ try {
     $content = fn(string $accept): string => api($apiPort, 'GET', '/products/102', null, ['Accept' => $accept])[3]['content-type'] ?? '';
     check(str_starts_with(api($apiPort, 'GET', '/products/102', null, ['Accept' => ''])[3]['content-type'], 'application/json'),
         'No Accept preference gives JSON');
-    check(str_starts_with($content('text/xml'), 'application/xml') && str_starts_with($content('application/x-yaml'), 'application/yaml'),
-        'Aliases text/xml and application/x-yaml are understood');
+    // Since #111 the response names the alias the client asked for (text/xml stays text/xml);
+    // the body is the same XML or YAML serializer. See docs/REPRESENTATION_MATRIX.md.
+    check(str_starts_with($content('text/xml'), 'text/xml') && str_starts_with($content('application/x-yaml'), 'application/x-yaml'),
+        'Aliases text/xml and application/x-yaml are understood and echoed in Content-Type');
     check(str_starts_with($content('application/xml;q=0.5, application/yaml;q=0.9'), 'application/yaml'), 'The highest q-value wins');
     check(str_starts_with($content('application/json;q=0, */*'), 'application/xml'), 'q=0 excludes a format');
 

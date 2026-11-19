@@ -144,8 +144,7 @@ misread (`"null"`, `"yes"`, `"no"`, `"~"`, text starting with `- `) are always q
 ## Verification (#65)
 
 `php scripts/check-representations.php` (same `SCHEMA_TEST_*` settings as the other
-checks; disposable database) sends real requests and compares the answers. It passed with
-448 checks on the snapshot in [CATALOG QA](BUILD3_CATALOG_QA.md) plus this change:
+checks; disposable database) sends real requests and compares the answers:
 
 - **Parity:** every catalog read, write and error is requested in JSON, XML and YAML.
   XML is read with PHP's DOM parser and YAML with a strict reader that rejects anything
