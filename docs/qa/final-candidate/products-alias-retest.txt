@@ -1,0 +1,91 @@
+PASS: Two disposable databases and API servers started
+
+-- Build 1 continuity
+PASS: GET item 101 returns 200 JSON
+PASS: Item response matches its database row (not hard-coded)
+PASS: Unknown item returns 404 with the standard error body
+PASS: GET list returns all 10 seeded products in Build 1 (ID) order
+PASS: First list entry equals the item response
+PASS: Empty database: 200 with empty data in the same envelope
+
+-- #29 filters, sorting, pagination
+PASS: category filter returns only that category
+PASS: search is case-insensitive
+PASS: Filters combine with AND
+PASS: A % in search is matched literally, not as a wildcard
+PASS: A blank search means no search
+PASS: A category with no products returns 200 and an empty page
+PASS: sort=-price orders by price descending
+PASS: sort=name orders by name ascending
+PASS: Walking every page shows each product exactly once (equal prices included)
+PASS: Equal prices keep the same order on every request (ID tie-breaker)
+PASS: Products with equal prices are ordered by ID
+PASS: limit/page select the right rows and metadata
+PASS: next link keeps the filters, sort and limit
+PASS: Following next works and its previous link returns to page 1
+PASS: next is null on the last page
+PASS: previous is null on page 1
+PASS: A page past the end is 200, empty, with previous pointing to the real last page
+PASS: Invalid page=0 returns 400 naming page
+PASS: Invalid page=1.5 returns 400 naming page
+PASS: Invalid limit=0 returns 400 naming limit
+PASS: Invalid limit=101 returns 400 naming limit
+PASS: Invalid category=abc returns 400 naming category
+PASS: Invalid sort=stock returns 400 naming sort
+PASS: Invalid page%5B%5D=1 returns 400 naming page
+PASS: Several invalid parameters are reported in one 400
+PASS: SQL in sort is rejected by the allowlist; the table is untouched
+PASS: limit=100 (the maximum) is accepted
+PASS: An unknown query parameter is rejected (400)
+
+-- #27 create, update, delete
+PASS: POST returns 201 with a Location header
+PASS: POST returns the saved product (name trimmed, category joined)
+PASS: API read-back equals the POST response
+PASS: Database row matches the created product
+PASS: POST applies defaults (unit each, stock 0, no image) and accepts price 0
+PASS: POST with 7 problems returns one 422 listing every field
+PASS: Unknown category is a 422 field error
+PASS: Wrong JSON types are rejected (price as text, stock 1.5)
+PASS: Prices with 3 decimals are rejected
+PASS: Malformed JSON returns 400
+PASS: A JSON array body returns 400
+PASS: A non-JSON Content-Type returns 415
+PASS: Rejected POSTs saved nothing
+PASS: PUT returns 200 with the saved product
+PASS: Database has the new price and the stock is unchanged
+PASS: PUT rejects stock (422)
+PASS: PUT with an unknown category returns 422
+PASS: Rejected PUTs changed nothing
+PASS: PUT can deactivate a product
+PASS: Omitting isActive keeps the current status
+PASS: PUT on an unknown product returns 404
+PASS: DELETE of a product with stock history returns 409
+PASS: The 409 product still exists
+PASS: Product 101 is in a cart before deleting
+PASS: DELETE returns 204 with no body
+PASS: The product row is gone
+PASS: Its cart lines were removed (CASCADE)
+PASS: Past order lines keep their snapshot (SET NULL)
+PASS: Deleting again returns 404
+PASS: PATCH on a product returns 405
+
+-- #33 formats and negotiation
+PASS: Accept application/xml returns XML
+PASS: Negotiated responses send Vary: Accept
+PASS: XML carries the same fields and values as JSON
+PASS: Accept application/yaml returns YAML
+PASS: YAML carries the same values (strings quoted)
+PASS: The list in XML is <products> with meta and <product> items
+PASS: No Accept preference gives JSON
+PASS: Aliases text/xml and application/x-yaml are understood
+PASS: The highest q-value wins
+PASS: q=0 excludes a format
+PASS: Unsupported Accept returns 406 listing the formats
+PASS: Writes answer in the requested format: POST with Accept XML gets its 422 as XML
+PASS: POST with an unsupported Accept is 406
+PASS: JSON-only routes (customers) return 406 for XML
+PASS: Unknown route stays 404 whatever Accept says
+PASS: Errors use the negotiated format (404 as XML)
+
+81 product checks passed. Application database was not used.
