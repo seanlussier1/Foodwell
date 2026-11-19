@@ -64,6 +64,10 @@ Anyone can read products, categories and delivery slots. Creating, updating or d
 
 Run `php scripts/check-catalog-authorization.php` with the SCHEMA_TEST settings above: 250 checks cover all eight catalog/slot write routes, confirm each is wrapped in the staff check in `public/index.php`, and verify public reads. `check-products.php` now logs in as the seeded staff account for its write checks. Planned inventory-adjustment routes are not implemented, so they are not claimed as protected.
 
+### Catalog failure and integrity checks (#41)
+
+Run `php scripts/check-catalog-integrity.php` with the SCHEMA_TEST settings above. Its 235 checks cover bad list queries (including repeated and unknown keys, which now return 400), paging with tied sort values, broken bodies, invalid fields, unsupported media types and methods, foreign-key failures (also when the data changes mid-request), and a forced server error whose request id matches the log. Every refused write is checked to leave the catalog tables unchanged. Results and the bugs it found are in [docs/CATALOG_INTEGRITY.md](docs/CATALOG_INTEGRITY.md).
+
 ## Security preparation
 
 The [security design](docs/SECURITY_DESIGN.md) and [48-operation permission matrix](docs/SECURITY_ROUTE_MATRIX.md) define intended roles, ownership, account administration and opaque-session behavior for #63. They distinguish intended permissions from current public/local-demo access and link Build 3 enforcement to #40/#45/#46/#47. The draft still requires Will's and Mohamed's resource-rule reviews; this documentation does not implement login or authorization. Catalog and slot writes are now staff/admin-only (#40, see below). Link the final reviewed design/commit from the #64 Build 2 manifest before marking #63 Done.

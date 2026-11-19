@@ -227,7 +227,10 @@ try {
         'Several invalid parameters are reported in one 400');
     check(api($apiPort, 'GET', '/products?sort=' . rawurlencode('price; DROP TABLE products'))[0] === 400 && $countProducts() === 10,
         'SQL in sort is rejected by the allowlist; the table is untouched');
-    check(api($apiPort, 'GET', '/products?limit=100&unknown=1')[0] === 200, 'limit=100 is accepted and unknown parameters are ignored');
+    check(api($apiPort, 'GET', '/products?limit=100')[0] === 200, 'limit=100 (the maximum) is accepted');
+    // Since #41, unknown and repeated parameters are refused instead of silently
+    // ignored (more cases in check-catalog-integrity.php).
+    check(api($apiPort, 'GET', '/products?limit=100&unknown=1')[0] === 400, 'An unknown query parameter is rejected (400)');
 
     // ======================================================= #27 writes
     echo "\n-- #27 create, update, delete\n";
