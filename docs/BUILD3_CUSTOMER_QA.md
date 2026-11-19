@@ -2,7 +2,7 @@
 
 ## November 19 follow-up
 
-On the combined main snapshot `ab080267a32ac9e76db14967148efbf24bd13bbb`, with the login Content-Type correction in this change, the isolated MariaDB checks for favorites, authentication, authorization, cart, registration, delivery and representations all passed. Login now returns 415 for a missing or unsupported Content-Type. Delivery used test doubles, not a live provider. These results are for the working tree containing this correction, not for the unmodified main commit; record the final merged SHA and repeat affected checks before release. Earlier results below remain historical. Browser testing of the newly combined snapshot and independent review are still pending.
+On the combined main snapshot `ab080267a32ac9e76db14967148efbf24bd13bbb`, with the login Content-Type correction in this change, the isolated MariaDB checks for favorites, authentication, authorization, cart, registration, delivery and representations all passed. Login now returns 415 for a missing or unsupported Content-Type. Delivery used test doubles, not a live provider. On commit `4fef6e2` in a browser with synthetic data, sign-in, displaying favorites, saving and removing a favorite, and adding a product to the cart succeeded. These results are not for the unmodified main commit; record the final merged SHA and repeat affected checks before release. Earlier results below remain historical. A complete independent review of addresses, reviews and checkout is still pending.
 
 This handoff supports the team QA plan (#66) and clean-checkout verification (#67). It records Sean's domain checks and a synthetic-data rehearsal; it is not the team's final release-candidate acceptance or a deployment test.
 
