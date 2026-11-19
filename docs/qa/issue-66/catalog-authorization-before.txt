@@ -1,0 +1,5 @@
+﻿PASS: Temporary database and API server started
+
+-- Every catalog/slot write route goes through the staff check
+
+FAIL: index.php registers 8 catalog/slot write routes (3 product, 2 category, 3 slot)

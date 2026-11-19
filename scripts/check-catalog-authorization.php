@@ -170,7 +170,7 @@ try {
     // new write route later and forgetting the permission check.
     $source = file_get_contents("$root/public/index.php");
     preg_match_all(
-        "#\\\$router->(post|put|patch|delete)\(API_PREFIX \. '(/(?:products|categories|delivery-slots)[^']*)',\s*(.+?)\);\n#",
+        "#\\\$router->(post|put|patch|delete)\(API_PREFIX \. '(/(?:products|categories|delivery-slots)[^']*)',\s*(.+?)\);\r?\n#",
         $source, $routes, PREG_SET_ORDER
     );
     check(count($routes) === 8, 'index.php registers 8 catalog/slot write routes (3 product, 2 category, 3 slot)');
