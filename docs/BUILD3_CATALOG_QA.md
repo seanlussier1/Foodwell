@@ -70,6 +70,15 @@ Bold rows are Will's areas. The Composer entries were run through their underlyi
 3. Run `php scripts/demo-catalog-rehearsal.php` and compare its output with the [saved transcript](qa/issue-44/catalog-rehearsal.txt). Ids can differ if the seed changes; the statuses and database counts should match.
 4. If anything differs, record the commit, your PHP/MariaDB versions, the request method and URL, expected and actual status, the `requestId`, and the relevant database state. Never include session tokens. Send it to the #66 QA owner, and send setup problems to #67.
 
+## Updates after the tested snapshot (November 19, 2026)
+
+These were added after the snapshot above and are not part of its evidence files. They were run against `main` at `ab08026` (PR #115) on the same Ubuntu/PHP 8.3/MariaDB 10.11 setup.
+
+- **Inventory adjustments (PR #113):** `POST` and `GET /products/{id}/inventory-adjustments` and `GET /inventory-adjustments/{adjustmentId}`, staff and administrators only. `php scripts/check-inventory-adjustments.php` passes 66 checks, including 10 parallel removals that never take stock below 0. `composer test:inventory` runs the new [inventory collection](../requests/Foodwell_Inventory_Adjustments.postman_collection.json) (24 requests, 57 assertions).
+- **Products page:** a **Stock** button on each row opens the adjustment form and history (see `client/README.md`).
+- **Updated counts:** `check-catalog-authorization.php` now covers 9 write routes (251 checks) because the inventory POST lives under `/products`. `check-products.php` passes 81 checks after its alias test was updated to the #111 negotiation rule (a `text/xml` request is answered as `text/xml`). `check-representations.php` passes 457 checks. The catalog collection run by `composer test:catalog` has grown to 44 requests and 103 assertions.
+- All other check scripts, `composer test:unit` (69 tests), `test:api`, `test:catalog`, `test:orders` and `demo-catalog-rehearsal.php` passed at `ab08026`.
+
 ## Open items
 
 - PHP 8.0 has not been executed for the catalog, category and slot code (static scan only, see above).

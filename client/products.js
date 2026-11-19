@@ -244,6 +244,9 @@ function renderRows(products) {
     actions.className = "row-actions";
     actions.append(
       rowButton("Edit", "secondary", `Edit ${p.name}`, () => startEdit(p)),
+      rowButton("Stock", "secondary", `Adjust stock for ${p.name}`, () =>
+        openStock(p),
+      ),
       rowButton(
         p.isActive ? "Deactivate" : "Activate",
         "deactivate",
@@ -364,7 +367,7 @@ function startEdit(p) {
   $("form-mode").textContent = `EDIT PRODUCT #${p.id}`;
   $("editor-title").textContent = "Update product";
   $("editor-help").textContent =
-    "Stock is read-only here: it changes only through inventory adjustments.";
+    "Stock is read-only here: use the Stock button in the list to record an inventory adjustment.";
   $("save").textContent = "Save changes";
   $("cancel-edit").hidden = false;
   $("name").focus();
@@ -464,6 +467,7 @@ async function deleteProduct(p, button) {
   try {
     const { line } = await request(`/products/${p.id}`, { method: "DELETE" });
     if (state.editing?.id === p.id) resetForm();
+    if (stock.product?.id === p.id) closeStock();
     feedback(
       `Product #${p.id} deleted (HTTP 204). Past orders keep their copy of the product name.`,
       { line },
@@ -477,6 +481,289 @@ async function deleteProduct(p, button) {
     feedback(title, { error: true, details: error.details, line: error.line });
   }
 }
+// ------------------------------------------------ (d) inventory adjustments
+// The only way to change stock after a product is created (PUT refuses "stock").
+// POST /products/{id}/inventory-adjustments records one change; the server locks
+// the product, calculates the new balance and saves an audit row we list below.
+
+const STOCK_MAX = 1000000; // same ceiling as InventoryAdjustmentInput::MAX_STOCK
+const HISTORY_LIMIT = 5; // rows per history page
+const stock = { product: null, page: 1, totalPages: 0, loading: false };
+let historyRequest = 0; // like listRequest: a slow old history load can't overwrite a newer one
+
+/** Opens the panel for one product. Reads the product again so the stock is up to date. */
+async function openStock(p) {
+  stock.product = p;
+  stock.page = 1;
+  $("stock-form").reset();
+  stockFieldErrors({});
+  $("stock-title").textContent = p.name;
+  $("stock-mode").textContent = `ADJUST STOCK · PRODUCT #${p.id}`;
+  showCurrentStock(p.stock);
+  updateQuantityLabel();
+  $("stock-panel").hidden = false;
+  $("stock-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+  $("adj-quantity").focus({ preventScroll: true });
+  await refreshProductStock(); // someone else may have changed it since the list loaded
+  await loadHistory();
+}
+
+function closeStock() {
+  stock.product = null;
+  $("stock-panel").hidden = true;
+}
+
+function showCurrentStock(value) {
+  stock.product.stock = value;
+  $("stock-current").textContent = String(value);
+  updatePreview();
+}
+
+/** GET /products/{id}: the panel always works from the server's current stock. */
+async function refreshProductStock() {
+  const id = stock.product?.id;
+  try {
+    const { body } = await request(`/products/${id}`);
+    if (stock.product?.id === id) showCurrentStock(body.stock);
+  } catch {
+    /* keep the list value; the history load reports connection problems */
+  }
+}
+
+/** The label tells the user what to type: an amount for restock/damage, a signed number for corrections. */
+function updateQuantityLabel() {
+  const labels = {
+    restock: ["Quantity to add", "12"],
+    damage: ["Quantity to remove", "3"],
+    correction: ["Change (+ or −)", "-2"],
+  };
+  const [text, placeholder] = labels[$("adj-reason").value] || labels.correction;
+  $("adj-quantity-label").textContent = text;
+  $("adj-quantity").placeholder = placeholder;
+  updatePreview();
+}
+
+/**
+ * Turns what was typed into the quantityChange the API expects.
+ *   restock "12" -> 12      damage "3" -> -3      correction "-2" -> -2
+ * A sign typed on purpose is kept (damage "+3" -> 3), so with "Skip browser
+ * checks" the server's own 422 can be shown. Text that is not a whole number
+ * is returned unchanged (only reachable with the checks skipped).
+ */
+function quantityChange(reason, text) {
+  if (!/^[+-]?\d+$/.test(text)) return text;
+  const n = Number(text);
+  const signed = /^[+-]/.test(text);
+  return reason === "damage" && !signed ? -n : n;
+}
+
+/** Same rules as src/Validation/InventoryAdjustmentInput.php, plus the 0..1000000 stock range (409 on the server). */
+function validateAdjustment(v, currentStock) {
+  const errors = {};
+  if (!["restock", "damage", "correction"].includes(v.reason))
+    errors.reason = "Choose restock, damage or correction.";
+
+  if (v.quantity === "") errors.quantityChange = "Enter a quantity.";
+  else if (!/^[+-]?\d+$/.test(v.quantity))
+    errors.quantityChange = "Use a whole number.";
+  else {
+    const change = quantityChange(v.reason, v.quantity);
+    if (change === 0)
+      errors.quantityChange = "0 changes nothing. Enter a number other than 0.";
+    else if (v.reason === "restock" && change < 0)
+      errors.quantityChange = "A restock adds stock, so use a positive number.";
+    else if (v.reason === "damage" && change > 0)
+      errors.quantityChange = "Damage removes stock. Type how many to remove.";
+    else if (Math.abs(change) > STOCK_MAX)
+      errors.quantityChange = `Use a number from -${STOCK_MAX} to ${STOCK_MAX}.`;
+    else if (currentStock + change < 0)
+      errors.quantityChange = `Only ${currentStock} in stock; stock cannot go below 0.`;
+    else if (currentStock + change > STOCK_MAX)
+      errors.quantityChange = `Stock cannot go over ${STOCK_MAX}.`;
+  }
+  if (v.note.length > 500) errors.note = "Use at most 500 characters.";
+  return errors;
+}
+
+function readAdjustment() {
+  return {
+    reason: $("adj-reason").value,
+    quantity: $("adj-quantity").value.trim(),
+    note: $("adj-note").value.trim(),
+  };
+}
+
+/** Live "40 → 52" preview under the form, so staff see the result before saving. */
+function updatePreview() {
+  if (!stock.product) return;
+  const v = readAdjustment();
+  const preview = $("adj-preview");
+  const change = quantityChange(v.reason, v.quantity);
+  if (typeof change !== "number" || change === 0) {
+    preview.textContent = "";
+    return;
+  }
+  const after = stock.product.stock + change;
+  const sign = change > 0 ? "+" : "−";
+  preview.textContent = `Stock ${stock.product.stock} ${sign} ${Math.abs(change)} → ${after}`;
+  preview.classList.toggle("invalid", after < 0 || after > STOCK_MAX);
+}
+
+/** Shows each message under its field (browser checks and the server's 422 use the same names). */
+function stockFieldErrors(errors) {
+  for (const small of document.querySelectorAll("#stock-form .field-error")) {
+    const message = errors[small.dataset.field] || "";
+    small.textContent = message;
+    small
+      .closest("label")
+      .querySelector("input,select")
+      .setAttribute("aria-invalid", message ? "true" : "false");
+  }
+}
+
+$("stock-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const product = stock.product;
+  if (!product) return;
+  const v = readAdjustment();
+
+  // 1. Browser checks. If they fail, no request is sent.
+  if (!$("adj-skip-checks").checked) {
+    const errors = validateAdjustment(v, product.stock);
+    stockFieldErrors(errors);
+    if (Object.keys(errors).length) {
+      feedback("Please fix the highlighted fields. No request was sent.", {
+        error: true,
+        details: errors,
+      });
+      return;
+    }
+  } else {
+    stockFieldErrors({});
+  }
+
+  // 2. Send. actorId and the balances are NOT sent: the server works them out.
+  const body = { quantityChange: quantityChange(v.reason, v.quantity), reason: v.reason };
+  if (v.note !== "") body.note = v.note;
+  $("adj-save").disabled = true;
+  try {
+    const { body: saved, status, line } = await request(
+      `/products/${product.id}/inventory-adjustments`,
+      { method: "POST", body },
+    );
+    $("stock-form").reset();
+    updateQuantityLabel();
+    if (stock.product?.id === product.id) showCurrentStock(saved.stockAfter);
+    feedback(
+      `Stock for #${product.id} "${product.name}" changed from ${saved.stockBefore} to ${saved.stockAfter} (HTTP ${status}).`,
+      { line },
+    );
+    stock.page = 1;
+    await Promise.all([loadHistory(), loadProducts()]); // new row on top; Stock column updated
+  } catch (error) {
+    // 422: messages under the fields. 409: the stock moved or the change is too big;
+    // re-read the stock so the preview shows the real number.
+    stockFieldErrors(error.details || {});
+    if (error.status === 409) await refreshProductStock();
+    const title =
+      error.status === 422
+        ? `The server rejected the adjustment: ${error.message}`
+        : error.status === 409
+          ? `Stock not changed: ${error.message}`
+          : error.message;
+    feedback(title, { error: true, details: error.details, line: error.line });
+  } finally {
+    $("adj-save").disabled = false;
+  }
+});
+
+/** GET /products/{id}/inventory-adjustments?page=..&limit=5, newest first. */
+async function loadHistory() {
+  const product = stock.product;
+  if (!product) return;
+  const current = ++historyRequest;
+  stock.loading = true;
+  updateHistoryPager();
+  try {
+    const { body } = await request(
+      `/products/${product.id}/inventory-adjustments?page=${stock.page}&limit=${HISTORY_LIMIT}`,
+    );
+    if (current !== historyRequest) return;
+    stock.totalPages = body.metadata.totalPages;
+    renderHistory(body.data);
+    $("adj-page-label").textContent = stock.totalPages
+      ? `Page ${body.metadata.page} of ${stock.totalPages} · ${body.metadata.total} change${body.metadata.total === 1 ? "" : "s"}`
+      : "No changes yet";
+  } catch (error) {
+    if (current !== historyRequest) return;
+    stock.totalPages = 0;
+    $("adj-history").replaceChildren();
+    $("adj-page-label").textContent = "History unavailable";
+    feedback(error.message, { error: true, details: error.details, line: error.line });
+  } finally {
+    if (current === historyRequest) {
+      stock.loading = false;
+      updateHistoryPager();
+    }
+  }
+}
+
+function renderHistory(rows) {
+  const tbody = $("adj-history");
+  tbody.replaceChildren();
+  if (rows.length === 0) {
+    const cell = tbody.insertRow().insertCell();
+    cell.colSpan = 5;
+    cell.className = "empty-state";
+    cell.textContent = "No stock changes yet. The opening stock was set when the product was created.";
+    return;
+  }
+  for (const a of rows) {
+    const row = tbody.insertRow();
+    // createdAt is UTC ("...Z"); the browser shows it in the viewer's time zone.
+    row.insertCell().textContent = new Date(a.createdAt).toLocaleString([], {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+    const change = row.insertCell();
+    change.textContent = a.quantityChange > 0 ? `+${a.quantityChange}` : `−${Math.abs(a.quantityChange)}`;
+    change.className = a.quantityChange > 0 ? "change-up" : "change-down";
+    row.insertCell().textContent = `${a.stockBefore} → ${a.stockAfter}`;
+
+    const reason = row.insertCell();
+    const label = document.createElement("span");
+    label.className = "customer-name";
+    label.textContent = a.reason.charAt(0).toUpperCase() + a.reason.slice(1);
+    reason.append(label);
+    if (a.note) {
+      const note = document.createElement("span");
+      note.className = "customer-email";
+      note.textContent = a.note; // textContent: the note is never parsed as HTML
+      reason.append(note);
+    }
+    row.insertCell().textContent = `#${a.actorId}`; // the account id of the staff member or admin
+  }
+}
+
+function updateHistoryPager() {
+  $("adj-previous").disabled = stock.loading || stock.page <= 1;
+  $("adj-next").disabled = stock.loading || stock.page >= stock.totalPages;
+}
+
+$("adj-reason").addEventListener("change", updateQuantityLabel);
+$("adj-quantity").addEventListener("input", updatePreview);
+$("stock-close").onclick = closeStock;
+$("adj-previous").onclick = () => {
+  if (stock.loading || stock.page <= 1) return;
+  stock.page -= 1;
+  loadHistory();
+};
+$("adj-next").onclick = () => {
+  if (stock.loading || stock.page >= stock.totalPages) return;
+  stock.page += 1;
+  loadHistory();
+};
+
 // -------------------------------------------------- #33 format preview
 
 $("format-form").addEventListener("submit", async (event) => {
@@ -525,6 +812,7 @@ $("cancel-edit").onclick = resetForm;
 $("connection-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   resetForm();
+  closeStock();
   $("feedback").hidden = true;
   state.page = 1;
   await loadCategories();
