@@ -1,0 +1,2 @@
+PASS: simultaneous checkouts: one 201, one 409, one booking, rejected cart retained.
+PASS: deactivation racing a cart write rejects the request and preserves the cart.

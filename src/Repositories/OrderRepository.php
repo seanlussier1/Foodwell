@@ -129,7 +129,7 @@ final class OrderRepository
         $query->bindValue('offset', ($page - 1) * $limit, PDO::PARAM_INT);
         $query->execute();
 
-        return array_map($this->formatOrder(...), $query->fetchAll());
+        return array_map(fn(array $order): array => $this->formatOrder($order), $query->fetchAll());
     }
 
     public function listStatusEvents(int $orderId, int $page, int $limit): array

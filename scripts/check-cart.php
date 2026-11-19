@@ -11,12 +11,15 @@ $pass = getenv('SCHEMA_TEST_PASS') ?: '';
 $pdo = new PDO("mysql:host=$host;port=$port;charset=utf8mb4", $user, $pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
 $databases = $servers = $temporaryFiles = [];
 $checks = 0;
+$authorization = null;
 function verifyCart(bool $condition, string $message): void {
     global $checks;
     if (!$condition) { throw new RuntimeException($message); }
     ++$checks; echo "PASS: $message\n";
 }
 function cartRequest(int $port, string $method, string $path, ?string $body = null, string $type = 'application/json', array $extra = []): array {
+    global $authorization;
+    if ($authorization !== null && $method !== 'OPTIONS') { $extra[] = 'Authorization: Bearer ' . $authorization; }
     $ctx = stream_context_create(['http' => ['method' => $method, 'ignore_errors' => true, 'timeout' => 10,
         'header' => "Content-Type: $type\r\nAccept: application/json\r\n" . implode("\r\n", $extra), 'content' => $body ?? '']]);
     $raw = file_get_contents("http://127.0.0.1:$port/api/v1$path", false, $ctx);
@@ -33,6 +36,13 @@ try {
         $pdo->exec("USE `$db`");
         $pdo->exec(file_get_contents("$root/database/schema.sql"));
         $pdo->exec(file_get_contents("$root/database/seed.sql"));
+        $authorization = null;
+        if ($enabled) {
+            // Synthetic administrator session permits the cross-customer fixture checks below.
+            $authorization = bin2hex(random_bytes(32));
+            $session = $pdo->prepare('INSERT INTO auth_sessions(customer_id,token_hash,created_at,expires_at) VALUES (10,?,UTC_TIMESTAMP(),UTC_TIMESTAMP()+INTERVAL 2 HOUR)');
+            $session->execute([hash('sha256', $authorization)]);
+        }
         $socket = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
         if (!$socket) { throw new RuntimeException('Cannot reserve test port.'); }
         $serverPort = (int) substr(strrchr(stream_socket_get_name($socket, false), ':'), 1); fclose($socket);
@@ -54,9 +64,9 @@ try {
             $snapshot = cartSnapshot($pdo);
             foreach ([['GET', '/customers/7/cart', null], ['POST', '/customers/7/cart/items', '{"productId":101,"quantity":1}'],
                 ['PUT', '/customers/7/cart/items/501', '{"quantity":1}'], ['DELETE', '/customers/7/cart/items/501', null]] as [$method, $path, $body]) {
-                verifyCart(cartRequest($serverPort, $method, $path, $body)[0] === 403, "$method cart route requires explicit demo opt-in");
+                verifyCart(cartRequest($serverPort, $method, $path, $body)[0] === 401, "$method cart route requires authentication");
             }
-            verifyCart(cartSnapshot($pdo) === $snapshot, 'Disabled demo preserves all cart records');
+            verifyCart(cartSnapshot($pdo) === $snapshot, 'Anonymous requests preserve all cart records');
             continue;
         }
         $stockBefore = $pdo->query('SELECT id, stock FROM products ORDER BY id')->fetchAll();
