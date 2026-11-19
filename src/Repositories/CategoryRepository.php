@@ -122,4 +122,4 @@ final class CategoryRepository
             throw $e;
         }
     }
-}
+}
