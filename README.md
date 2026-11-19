@@ -216,6 +216,10 @@ Run the isolated authentication checks with `php scripts/check-auth.php`; config
 
 Customer profile, cart, checkout and order detail routes require a valid bearer session and the documented owner or administrator rule. Customer listing, deactivation, product writes and category writes require staff or administrator. The former loopback demo flags do not bypass these checks. The browser workspace uses the Account page to sign in, and retains the token in memory while navigating. All check scripts sign in where needed (updated in #40-#42 and #101). Delivery-slot writes also require staff or administrator (#39/#40). Run `php scripts/check-authorization.php` with the same disposable-database configuration as the authentication checks.
 
+## Response formats (#65)
+
+Product, category and delivery slot routes answer in JSON, XML or YAML, chosen with the `Accept` header (`application/json`, `application/xml`, `application/yaml`); other types get 406. Request bodies are JSON on every route (415 otherwise). Customer, cart, order, session and delivery-option routes answer in JSON only and give 406 for XML/YAML. The full route-by-route contract, the negotiation rules and two documented exceptions are in the [representation matrix](docs/REPRESENTATION_MATRIX.md). Run `php scripts/check-representations.php` (same `SCHEMA_TEST_*` settings) to compare real JSON, XML and YAML responses value by value (448 checks).
+
 ## Automated catalog and delivery slot checks (#42)
 
 `composer test:unit` now also runs `tests/catalog/ProductInputTest.php` and `tests/catalog/DeliverySlotInputTest.php` (58 tests, no database): every product and slot field rule, inclusive limits, time-zone conversion to UTC, impossible dates, and the create/update differences.

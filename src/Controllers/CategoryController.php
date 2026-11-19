@@ -17,9 +17,11 @@ final class CategoryController
     /** GET /api/v1/categories -> 200 {"data": [...]} */
     public function index(array $params = []): void
     {
-        Response::json(200, [
+        // send() answers in the format negotiated from Accept (JSON, XML or
+        // YAML, #65). In XML the list is <categories> with one <category> per item.
+        Response::send(200, [
             'data' => $this->categories->findAll(),
-        ]);
+        ], [], 'categories', 'category');
     }
 
     /** GET /api/v1/categories/{id} -> 200 Category | 404 error */
@@ -33,7 +35,7 @@ final class CategoryController
             return;
         }
 
-        Response::json(200, $category);
+        Response::send(200, $category, [], 'category');
     }
 
     /** POST /api/v1/categories -> 201 Category | 409 duplicate name */
@@ -84,7 +86,7 @@ final class CategoryController
             throw $e;
         }
 
-        Response::json(201, $category);
+        Response::send(201, $category, [], 'category');
     }
 
     /** DELETE /api/v1/categories/{id} -> 200 | 404 | 409 */
@@ -119,10 +121,10 @@ final class CategoryController
             return;
         }
 
-        Response::json(200, [
+        Response::send(200, [
             'message' => 'Category deleted successfully.',
             'data' => $category,
-        ]);
+        ], [], 'categoryDeletion');
     }
 
     /** Read and validate the JSON request body. */

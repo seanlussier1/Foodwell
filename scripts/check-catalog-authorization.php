@@ -170,12 +170,15 @@ try {
     // new write route later and forgetting the permission check.
     $source = file_get_contents("$root/public/index.php");
     preg_match_all(
-        "#\\\$router->(post|put|patch|delete)\(API_PREFIX \. '(/(?:products|categories|delivery-slots)[^']*)',\s*(.+?)\);#",
+        "#\\\$router->(post|put|patch|delete)\(API_PREFIX \. '(/(?:products|categories|delivery-slots)[^']*)',\s*(.+?)\);\n#",
         $source, $routes, PREG_SET_ORDER
     );
     check(count($routes) === 8, 'index.php registers 8 catalog/slot write routes (3 product, 2 category, 3 slot)');
     foreach ($routes as [, $method, $path, $handler]) {
-        check(str_starts_with($handler, '$authorization->protect(') && str_ends_with($handler, "'staff')"),
+        // The handler must be protect([...], 'staff'). Since #65 a formats list
+        // (", $catalogFormats") may follow it; that only affects the response format.
+        // (Single quotes: in double quotes PHP would replace "$authorization" with a variable.)
+        check(preg_match('/^\$authorization->protect\(\[[^\]]+\], \'staff\'\)(, \$catalogFormats)?$/', $handler) === 1,
             strtoupper($method) . " $path is wrapped in protect(..., 'staff')");
     }
 

@@ -96,7 +96,8 @@ final class DeliverySlotController
             throw $e;     // any other database problem becomes a 500
         }
 
-        Response::json(201, $slot, ['Location' => $this->itemPath($slot['id'])]);
+        // send() answers in the format negotiated from Accept (JSON, XML or YAML, #65).
+        Response::send(201, $slot, ['Location' => $this->itemPath($slot['id'])], 'deliverySlot');
     }
 
     /**
@@ -164,7 +165,7 @@ final class DeliverySlotController
             throw $e;
         }
 
-        Response::json(200, $slot);
+        Response::send(200, $slot, [], 'deliverySlot');
     }
 
     /**

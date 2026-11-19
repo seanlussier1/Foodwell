@@ -202,7 +202,8 @@ paths:
         are trimmed. Unknown fields are rejected. Rejected requests change
         nothing. Requires a staff or administrator login (#40): no login gives
         401, a customer login gives 403.
-        Request and response bodies are JSON only (XML/YAML deferred to #65).
+        The request body is JSON only (415 otherwise); the response is JSON, XML or YAML
+        following the Accept header (#65).
       requestBody:
         required: true
         content:
@@ -215,6 +216,12 @@ paths:
               unit: each
               stock: 20
               categoryId: 2
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+          application/yaml:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
       responses:
         '201':
           description: Product created; the body is the saved product read back from the database
@@ -238,16 +245,22 @@ paths:
                 categoryName: Dairy
                 imageUrl: null
                 isActive: true
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Product'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/Product'
         '400':
-          $ref: '#/components/responses/MalformedJson'
+          $ref: '#/components/responses/NegotiatedMalformedJson'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/NegotiatedUnauthorized'
         '403':
-          $ref: '#/components/responses/StaffOnly'
+          $ref: '#/components/responses/NegotiatedStaffOnly'
         '406':
           $ref: '#/components/responses/NotAcceptable'
         '415':
-          $ref: '#/components/responses/UnsupportedMediaType'
+          $ref: '#/components/responses/NegotiatedUnsupportedMediaType'
         '422':
           description: Invalid fields (including a category that does not exist); nothing is saved
           content:
@@ -263,8 +276,14 @@ paths:
                     categoryId: This category does not exist.
                     color: This field is not allowed for this operation.
                   requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
         '500':
-          $ref: '#/components/responses/ServerError'
+          $ref: '#/components/responses/NegotiatedServerError'
       operationId: post__products
       security:
       - BearerSession: []
@@ -366,7 +385,8 @@ paths:
         null), except `isActive`, which keeps its current value when omitted.
         Send `"isActive": false` to deactivate a product (the cart then refuses
         it). Rejected requests change nothing. Requires a staff or administrator
-        login (#40). JSON only.
+        login (#40). The request body is JSON only; the response follows the Accept
+        header (JSON, XML or YAML, #65).
       requestBody:
         required: true
         content:
@@ -379,6 +399,12 @@ paths:
               unit: lb
               categoryId: 1
               imageUrl: null
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/ProductUpdate'
+          application/yaml:
+            schema:
+              $ref: '#/components/schemas/ProductUpdate'
       responses:
         '200':
           description: Product updated; the body is the saved product
@@ -386,22 +412,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Product'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Product'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/Product'
         '400':
-          $ref: '#/components/responses/MalformedJson'
+          $ref: '#/components/responses/NegotiatedMalformedJson'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/NegotiatedUnauthorized'
         '403':
-          $ref: '#/components/responses/StaffOnly'
+          $ref: '#/components/responses/NegotiatedStaffOnly'
         '404':
           description: No product with that ID (checked before the body)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/Error'
         '406':
           $ref: '#/components/responses/NotAcceptable'
         '415':
-          $ref: '#/components/responses/UnsupportedMediaType'
+          $ref: '#/components/responses/NegotiatedUnsupportedMediaType'
         '422':
           description: Invalid fields, a category that does not exist, or `stock` in the body; nothing is changed
           content:
@@ -415,8 +453,14 @@ paths:
                   details:
                     stock: Stock cannot be changed here. Use an inventory adjustment.
                   requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
         '500':
-          $ref: '#/components/responses/ServerError'
+          $ref: '#/components/responses/NegotiatedServerError'
       operationId: put__products__id_
       security:
       - BearerSession: []
@@ -438,13 +482,19 @@ paths:
         '204':
           description: Product deleted (no body)
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/NegotiatedUnauthorized'
         '403':
-          $ref: '#/components/responses/StaffOnly'
+          $ref: '#/components/responses/NegotiatedStaffOnly'
         '404':
           description: No product with that ID
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/yaml:
               schema:
                 $ref: '#/components/schemas/Error'
         '406':
@@ -460,8 +510,14 @@ paths:
                   status: 409
                   message: 'Product 109 has inventory history and cannot be deleted. Deactivate it instead with PUT and "isActive": false.'
                   requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
-          $ref: '#/components/responses/ServerError'
+          $ref: '#/components/responses/NegotiatedServerError'
       operationId: delete__products__id_
       security:
       - BearerSession: []
@@ -488,8 +544,28 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Category'
+            application/xml:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+            application/yaml:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
         '500':
-          $ref: '#/components/responses/ServerError'
+          $ref: '#/components/responses/NegotiatedServerError'
         '406':
           $ref: '#/components/responses/NotAcceptable'
       operationId: get__categories
@@ -508,11 +584,23 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CategoryInput'
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+          application/yaml:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
       responses:
         '201':
           description: Category created
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Category'
+            application/yaml:
               schema:
                 $ref: '#/components/schemas/Category'
         '400':
@@ -521,10 +609,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/Error'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/NegotiatedUnauthorized'
         '403':
-          $ref: '#/components/responses/StaffOnly'
+          $ref: '#/components/responses/NegotiatedStaffOnly'
         '406':
           $ref: '#/components/responses/NotAcceptable'
         '409':
@@ -533,10 +627,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/Error'
         '415':
           description: The request Content-Type must be application/json
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/yaml:
               schema:
                 $ref: '#/components/schemas/Error'
         '422':
@@ -545,8 +651,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
-          $ref: '#/components/responses/ServerError'
+          $ref: '#/components/responses/NegotiatedServerError'
       operationId: post__categories
       security:
       - BearerSession: []
@@ -572,14 +684,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Category'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Category'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/Category'
         '404':
           description: Category not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
-          $ref: '#/components/responses/ServerError'
+          $ref: '#/components/responses/NegotiatedServerError'
         '406':
           $ref: '#/components/responses/NotAcceptable'
       operationId: get__categories__id_
@@ -608,14 +732,44 @@ paths:
                     example: Category deleted successfully.
                   data:
                     $ref: '#/components/schemas/Category'
+            application/xml:
+              schema:
+                type: object
+                required:
+                - message
+                - data
+                properties:
+                  message:
+                    type: string
+                    example: Category deleted successfully.
+                  data:
+                    $ref: '#/components/schemas/Category'
+            application/yaml:
+              schema:
+                type: object
+                required:
+                - message
+                - data
+                properties:
+                  message:
+                    type: string
+                    example: Category deleted successfully.
+                  data:
+                    $ref: '#/components/schemas/Category'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/NegotiatedUnauthorized'
         '403':
-          $ref: '#/components/responses/StaffOnly'
+          $ref: '#/components/responses/NegotiatedStaffOnly'
         '404':
           description: Category not found
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/yaml:
               schema:
                 $ref: '#/components/schemas/Error'
         '406':
@@ -626,8 +780,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
-          $ref: '#/components/responses/ServerError'
+          $ref: '#/components/responses/NegotiatedServerError'
       operationId: delete__categories__id_
       security:
       - BearerSession: []
@@ -1532,7 +1692,8 @@ paths:
         choose it at checkout now: active, starting in the future and with
         `availableCapacity` above 0. Filters combine with AND. Empty values are
         ignored; unknown parameters, repeated/array values and invalid values
-        return 400. Not paginated. JSON only (XML/YAML deferred to #65).
+        return 400. Not paginated. Answers in JSON, XML (<deliverySlots> with one
+        <deliverySlot> per item) or YAML following the Accept header (#65).
       parameters:
       - in: query
         name: date
@@ -1554,6 +1715,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeliverySlotList'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/DeliverySlotList'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/DeliverySlotList'
         '400':
           description: Invalid query parameters; error.details names each one
           content:
@@ -1566,10 +1733,16 @@ paths:
                   message: Invalid query parameters.
                   details:
                     date: date must be a real calendar day written YYYY-MM-DD (UTC).
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
         '406':
           $ref: '#/components/responses/NotAcceptable'
         '500':
-          $ref: '#/components/responses/ServerError'
+          $ref: '#/components/responses/NegotiatedServerError'
       operationId: get__delivery_slots
       security: []
       x-access: public
@@ -1597,6 +1770,12 @@ paths:
               startsAt: '2026-11-20T19:00:00Z'
               endsAt: '2026-11-20T21:00:00Z'
               capacity: 4
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/DeliverySlotInput'
+          application/yaml:
+            schema:
+              $ref: '#/components/schemas/DeliverySlotInput'
       responses:
         '201':
           description: Slot created; the body is read back from the database
@@ -1610,12 +1789,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeliverySlot'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/DeliverySlot'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/DeliverySlot'
         '400':
-          $ref: '#/components/responses/MalformedJson'
+          $ref: '#/components/responses/NegotiatedMalformedJson'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/NegotiatedUnauthorized'
         '403':
-          $ref: '#/components/responses/StaffOnly'
+          $ref: '#/components/responses/NegotiatedStaffOnly'
         '406':
           $ref: '#/components/responses/NotAcceptable'
         '409':
@@ -1624,8 +1809,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/Error'
         '415':
-          $ref: '#/components/responses/UnsupportedMediaType'
+          $ref: '#/components/responses/NegotiatedUnsupportedMediaType'
         '422':
           description: Invalid fields; nothing is saved
           content:
@@ -1639,8 +1830,14 @@ paths:
                   details:
                     endsAt: endsAt must be later than startsAt.
                     capacity: capacity must be a whole number from 1 to 1000.
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
         '500':
-          $ref: '#/components/responses/ServerError'
+          $ref: '#/components/responses/NegotiatedServerError'
       operationId: post__delivery_slots
       security:
       - BearerSession: []
@@ -1668,16 +1865,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeliverySlot'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/DeliverySlot'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/DeliverySlot'
         '404':
           description: Delivery slot not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/Error'
         '406':
           $ref: '#/components/responses/NotAcceptable'
         '500':
-          $ref: '#/components/responses/ServerError'
+          $ref: '#/components/responses/NegotiatedServerError'
       operationId: get__delivery_slots__id_
       security: []
       x-access: public
@@ -1703,6 +1912,12 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/DeliverySlotInput'
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/DeliverySlotInput'
+          application/yaml:
+            schema:
+              $ref: '#/components/schemas/DeliverySlotInput'
       responses:
         '200':
           description: Updated slot
@@ -1710,16 +1925,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeliverySlot'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/DeliverySlot'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/DeliverySlot'
         '400':
-          $ref: '#/components/responses/MalformedJson'
+          $ref: '#/components/responses/NegotiatedMalformedJson'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/NegotiatedUnauthorized'
         '403':
-          $ref: '#/components/responses/StaffOnly'
+          $ref: '#/components/responses/NegotiatedStaffOnly'
         '404':
           description: Delivery slot not found
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/yaml:
               schema:
                 $ref: '#/components/schemas/Error'
         '406':
@@ -1732,16 +1959,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/Error'
         '415':
-          $ref: '#/components/responses/UnsupportedMediaType'
+          $ref: '#/components/responses/NegotiatedUnsupportedMediaType'
         '422':
           description: Invalid fields; nothing is saved
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationError'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
         '500':
-          $ref: '#/components/responses/ServerError'
+          $ref: '#/components/responses/NegotiatedServerError'
       operationId: put__delivery_slots__id_
       security:
       - BearerSession: []
@@ -1761,13 +2000,19 @@ paths:
         '204':
           description: Delivery slot deleted; no body
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/NegotiatedUnauthorized'
         '403':
-          $ref: '#/components/responses/StaffOnly'
+          $ref: '#/components/responses/NegotiatedStaffOnly'
         '404':
           description: Delivery slot not found
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/yaml:
               schema:
                 $ref: '#/components/schemas/Error'
         '406':
@@ -1778,8 +2023,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/yaml:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
-          $ref: '#/components/responses/ServerError'
+          $ref: '#/components/responses/NegotiatedServerError'
       operationId: delete__delivery_slots__id_
       security:
       - BearerSession: []
@@ -3015,6 +3266,10 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+          example:
+            error:
+              status: 500
+              message: Internal server error.
         application/xml:
           schema:
             $ref: '#/components/schemas/Error'
@@ -3032,6 +3287,24 @@ components:
               status: 400
               message: Malformed JSON body.
               requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+    NegotiatedMalformedJson:
+      x-format-note: Sent as JSON, XML or YAML following the Accept header (catalog routes, #65)
+      description: The body is not valid JSON, or is valid JSON but not an object
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              status: 400
+              message: Malformed JSON body.
+              requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+        application/xml:
+          schema:
+            $ref: '#/components/schemas/Error'
+        application/yaml:
+          schema:
+            $ref: '#/components/schemas/Error'
     NotAcceptable:
       description: >
         The Accept header allows none of the formats this route can return
@@ -3051,6 +3324,24 @@ components:
               status: 415
               message: 'This operation requires Content-Type: application/json.'
               requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+    NegotiatedUnsupportedMediaType:
+      x-format-note: Sent as JSON, XML or YAML following the Accept header (catalog routes, #65)
+      description: Missing or unsupported Content-Type (application/json required)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              status: 415
+              message: 'This operation requires Content-Type: application/json.'
+              requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+        application/xml:
+          schema:
+            $ref: '#/components/schemas/Error'
+        application/yaml:
+          schema:
+            $ref: '#/components/schemas/Error'
     Unauthorized:
       description: >
         No working login: the Authorization header is missing or is not
@@ -3071,6 +3362,33 @@ components:
               status: 401
               message: Invalid or expired session.
               requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+    NegotiatedUnauthorized:
+      x-format-note: Sent as JSON, XML or YAML following the Accept header (catalog routes, #65)
+      description: >
+        No working login: the Authorization header is missing or is not
+        "Bearer <64 hex characters>", or the session is unknown, expired,
+        logged out, or belongs to a deactivated account. Nothing is changed.
+      headers:
+        WWW-Authenticate:
+          description: Always "Bearer", telling the client to log in and send a bearer token
+          schema:
+            type: string
+          example: Bearer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              status: 401
+              message: Invalid or expired session.
+              requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+        application/xml:
+          schema:
+            $ref: '#/components/schemas/Error'
+        application/yaml:
+          schema:
+            $ref: '#/components/schemas/Error'
     StaffOnly:
       description: >
         Logged in, but as a customer. Only staff and administrator accounts may
@@ -3085,6 +3403,27 @@ components:
               status: 403
               message: Forbidden.
               requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+    NegotiatedStaffOnly:
+      x-format-note: Sent as JSON, XML or YAML following the Accept header (catalog routes, #65)
+      description: >
+        Logged in, but as a customer. Only staff and administrator accounts may
+        do this. The check runs before the request body is read, so no
+        validation details or existence hints are returned. Nothing is changed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              status: 403
+              message: Forbidden.
+              requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
+        application/xml:
+          schema:
+            $ref: '#/components/schemas/Error'
+        application/yaml:
+          schema:
+            $ref: '#/components/schemas/Error'
   schemas:
     Error:
       type: object
@@ -3272,6 +3611,8 @@ components:
           description: An http or https URL, or null
       additionalProperties: false
     Category:
+      xml:
+        name: category
       type: object
       properties:
         id:
@@ -4080,6 +4421,8 @@ components:
       - capacity
       additionalProperties: false
     DeliverySlot:
+      xml:
+        name: deliverySlot
       type: object
       properties:
         id:
@@ -4190,6 +4533,8 @@ components:
       required:
       - data
     DeliverySlotList:
+      xml:
+        name: deliverySlots
       type: object
       properties:
         data:

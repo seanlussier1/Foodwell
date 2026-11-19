@@ -182,6 +182,158 @@
             ]
         },
         {
+            "name": "Categories as XML (#65)",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/xml"
+                    }
+                ],
+                "url": "{{baseUrl}}/categories"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "pm.test(\"Content-Type is XML\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/xml\"));",
+                            "pm.test(\"<categories> with one <category> per item\", () => { const t = pm.response.text(); pm.expect(t).to.include(\"<categories>\"); pm.expect((t.match(/<category>/g) || []).length).to.eql(4); });"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Bookable slots as YAML (#65)",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/yaml"
+                    }
+                ],
+                "url": "{{baseUrl}}/delivery-slots?available=true"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "pm.test(\"Content-Type is YAML\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/yaml\"));",
+                            "pm.test(\"Slot 304 with typed values\", () => { const t = pm.response.text(); pm.expect(t).to.include(\"- id: 304\"); pm.expect(t).to.include(\"isAvailable: true\"); });"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Unsupported Accept on categories is 406 (#65)",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "text/html"
+                    }
+                ],
+                "url": "{{baseUrl}}/categories"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 406\", () => pm.response.to.have.status(406));",
+                            "pm.test(\"Lists the three formats\", () => pm.expect(pm.response.json().error.message).to.include(\"application/json, application/xml, application/yaml\"));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "A validation error as XML (#65)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/xml"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"name\":\"Bad\",\"price\":-1,\"categoryId\":2}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                            "pm.test(\"The error is XML with details\", () => { const t = pm.response.text(); pm.expect(t).to.include(\"<error>\"); pm.expect(t).to.include(\"<price>\"); });",
+                            "pm.test(\"Same request id as the header\", () => pm.expect(pm.response.text()).to.include(\"<requestId>\" + pm.response.headers.get(\"X-Request-ID\") + \"</requestId>\"));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "An XML request body is 415 (#65)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/xml"
+                    }
+                ],
+                "url": "{{baseUrl}}/products",
+                "body": {
+                    "mode": "raw",
+                    "raw": "<product><name>Xml Tea</name><price>3</price><categoryId>4</categoryId></product>"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 415\", () => pm.response.to.have.status(415));",
+                            "pm.test(\"Names application/json\", () => pm.expect(pm.response.json().error.message).to.include(\"application/json\"));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
             "name": "Reject repeated sort keys",
             "request": {
                 "method": "GET",
