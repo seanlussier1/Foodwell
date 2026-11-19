@@ -1,0 +1,823 @@
+{
+    "info": {
+        "name": "Foodwell Inventory Adjustments",
+        "description": "Inventory adjustments (Will): staff/admin stock changes with an append-only audit log. Covers 401/403, server-calculated balances and actor, 422 validation, 409 stock limits, 404, 415, paginated history, reading one adjustment, 405 on edits and the product-delete rule. Run with composer test:inventory, which provides a disposable database with the synthetic demo accounts. To send it by hand, use a disposable database (php scripts/db-setup.php) and set baseUrl.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Sign in as staff",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/auth/sessions",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"email\": \"staff@example.com\", \"password\": \"FoodwellDemo!2026\"}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                            "pm.collectionVariables.set(\"staffToken\", pm.response.json().accessToken);"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Sign in as admin",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/auth/sessions",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"email\": \"admin@example.com\", \"password\": \"FoodwellDemo!2026\"}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                            "pm.collectionVariables.set(\"adminToken\", pm.response.json().accessToken);"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Sign in as customer",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/auth/sessions",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"email\": \"alex@example.com\", \"password\": \"FoodwellDemo!2026\"}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                            "pm.collectionVariables.set(\"customerToken\", pm.response.json().accessToken);"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "History without login",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/101/inventory-adjustments"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+                            "pm.test(\"Asks for a bearer token\", () => pm.expect(pm.response.headers.get(\"WWW-Authenticate\")).to.include(\"Bearer\"));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Adjust stock as a customer",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{customerToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/101/inventory-adjustments",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"quantityChange\": 5, \"reason\": \"restock\"}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Read product 101 before",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/101"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "pm.collectionVariables.set(\"stockBefore\", pm.response.json().stock);",
+                            "pm.test(\"Stock is a whole number\", () => pm.expect(pm.response.json().stock).to.be.a(\"number\"));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Restock as staff",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/101/inventory-adjustments",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"quantityChange\": 12, \"reason\": \"restock\", \"note\": \"Tuesday delivery\"}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                            "const a = pm.response.json();",
+                            "const before = Number(pm.collectionVariables.get(\"stockBefore\"));",
+                            "pm.test(\"Balances are calculated by the server\", () => { pm.expect(a.stockBefore).to.eql(before); pm.expect(a.stockAfter).to.eql(before + 12); });",
+                            "pm.test(\"The actor is the signed-in staff account (9)\", () => pm.expect(a.actorId).to.eql(9));",
+                            "pm.test(\"Reason and note are kept\", () => { pm.expect(a.reason).to.eql(\"restock\"); pm.expect(a.note).to.eql(\"Tuesday delivery\"); });",
+                            "pm.test(\"Location points at the new adjustment\", () => pm.expect(pm.response.headers.get(\"Location\")).to.match(new RegExp(\"/inventory-adjustments/\" + a.id + \"$\")));",
+                            "pm.collectionVariables.set(\"adjustmentId\", a.id);",
+                            "pm.collectionVariables.set(\"stockNow\", a.stockAfter);"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Product stock really changed",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/101"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "pm.test(\"Stock equals the adjustment's stockAfter\", () => pm.expect(pm.response.json().stock).to.eql(Number(pm.collectionVariables.get(\"stockNow\"))));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Record damage as admin",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{adminToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/101/inventory-adjustments",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"quantityChange\": -2, \"reason\": \"damage\"}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                            "const a = pm.response.json();",
+                            "pm.test(\"Admin is recorded as the actor (10)\", () => pm.expect(a.actorId).to.eql(10));",
+                            "pm.test(\"Starts from the previous balance\", () => pm.expect(a.stockBefore).to.eql(Number(pm.collectionVariables.get(\"stockNow\"))));",
+                            "pm.test(\"A missing note is null\", () => pm.expect(a.note).to.eql(null));",
+                            "pm.collectionVariables.set(\"stockNow\", a.stockAfter);"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Refuse a client-chosen actor and balance",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/101/inventory-adjustments",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"quantityChange\": 1, \"reason\": \"correction\", \"actorId\": 10, \"stockAfter\": 999}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                            "pm.test(\"Both fields are named\", () => { const d = pm.response.json().error.details; pm.expect(d).to.have.property(\"actorId\"); pm.expect(d).to.have.property(\"stockAfter\"); });",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Refuse damage that adds stock",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/101/inventory-adjustments",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"quantityChange\": 3, \"reason\": \"damage\"}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                            "pm.test(\"Explains the direction\", () => pm.expect(pm.response.json().error.details.quantityChange).to.include(\"negative\"));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Refuse a zero change",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/101/inventory-adjustments",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"quantityChange\": 0, \"reason\": \"correction\"}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Refuse removing more than the stock",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/101/inventory-adjustments",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"quantityChange\": -1000000, \"reason\": \"damage\"}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                            "pm.test(\"Says stock cannot go below 0\", () => pm.expect(pm.response.json().error.message).to.include(\"below 0\"));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Stock unchanged after the refusals",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/101"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "pm.test(\"Same stock as after the last success\", () => pm.expect(pm.response.json().stock).to.eql(Number(pm.collectionVariables.get(\"stockNow\"))));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Refuse a non-JSON body",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/x-www-form-urlencoded"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/101/inventory-adjustments",
+                "body": {
+                    "mode": "raw",
+                    "raw": "quantityChange=5&reason=restock"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 415\", () => pm.response.to.have.status(415));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Unknown product",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/999999/inventory-adjustments",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"quantityChange\": 1, \"reason\": \"restock\"}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "History, newest first",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/101/inventory-adjustments?limit=1"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "const body = pm.response.json();",
+                            "pm.test(\"One row per page\", () => pm.expect(body.data).to.have.length(1));",
+                            "pm.test(\"Newest is the damage\", () => pm.expect(body.data[0].reason).to.eql(\"damage\"));",
+                            "pm.test(\"Metadata counts both adjustments\", () => { pm.expect(body.metadata.total).to.eql(2); pm.expect(body.metadata.totalPages).to.eql(2); });"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "History page 2",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/101/inventory-adjustments?limit=1&page=2"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "pm.test(\"Oldest is the restock\", () => pm.expect(pm.response.json().data[0].id).to.eql(Number(pm.collectionVariables.get(\"adjustmentId\"))));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Refuse an unknown query parameter",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/101/inventory-adjustments?sort=id"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Read one adjustment",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/inventory-adjustments/{{adjustmentId}}"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "pm.test(\"It is the restock\", () => { const a = pm.response.json(); pm.expect(a.quantityChange).to.eql(12); pm.expect(a.createdAt).to.match(/^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ$/); });"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Seeded adjustment on product 109",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{adminToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/inventory-adjustments/1"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "pm.test(\"35 -> 40 restock\", () => { const a = pm.response.json(); pm.expect(a.productId).to.eql(109); pm.expect(a.stockBefore).to.eql(35); pm.expect(a.stockAfter).to.eql(40); });"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Customer cannot read an adjustment",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{customerToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/inventory-adjustments/1"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Audit entries cannot be deleted",
+            "request": {
+                "method": "DELETE",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/inventory-adjustments/{{adjustmentId}}"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 405\", () => pm.response.to.have.status(405));",
+                            "pm.test(\"Allow lists GET only\", () => pm.expect(pm.response.headers.get(\"Allow\")).to.eql(\"GET\"));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Product with history cannot be deleted",
+            "request": {
+                "method": "DELETE",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/101"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                            "pm.test(\"Suggests deactivating instead\", () => pm.expect(pm.response.json().error.message).to.include(\"Deactivate it instead\"));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        }
+    ],
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:8080/api/v1"
+        },
+        {
+            "key": "staffToken",
+            "value": ""
+        },
+        {
+            "key": "adminToken",
+            "value": ""
+        },
+        {
+            "key": "customerToken",
+            "value": ""
+        },
+        {
+            "key": "stockBefore",
+            "value": ""
+        },
+        {
+            "key": "stockNow",
+            "value": ""
+        },
+        {
+            "key": "adjustmentId",
+            "value": ""
+        }
+    ]
+}
