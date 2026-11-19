@@ -1,5 +1,7 @@
 # Foodwell API
 
+> For the current clean-setup verification and known documentation gaps, see [release reproducibility and QA handoff](docs/RELEASE_REPRODUCIBILITY.md).
+
 Foodwell is a PHP/MariaDB REST API for an online grocery store. Customers browse products, manage carts and place delivery orders; staff manage stock and fulfillment.
 
 ## Current status

@@ -25,7 +25,7 @@ before recreating them. The seed also includes 4 demo accounts (2 customers, sta
 creates all tables without sample data.
 
 **Existing Build 1 database:** back it up, select it in your MariaDB client, then
-execute `database/migrations/002_full_project.sql`, then `database/migrations/003_project_expansion.sql` and `database/migrations/004_auth_login_limits.sql`, once each. A nine-table database needs only migration 003. It creates only the seven
+execute `database/migrations/002_full_project.sql`, then `database/migrations/003_project_expansion.sql` and `database/migrations/004_auth_login_limits.sql`, once each. A nine-table database needs migrations 003 and 004; a fourteen-table database needs migration 004. Migration 003 adds the five expansion tables and updates existing structures; migration 004 adds the login limiter. The expansion migrations do not delete existing records. Migration 002 creates the seven
 new tables; it does not drop or alter categories or products. Do not run it after
 the full schema or rerun it: existing table names intentionally cause an error.
 MariaDB DDL implicitly commits, so restore from backup if a migration fails partway.
