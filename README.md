@@ -6,9 +6,13 @@ Foodwell is a PHP/MariaDB REST API for an online grocery store. Customers browse
 
 ## Current status
 
-The database has **14 tables** and the [OpenAPI contract](docs/openapi.yaml) documents **48 operations**: **32 implemented** and **16 planned** (saved addresses, favorites, reviews and inventory adjustments, tagged `planned` in OpenAPI; their routes do not exist yet).
+The database has **14 tables** and the [OpenAPI contract](docs/openapi.yaml) documents **48 operations**: **35 implemented** and **13 planned** (saved addresses, reviews and inventory adjustments, tagged `planned` in OpenAPI; their routes do not exist yet).
 
-Implemented: products, categories and delivery slots (public reads; staff/admin writes), the public delivery-area lookup, customer registration, login sessions, customer profiles and administration, carts, checkout, order detail, order status updates and order history. Every route that needs a login enforces it with a bearer session: **401** without a working login and **403** for the wrong account or role. The rules for each route are in the [permission matrix](docs/SECURITY_ROUTE_MATRIX.md).
+Implemented: products, categories and delivery slots (public reads; staff/admin writes), the public delivery-area lookup, customer registration, login sessions, customer profiles and administration, favorites, carts, checkout, order detail, order status updates and order history. Every route that needs a login enforces it with a bearer session: **401** without a working login and **403** for the wrong account or role. The rules for each route are in the [permission matrix](docs/SECURITY_ROUTE_MATRIX.md).
+
+Customers can save and remove favorites from the shop and browse their saved products. The owner-only favorites API supports paginated `GET /customers/{id}/favorites` (page defaults to 1, limit to 20, maximum 100) and idempotent `PUT` and `DELETE /customers/{id}/favorites/{productId}`. Saving an unknown product returns 404; removing an absent favorite returns 204. Staff and administrators cannot access another customer's favorites. Product changes are reflected in the list; unavailable products remain visible until removed.
+
+Run `php scripts/check-favorites.php` against a dedicated disposable MariaDB server configured with `SCHEMA_TEST_HOST`, `SCHEMA_TEST_PORT`, `SCHEMA_TEST_USER` and `SCHEMA_TEST_PASS` to verify ownership, pagination and idempotent writes. The script creates and removes its own test database.
 
 Customer registration accepts JSON with `firstName`, `lastName`, `email`, `password`, and optional nullable `address`/`phone`. Names are trimmed (1-100 characters); email is trimmed and lowercased (maximum 254 characters). Passwords are 8-72 bytes, are not trimmed, and are stored using bcrypt. Registration always creates an active customer; caller-supplied roles, activation and other unknown fields are rejected. Responses never include passwords or hashes. Successful creation returns 201; malformed/non-object JSON returns 400, duplicate email 409, unsupported/missing Content-Type 415 and invalid fields 422 with `error.details`. JSON is the only implemented customer format. After registering, log in with `POST /api/v1/auth/sessions` (see [Authentication setup](#authentication-setup)).
 
@@ -74,7 +78,7 @@ Run `php scripts/check-catalog-integrity.php` with the SCHEMA_TEST settings abov
 
 ## Security preparation
 
-The [security design](docs/SECURITY_DESIGN.md) and [48-operation permission matrix](docs/SECURITY_ROUTE_MATRIX.md) define intended roles, ownership, account administration and opaque-session behavior for #63. Build 3 implemented that design: login sessions (#45), the shared permission and ownership checks (#46) and the catalog and slot rules (#40), with denial tests in #41, #47 and #52. The matrix now records the enforced rule for every implemented route and marks the 16 planned routes as not yet protected. Link the final reviewed design/commit from the #64 Build 2 manifest before marking #63 Done.
+The [security design](docs/SECURITY_DESIGN.md) and [48-operation permission matrix](docs/SECURITY_ROUTE_MATRIX.md) define intended roles, ownership, account administration and opaque-session behavior for #63. Build 3 implemented that design: login sessions (#45), the shared permission and ownership checks (#46) and the catalog and slot rules (#40), with denial tests in #41, #47 and #52. The matrix records the enforced rule for every implemented route and marks the 13 planned routes as not yet protected.
 
 ## Team responsibilities
 
@@ -165,7 +169,7 @@ Run each migration once. Do not import `schema.sql` or the full seed over existi
 composer start
 ```
 
-Open [the product page](http://localhost:8080/), load the product list, then look up product `101`. In phpMyAdmin, select `foodwell` to inspect the 14 tables and seeded records. The 16 planned endpoints (addresses, favorites, reviews, inventory adjustments) have no PHP implementation yet and return 404 or 405.
+Open [the product page](http://localhost:8080/), load the product list, then look up product `101`. In phpMyAdmin, select `foodwell` to inspect the 14 tables and seeded records. The 13 planned endpoints (addresses, reviews, inventory adjustments) have no PHP implementation yet and return 404 or 405.
 
 For Apache instead, set the site DocumentRoot to `public/`, enable `mod_rewrite`, and allow the supplied `.htaccess`. If using an Apache subfolder URL, set `APP_BASE_PATH` to that URL prefix, such as `/foodwell-api`.
 

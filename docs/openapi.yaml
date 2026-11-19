@@ -2,8 +2,8 @@ openapi: 3.0.3
 info:
   title: Foodwell API
   version: 1.1.0-expanded-contract
-  description: 'Foodwell contract: 48 operations, 32 implemented and 16 planned (tag `planned`,
-    `x-status: planned`; addresses, favorites, reviews and inventory adjustments). Delivery-area
+  description: 'Foodwell contract: 48 operations, 35 implemented and 13 planned (tag `planned`,
+    `x-status: planned`; addresses, reviews and inventory adjustments). Delivery-area
     options combine Zippopotam.us/GeoNames prefix data with configured Foodwell service areas and
     database slot availability. Every implemented operation that lists BearerSession enforces it:
     401 without a working login, 403 for the wrong account or role (see x-access). Security on
@@ -2490,9 +2490,8 @@ paths:
   /customers/{id}/favorites:
     get:
       tags:
-      - planned
       - Favorites
-      x-status: planned
+      x-status: implemented
       operationId: get__customers__id__favorites
       summary: List favorite products
       x-access: owner
@@ -2549,10 +2548,9 @@ paths:
           minimum: 1
           default: 20
           maximum: 100
-      description: Planned bounded pagination, ordered by a stable identifier. Access is checked
-        before rows are returned.
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+      description: Bounded pagination ordered by product ID. Only the owning customer can access favorites; staff and administrators have no exception.
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
     parameters:
     - in: path
       name: id
@@ -2563,11 +2561,10 @@ paths:
   /customers/{id}/favorites/{productId}:
     put:
       tags:
-      - planned
       - Favorites
-      x-status: planned
+      x-status: implemented
       operationId: put__customers__id__favorites__productId_
-      summary: Save or remove a favorite idempotently
+      summary: Save a favorite idempotently
       x-access: owner
       security:
       - BearerSession: []
@@ -2604,8 +2601,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
     parameters:
     - in: path
       name: id
@@ -2621,11 +2618,10 @@ paths:
         minimum: 1
     delete:
       tags:
-      - planned
       - Favorites
-      x-status: planned
+      x-status: implemented
       operationId: delete__customers__id__favorites__productId_
-      summary: Save or remove a favorite idempotently
+      summary: Remove a favorite idempotently
       x-access: owner
       security:
       - BearerSession: []
@@ -2662,8 +2658,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
   /products/{id}/reviews:
     get:
       tags:
@@ -4512,8 +4508,17 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Favorite'
+        metadata:
+          type: object
+          required: [page, limit, total, totalPages]
+          properties:
+            page: {type: integer, minimum: 1}
+            limit: {type: integer, minimum: 1, maximum: 100}
+            total: {type: integer, minimum: 0}
+            totalPages: {type: integer, minimum: 0}
       required:
       - data
+      - metadata
     InventoryAdjustmentList:
       type: object
       properties:
