@@ -40,6 +40,7 @@ Media types: **JSON** `application/json` · **XML** `application/xml` · **YAML*
 | GET | `/customers/{id}/cart` | Sean | JSON only (406) | — |
 | POST, PUT | `/customers/{id}/cart/items[/{itemId}]` | Sean | JSON only (406) | JSON only (415) |
 | DELETE | `/customers/{id}/cart/items/{itemId}` | Sean | 204 no body; errors JSON | — |
+| GET, PUT, DELETE | `/customers/{id}/favorites[/{productId}]` | Sean | JSON only (406); writes return 204 | — |
 | POST | `/auth/sessions` | Sean | JSON only (406) | JSON read whatever the Content-Type; non-JSON is **400** (see exceptions) |
 | GET, DELETE | `/auth/sessions/current` | Sean | JSON only (406) | — |
 | POST | `/orders` | Mohamed | JSON only (406) | JSON only; non-JSON is **422** (see exceptions) |
@@ -48,7 +49,7 @@ Media types: **JSON** `application/json` · **XML** `application/xml` · **YAML*
 | GET | `/customers/{id}/orders`, `/orders/{id}/status-events` | Mohamed | JSON only (406) | — |
 | GET | `/delivery-options` | Sean | JSON only (406) | — |
 
-The 16 planned operations (addresses, favorites, reviews, inventory adjustments) have
+The 13 planned operations (addresses, reviews, inventory adjustments) have
 no routes yet (404/405) and therefore no formats.
 
 ### Exceptions to "415 for a non-JSON body"

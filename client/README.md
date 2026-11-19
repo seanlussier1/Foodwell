@@ -4,6 +4,8 @@
 
 New customers can choose **Sign in → Create an account**, enter their name, email and password, and then sign in. Registration uses the public customer endpoint and does not accept role or activation fields. The form checks matching passwords and displays API validation or duplicate-email errors. Use synthetic accounts when testing locally.
 
+Signed-in customers can save products to favorites from the shop, browse their saved products across pages and remove them. Favorites are private to the owning customer; staff and administrator accounts cannot access another customer's list.
+
 The checkout page is at `/client/shop.html` (or `shop.html` on the separate client server). Sign in as an active customer first; the page uses that account's cart. Browse and search products, add and update cart lines, optionally check a postal area and select an offered window, then enter an address and place an order. The confirmation reads the saved order back. Cart and order routes require the signed-in customer's bearer session and only allow that customer's own cart and orders (or an administrator). Delivery-area lookup is advisory and does not validate the address. A selected window is rechecked for time and capacity at checkout.
 
 See [checkout demonstration and evidence](../docs/CHECKOUT_DEMO.md) for the PHP consumer, concurrent booking check and manifest contribution.

@@ -112,6 +112,7 @@ if (!is_file($autoload)) {
 require $autoload;
 
 use Foodwell\Controllers\AuthController;
+use Foodwell\Controllers\FavoriteController;
 use Foodwell\Security\Authorization;
 use Foodwell\Controllers\ProductController;
 use Foodwell\Controllers\CustomerController;
@@ -197,6 +198,7 @@ try {
     );
 
     $auth = new AuthController(Database::connection());
+    $favorites = new FavoriteController(Database::connection());
     $authorization = new Authorization(Database::connection());
     $router = new Router();
     $router->post(API_PREFIX . '/auth/sessions', [$auth, 'login']);
@@ -212,6 +214,9 @@ try {
     $router->post(API_PREFIX . '/customers/{id}/cart/items', $authorization->protect([$carts, 'add'], 'owner'));
     $router->put(API_PREFIX . '/customers/{id}/cart/items/{itemId}', $authorization->protect([$carts, 'update'], 'owner'));
     $router->delete(API_PREFIX . '/customers/{id}/cart/items/{itemId}', $authorization->protect([$carts, 'remove'], 'owner'));
+    $router->get(API_PREFIX . '/customers/{id}/favorites', $authorization->protect([$favorites, 'index'], 'customer_owner'));
+    $router->put(API_PREFIX . '/customers/{id}/favorites/{productId}', $authorization->protect([$favorites, 'save'], 'customer_owner'));
+    $router->delete(API_PREFIX . '/customers/{id}/favorites/{productId}', $authorization->protect([$favorites, 'remove'], 'customer_owner'));
 
     $router->get(API_PREFIX . '/delivery-options', [$deliveryOptions, 'index']);
 

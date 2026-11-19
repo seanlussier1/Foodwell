@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const prefix = location.pathname.includes('/client') ? location.pathname.split('/client')[0] : '';
 const base = window.foodwellAuth.base();
-let customer = null, page = 1, pages = 0, busy = false;
+let customer = null, page = 1, pages = 0, busy = false, favoritesPage = 1, favoritesPages = 0;
 function message(text, error = false) { const el = $('feedback'); el.hidden = false; el.classList.toggle('error', error); el.textContent = text; }
 async function request(path, options = {}) {
   const headers = {'Accept':'application/json', ...window.foodwellAuth.headers(base + path), ...(options.body ? {'Content-Type':'application/json'} : {})};
@@ -21,9 +21,26 @@ async function loadProducts() {
     const out = $('products'); out.replaceChildren();
     if (!result.data.length) out.append(element('p','No products found.'));
     for (const p of result.data) { const row = document.createElement('div'); row.className = 'slot-card'; row.append(element('p',`${p.name} · $${p.price.toFixed(2)} / ${p.unit} · ${p.stock} available`)); const add = button(`Add ${p.name} to cart`, async () => { if (!customer) { if (!window.foodwellAuth.customer()) window.foodwellAuth.navigate('signin'); else message('Choose a customer cart first.',true); return; } add.disabled=true; try { await request(`/customers/${customer}/cart/items`,{method:'POST',body:{productId:p.id,quantity:1}}); await loadCart(); message(`${p.name} added to cart.`); } catch(e) {message(e.message,true);} finally {add.disabled=false;} }); add.disabled = !p.isActive || p.stock < 1; row.append(add); out.append(row); }
+    for (const [index, p] of result.data.entries()) { const save = button(`Save ${p.name} to favorites`, async () => { const account = window.foodwellAuth.customer(); if (!account) { window.foodwellAuth.navigate('signin'); return; } if (account.role !== 'customer') { message('Sign in as a customer to save favorites.', true); return; } save.disabled = true; try { await request(`/customers/${account.id}/favorites/${p.id}`, {method:'PUT'}); favoritesPage = 1; await loadFavorites(); message(`${p.name} saved to favorites.`); } catch(e) { message(e.message, true); } finally { save.disabled = false; } }); out.children[index].append(save); }
     $('page').textContent = pages ? `Page ${page} of ${pages}` : 'No results'; $('previous').disabled=page<=1; $('next').disabled=page>=pages;
   } catch(e) { $('products').replaceChildren(element('p','Products could not be loaded.')); message(e.message,true); }
 }
+async function loadFavorites() {
+  const account = window.foodwellAuth.customer();
+  const out = $('favorites');
+  if (!account || account.role !== 'customer') { out.replaceChildren(element('p', 'Sign in as a customer to view your favorites.')); $('favorites-page').textContent = ''; $('favorites-previous').disabled = $('favorites-next').disabled = true; return; }
+  const result = await request(`/customers/${account.id}/favorites?page=${favoritesPage}&limit=10`);
+  if (window.foodwellAuth.customer()?.id !== account.id) return;
+  favoritesPages = result.metadata.totalPages;
+  if (favoritesPages && favoritesPage > favoritesPages) { favoritesPage = favoritesPages; return loadFavorites(); }
+  out.replaceChildren();
+  if (!result.data.length) out.append(element('p', 'No favorites saved yet.'));
+  for (const favorite of result.data) { const row = document.createElement('div'); row.className = 'slot-card'; row.append(element('p', `${favorite.product.name} · $${favorite.product.price.toFixed(2)} / ${favorite.product.unit}${favorite.product.isActive ? '' : ' · unavailable'}`)); const remove = button(`Remove ${favorite.product.name} from favorites`, async () => { remove.disabled = true; try { await request(`/customers/${account.id}/favorites/${favorite.productId}`, {method:'DELETE'}); await loadFavorites(); message('Favorite removed.'); } catch(e) { message(e.message, true); } finally { remove.disabled = false; } }); row.append(remove); out.append(row); }
+  $('favorites-page').textContent = favoritesPages ? `Page ${favoritesPage} of ${favoritesPages}` : 'No favorites';
+  $('favorites-previous').disabled = favoritesPage <= 1; $('favorites-next').disabled = favoritesPage >= favoritesPages;
+}
+$('favorites-previous').onclick = () => { if (favoritesPage > 1) { favoritesPage--; loadFavorites().catch(e => message(e.message, true)); } };
+$('favorites-next').onclick = () => { if (favoritesPage < favoritesPages) { favoritesPage++; loadFavorites().catch(e => message(e.message, true)); } };
 async function loadCart() {
   const cart = await request(`/customers/${customer}/cart`); const out=$('cart'); out.replaceChildren();
   if (!cart.items.length) out.append(element('p','Your cart is empty.'));
@@ -39,8 +56,9 @@ $('delivery-form').onsubmit=async e=>{e.preventDefault(); const select=$('slot')
 $('checkout-form').onsubmit=async e=>{e.preventDefault(); if(busy)return; if(!customer){if(!window.foodwellAuth.customer()) window.foodwellAuth.navigate('signin'); else message('Choose a customer cart first.',true); return;} busy=true; $('checkout').disabled=true; $('confirmation').replaceChildren(); try {const body={customerId:customer,deliveryAddress:$('address').value.trim()}; if($('slot').value) body.deliverySlotId=Number($('slot').value); const created=await request('/orders',{method:'POST',body}); let order; let warning=''; try {order=await request(`/orders/${created.id}`);} catch(err){order=created; warning=`Order #${created.id} was created, but read-back failed: ${err.message}`;} const out=$('confirmation'); out.append(element('h3',`Order #${order.id} confirmed`),element('p',`Status: ${order.status} · Total: $${order.total.toFixed(2)}`),element('p',`Deliver to: ${order.deliveryAddress}`)); if(order.deliverySlotId !== null) out.append(element('p',`Delivery window #${order.deliverySlotId}`)); for(const item of order.items) out.append(element('p',`${item.productName} · ${item.quantity} × $${item.unitPrice.toFixed(2)}`)); $('slot').replaceChildren(new Option('No window selected','')); $('delivery-message').textContent='Check delivery windows again for current availability.'; try {await loadCart(); await loadProducts();} catch(err){warning=`Order #${created.id} was created, but the cart could not be refreshed: ${err.message}`;} message(warning || `Order #${order.id} placed and read back.`,!!warning); } catch(err){message(err.message,true);} finally {busy=false; $('checkout').disabled=false;}};
 loadProducts();
 
-window.addEventListener('foodwell-auth-change', () => { customer = null; const account = window.foodwellAuth.customer(); $('customer-form').hidden = account?.role !== 'admin'; if (account?.role === 'customer') { $('customer-id').value = account.id; customer = account.id; loadCart().catch(e => message(e.message,true)); } else { $('cart').replaceChildren(element('p', account ? 'Choose a customer cart.' : 'Sign in to view your cart.')); } });
+window.addEventListener('foodwell-auth-change', () => { customer = null; favoritesPage = 1; loadFavorites().catch(e => message(e.message, true)); const account = window.foodwellAuth.customer(); $('customer-form').hidden = account?.role !== 'admin'; if (account?.role === 'customer') { $('customer-id').value = account.id; customer = account.id; loadCart().catch(e => message(e.message,true)); } else { $('cart').replaceChildren(element('p', account ? 'Choose a customer cart.' : 'Sign in to view your cart.')); } });
 const activeAccount = window.foodwellAuth.customer();
 $('customer-form').hidden = activeAccount?.role !== 'admin';
 if (activeAccount?.role === 'customer') { customer = activeAccount.id; $('customer-id').value = customer; loadCart().catch(error => message(error.message, true)); }
 else { $('cart').replaceChildren(element('p', activeAccount ? 'Choose a customer cart.' : 'Sign in to view your cart.')); }
+loadFavorites().catch(error => message(error.message, true));

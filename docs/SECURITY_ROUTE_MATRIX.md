@@ -145,10 +145,9 @@ Resource owner: **Sean**.
 
 | Method | Path | Who should be allowed | What works today | Important check |
 |---|---|---|---|---|
-
-| GET | `/customers/{id}/favorites` | Customer owner only | Not implemented yet | Only the customer who owns these favorites; no automatic admin exception. |
-| PUT | `/customers/{id}/favorites/{productId}` | Customer owner only | Not implemented yet | Only the customer who owns these favorites; no automatic admin exception. |
-| DELETE | `/customers/{id}/favorites/{productId}` | Customer owner only | Not implemented yet | Only the customer who owns these favorites; no automatic admin exception. |
+| GET | `/customers/{id}/favorites` | Customer owner only | Enforced | Only the customer who owns these favorites; no automatic admin exception. |
+| PUT | `/customers/{id}/favorites/{productId}` | Customer owner only | Enforced | Only the customer who owns these favorites; no automatic admin exception. |
+| DELETE | `/customers/{id}/favorites/{productId}` | Customer owner only | Enforced | Only the customer who owns these favorites; no automatic admin exception. |
 
 
 ## Product reviews
