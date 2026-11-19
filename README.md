@@ -6,6 +6,12 @@ Foodwell is a PHP/MariaDB REST API for an online grocery store. Customers browse
 
 ## Current status
 
+### Continuous integration
+
+Pushes to `main` and pull requests targeting `main` run the GitHub Actions workflow on PHP 8.0 and 8.2 with an isolated MariaDB service. It installs locked Composer and npm dependencies, then runs unit, client-session, Newman, schema/upgrade, authentication, authorization, domain, representation and concurrency checks. The suite uses synthetic data and delivery-provider doubles; it does not verify a live provider, deployed environment or every manual browser flow.
+
+To run the integration suite locally, use a **dedicated disposable MariaDB server** with permission to create and drop databases. Set `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS` and the corresponding `SCHEMA_TEST_HOST`, `SCHEMA_TEST_PORT`, `SCHEMA_TEST_USER`, `SCHEMA_TEST_PASS`, then set `FOODWELL_DISPOSABLE_TESTS=1` and run `composer test:integration`. The original product regression resets `DB_NAME` and `foodwell_empty`; never point the suite at shared or production data. Run `composer test:unit` and `node --test tests/client/*.test.js` separately. Individual scripts remain available for focused work.
+
 The database has **14 tables** and the [OpenAPI contract](docs/openapi.yaml) documents **48 operations** with all **48 implemented**.
 
 Implemented features include products, categories, delivery slots, delivery-area lookup, customer accounts, saved addresses, favorites, product reviews, inventory adjustments, carts, checkout and order history. Protected routes require a bearer session and return **401** without a working login or **403** for the wrong account or role. See the [permission matrix](docs/SECURITY_ROUTE_MATRIX.md).
