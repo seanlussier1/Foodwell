@@ -18,6 +18,9 @@ final class ProductController
     private const MAX_SEARCH = 100;
     private const MAX_ID = 4294967295;
 
+    // The only query parameters GET /products understands.
+    private const QUERY_KEYS = ['category', 'search', 'sort', 'page', 'limit'];
+
     public function __construct(private ProductRepository $products)
     {
     }
@@ -170,6 +173,20 @@ final class ProductController
     {
         $problems = [];
 
+        // Before reading $_GET, look at the raw query string. $_GET hides two
+        // mistakes from us:
+        //   - a repeated key (?sort=price&sort=name) only keeps the LAST value
+        //   - a misspelled key (?Sort=price) is simply ignored
+        // Either way the client would get results it didn't ask for, with a
+        // 200, so we refuse both with a 400 instead (#41).
+        foreach (self::rawQueryKeyCounts() as $key => $count) {
+            if (!in_array($key, self::QUERY_KEYS, true)) {
+                $problems[] = "Unknown query parameter \"$key\" (allowed: " . implode(', ', self::QUERY_KEYS) . ').';
+            } elseif ($count > 1) {
+                $problems[] = "$key was given $count times; give it only once.";
+            }
+        }
+
         $given = static fn(string $key): bool => array_key_exists($key, $get) && $get[$key] !== '';
 
         $wholeNumber = static function (string $key, int $min, int $max) use ($get, &$problems): ?int {
@@ -219,6 +236,30 @@ final class ProductController
             ],
             $problems
         ];
+    }
+
+    /**
+     * Counts how many times each key appears in the raw query string.
+     * Example: "sort=price&sort=name&page=2" gives ['sort' => 2, 'page' => 1].
+     *
+     * A key written like "sort[]" (PHP's array syntax) is counted as "sort",
+     * so "?sort[]=a&sort[]=b" is caught as a repeat too.
+     *
+     * @return array<string,int>
+     */
+    private static function rawQueryKeyCounts(): array
+    {
+        $counts = [];
+        foreach (explode('&', (string) ($_SERVER['QUERY_STRING'] ?? '')) as $piece) {
+            if ($piece === '') {
+                continue;   // e.g. the empty bit in "?page=1&&limit=5"
+            }
+            $name = urldecode(explode('=', $piece, 2)[0]);
+            $bracket = strpos($name, '[');
+            $key = $bracket === false ? $name : substr($name, 0, $bracket);
+            $counts[$key] = ($counts[$key] ?? 0) + 1;
+        }
+        return $counts;
     }
 
     private function pageLink(array $query, int $page): string
