@@ -1,0 +1,100 @@
+PASS: API test server starts
+PASS: login returns a fresh opaque token
+PASS: login is not cached and contains no password hash
+PASS: database stores only token digest
+PASS: current session returns no token and is not cached
+PASS: missing and malformed tokens rejected
+PASS: duplicate email registration returns 409
+PASS: duplicate email registration exposes no secrets
+PASS: duplicate email registration leaves resource records unchanged
+PASS: wrong password and unknown email return the same generic 401
+PASS: failed login attempts leave resource records unchanged
+PASS: missing token profile write returns 401
+PASS: missing token profile write includes bearer challenge
+PASS: missing token profile write exposes no secrets
+PASS: missing token profile write leaves resource records unchanged
+PASS: malformed token profile write returns 401
+PASS: malformed token profile write includes bearer challenge
+PASS: malformed token profile write exposes no secrets
+PASS: malformed token profile write leaves resource records unchanged
+PASS: unknown token profile write returns 401
+PASS: unknown token profile write includes bearer challenge
+PASS: unknown token profile write exposes no secrets
+PASS: unknown token profile write leaves resource records unchanged
+PASS: expired token profile write returns 401
+PASS: expired token profile write includes bearer challenge
+PASS: expired token profile write exposes no secrets
+PASS: expired token profile write leaves resource records unchanged
+PASS: revoked token cart write returns 401
+PASS: revoked token cart write includes bearer challenge
+PASS: revoked token cart write exposes no secrets
+PASS: revoked token cart write leaves resource records unchanged
+PASS: inactive account cart write returns 401
+PASS: inactive account cart write includes bearer challenge
+PASS: inactive account cart write exposes no secrets
+PASS: inactive account cart write leaves resource records unchanged
+PASS: cross-user profile write returns 403
+PASS: cross-user profile write exposes no secrets
+PASS: cross-user profile write leaves resource records unchanged
+PASS: cross-user cart addition returns 403
+PASS: cross-user cart addition exposes no secrets
+PASS: cross-user cart addition leaves resource records unchanged
+PASS: cross-user cart item update returns 403
+PASS: cross-user cart item update exposes no secrets
+PASS: cross-user cart item update leaves resource records unchanged
+PASS: cross-user cart item removal returns 403
+PASS: cross-user cart item removal exposes no secrets
+PASS: cross-user cart item removal leaves resource records unchanged
+PASS: customer role deactivation returns 403
+PASS: customer role deactivation exposes no secrets
+PASS: customer role deactivation leaves resource records unchanged
+PASS: foreign item in authorized cart scope returns 404
+PASS: foreign item in authorized cart scope exposes no secrets
+PASS: foreign item in authorized cart scope leaves resource records unchanged
+PASS: foreign item removal in authorized cart scope returns 404
+PASS: foreign item removal in authorized cart scope exposes no secrets
+PASS: foreign item removal in authorized cart scope leaves resource records unchanged
+PASS: role injection in own profile returns 422
+PASS: role injection in own profile exposes no secrets
+PASS: role injection in own profile leaves resource records unchanged
+PASS: owner injection in cart body returns 422
+PASS: owner injection in cart body exposes no secrets
+PASS: owner injection in cart body leaves resource records unchanged
+PASS: profile rejects anonymous access
+PASS: customer can read own profile
+PASS: customer cannot read another profile
+PASS: customer cannot list accounts
+PASS: customer can read own cart
+PASS: customer cannot read another cart
+PASS: customer can update own cart within authorized transaction
+PASS: missing cart item remains scoped to the customer
+PASS: cross-user cart write is denied without changes
+PASS: staff profile write for another customer returns 403
+PASS: staff profile write for another customer exposes no secrets
+PASS: staff profile write for another customer leaves resource records unchanged
+PASS: staff may list customers but cannot read another profile
+PASS: administrator has explicit profile and cart access
+PASS: cross-user checkout returns 403
+PASS: cross-user checkout exposes no secrets
+PASS: cross-user checkout leaves resource records unchanged
+PASS: customer category mutation returns 403
+PASS: customer category mutation exposes no secrets
+PASS: customer category mutation leaves resource records unchanged
+PASS: customer product mutation returns 403
+PASS: customer product mutation exposes no secrets
+PASS: customer product mutation leaves resource records unchanged
+PASS: order detail is restricted to owner or administrator
+PASS: staff cannot read order detail but administrator can
+PASS: checkout rejects a different customerId
+PASS: customer cannot create categories
+PASS: staff can create categories
+PASS: customer cannot write products
+PASS: staff reaches product validation
+PASS: owner can complete checkout in the authorized transaction
+PASS: logout revokes session
+PASS: independent login issues a different token
+PASS: expired sessions rejected by session and private routes
+PASS: deactivated account invalidates existing session
+PASS: inactive and unknown accounts return same error
+PASS: repeated failures are throttled with retry time
+PASS: server log contains neither token nor password

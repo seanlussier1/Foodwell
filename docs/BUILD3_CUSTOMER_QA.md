@@ -4,8 +4,8 @@ This handoff supports the team QA plan (#66) and clean-checkout verification (#6
 
 ## Tested snapshot and environment
 
-- Base: `102a8d1e26f8a6b6a933043d622bcb00890f7955` (main, PR #98), plus the regression and PHP 8.0 compatibility changes in this branch. Record the final merged commit separately for the release candidate.
-- Local run: November 18, 2026, Windows, PHP 8.0.30, MariaDB 11.4.9 and Node 24.11.1. The PHP and Node dependencies were reused from an existing local installation whose lockfiles match this snapshot; this run is not evidence of a fresh dependency installation.
+- Tested commit: `f01c5da1710c9dd6ac7aa66aad98a2b9950e2bad`, based on main `102a8d1e26f8a6b6a933043d622bcb00890f7955` (PR #98). Record the final merged commit separately for the release candidate.
+- Local run: November 18, 2026, Windows, PHP 8.0.30, MariaDB 11.4.9 and Node 24.11.1. A fresh isolated checkout of the tested commit installed PHP dependencies with `composer install` and Node dependencies with `npm ci`; the final full-suite results below came from that checkout.
 - All databases were on a dedicated local MariaDB instance initialized for QA. The checks that create databases use synthetic schema and seed data. The original product check resets `foodwell_qa_main` and `foodwell_empty` on that dedicated instance; do not point it at a shared or production server. Separate random test databases were dropped by the scripts.
 - Postal provider behavior in the automated suite and the browser rehearsal used clearly labeled doubles or `demo-success`; no live provider or deployed environment was tested.
 
@@ -27,7 +27,9 @@ This handoff supports the team QA plan (#66) and clean-checkout verification (#6
 | `php scripts/check-catalog-authorization.php` | Pass: 250 checks. |
 | `php scripts/check-order-concurrency.php` | Pass: competing checkouts and deactivation/cart-write races. |
 
-The first PHP 8.0 regression run also exposed first-class-callable syntax in `OrderRepository` that requires PHP 8.1, even though Composer declares PHP >=8.0. The equivalent closure in this branch restores PHP 8.0 parsing; the successful HTTP and order retests above ran with PHP 8.0.30. Review with the order owner.
+Bug [#100](https://github.com/seanlussier1/Foodwell/issues/100) tracks the stale customer/cart test harnesses. The first PHP 8.0 regression run also exposed first-class-callable syntax in `OrderRepository` that requires PHP 8.1, even though Composer declares PHP >=8.0. Bug [#99](https://github.com/seanlussier1/Foodwell/issues/99) tracks this compatibility failure. The equivalent closure in this branch restores PHP 8.0 parsing; the successful HTTP and order retests above ran with PHP 8.0.30. Review with the order owner.
+
+The 14 clean-checkout exit codes and command output are saved in [the QA evidence folder](qa/issue-49/results.json). The earlier failing run is described above; the evidence files contain the passing retest on the committed snapshot.
 
 ## Browser rehearsal
 
@@ -50,4 +52,4 @@ This was a local browser rehearsal, not a live provider request or an assertion 
 
 ## Remaining work
 
-The agreed release-candidate SHA, clean dependency install, full team peer testing and deployment validation remain to be established under #66/#67. #47 still needs its cross-team security evidence formally linked, and deferred representation work remains tracked under #65. Later defects and the November 27 QA report/retests must use their actual snapshots.
+The agreed release-candidate SHA, full team peer testing and deployment validation remain to be established under #66/#67. #47 still needs its cross-team security evidence formally linked, and deferred representation work remains tracked under #65. Later defects and the November 27 QA report/retests must use their actual snapshots.
