@@ -83,8 +83,9 @@ and a wrong method is still 405, whatever the Accept header says.
 Details: the most specific matching range sets the quality (`application/xml` beats
 `application/*` beats `*/*`). Parameters other than `q` (such as `charset`) are
 ignored. An invalid `q` value makes that one entry ignored. Successful negotiated
-responses send `Vary: Accept`. Responses always name the main media type
-(`application/xml`, `application/yaml`) with `; charset=utf-8`, even when an alias was requested.
+responses send `Vary: Accept`. Responses use the negotiated media type, including
+an accepted alias such as `text/xml`, with `; charset=utf-8`. Each alias is
+evaluated independently, so excluding one media type does not exclude another.
 
 Opening a catalog URL directly in a browser shows XML, because browsers prefer XML
 over `*/*`. Clients that want JSON send `Accept: application/json` (the dashboard,

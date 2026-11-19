@@ -30,6 +30,7 @@ async function request(path, { method = 'GET', body, signal } = {}) {
   let response;
   try { response = await fetch(`${base()}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal }); }
   catch (error) { if (error.name === 'AbortError') throw error; throw new Error('Cannot reach the API. Check the API URL, Wamp/server and CORS settings.'); }
+  window.foodwellAuth.checkResponse(response, headers.Authorization);
   let result;
   try { result = await response.json(); } catch { throw new Error(`HTTP ${response.status}: the API did not return JSON. Check the API URL and server.`); }
   if (!response.ok) {

@@ -64,6 +64,7 @@ async function request(target, { method = "GET", body } = {}) {
     error.line = `${line} → no response`;
     throw error;
   }
+  window.foodwellAuth.checkResponse(response, headers.Authorization);
   let result = null;
   if (response.status !== 204) {
     try {

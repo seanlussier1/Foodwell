@@ -9,7 +9,7 @@ final class Negotiation
     public const XML = 'application/xml';
     public const YAML = 'application/yaml';
 
-    /** Other names clients use for the same formats. We always answer with the main name. */
+    /** Supported media types for each serializer, in server preference order. */
     private const ALIASES = [
         self::JSON => [self::JSON],
         self::XML => [self::XML, 'text/xml'],
@@ -27,12 +27,13 @@ final class Negotiation
         $bestQ = 0.0;
         $bestPosition = PHP_INT_MAX;
         foreach ($available as $type) {
-            [$q, $position] = self::quality($type, $ranges);
-            // Strictly better quality, or same quality but listed earlier by the client.
-            if ($q > $bestQ || ($q === $bestQ && $q > 0 && $position < $bestPosition)) {
-                $best = $type;
-                $bestQ = $q;
-                $bestPosition = $position;
+            foreach (self::ALIASES[$type] ?? [$type] as $name) {
+                [$q, $position] = self::quality($name, $ranges);
+                if ($q > $bestQ || ($q === $bestQ && $q > 0 && $position < $bestPosition)) {
+                    $best = $name;
+                    $bestQ = $q;
+                    $bestPosition = $position;
+                }
             }
         }
         return $best;
@@ -67,24 +68,30 @@ final class Negotiation
         }
         return $ranges;
     }
-    private static function quality(string $type, array $ranges): array
+    public static function format(string $mediaType): string
+    {
+        foreach (self::ALIASES as $format => $names) {
+            if (in_array($mediaType, $names, true)) return $format;
+        }
+        return $mediaType;
+    }
+
+    private static function quality(string $name, array $ranges): array
     {
         $bestSpecificity = -1;
         $result = [0.0, PHP_INT_MAX];
 
-        foreach (self::ALIASES[$type] ?? [$type] as $name) {
-            [$main, $sub] = explode('/', $name, 2);
-            foreach ($ranges as [$rMain, $rSub, $q, $position]) {
-                $specificity = match (true) {
-                    $rMain === $main && $rSub === $sub => 2,   // exact: application/xml
-                    $rMain === $main && $rSub === '*' => 1,   // application/*
-                    $rMain === '*' => 0,   // */*
-                    default => -1,  // no match
-                };
-                if ($specificity > $bestSpecificity) {
-                    $bestSpecificity = $specificity;
-                    $result = [$q, $position];
-                }
+        [$main, $sub] = explode('/', $name, 2);
+        foreach ($ranges as [$rMain, $rSub, $q, $position]) {
+            $specificity = match (true) {
+                $rMain === $main && $rSub === $sub => 2,   // exact: application/xml
+                $rMain === $main && $rSub === '*' => 1,   // application/*
+                $rMain === '*' => 0,   // */*
+                default => -1,  // no match
+            };
+            if ($specificity > $bestSpecificity) {
+                $bestSpecificity = $specificity;
+                $result = [$q, $position];
             }
         }
         return $result;
