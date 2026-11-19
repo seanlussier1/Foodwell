@@ -32,7 +32,7 @@ Audit of `docs/openapi.yaml`, the README, the route matrix and the older client/
 
 ## Gaps found (not fixed by this pass)
 
-1. **`scripts/checkout-client.php` no longer works.** It never logs in, so since #46 its cart request returns 401 (`POST /customers/8/cart/items -> HTTP 401`, observed in this audit). It needs a login step (for example email/password arguments and a bearer header). Owner: Mohamed.
+1. **Resolved PHP checkout consumer authentication.** The audit observed HTTP 401 on the cart request after #46. The client now signs in and sends a bearer token for cart and order requests. Checkout and order read-back were verified against disposable MariaDB. See the [authenticated checkout demo](CHECKOUT_DEMO.md#authenticated-php-checkout-demonstration).
 2. **XML/YAML beyond product reads** stays deferred in the [representation matrix](REPRESENTATION_MATRIX.md) and is tracked by #65.
 3. **16 planned operations** (addresses, favorites, reviews, inventory adjustments) are contract only. Their routes return 404/405, and their security is the intended design, not enforcement.
 4. Minor items from [the catalog integrity run](CATALOG_INTEGRITY.md): category POST ignores unknown fields and has no `Location` header; very large product ids show a clamped id in the 404 message; `HEAD` returns 405.
