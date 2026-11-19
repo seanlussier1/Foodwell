@@ -19,3 +19,12 @@ label.check{display:flex;gap:8px;align-items:center;font-weight:400;color:#65786
 
 [hidden]{display:none !important}
 /* Inventory adjustments panel (products page) */.stock-panel{border-top:1px solid var(--border);margin-top:26px;padding-top:18px}.stock-panel .muted strong{color:#193c36}.stock-preview{font-size:13px;font-weight:650;color:var(--green);min-height:20px;margin:6px 0 0}.stock-preview.invalid{color:#a23b25}.history-title{margin-top:22px}.history{min-height:0}.history td{padding:10px 5px;font-size:12px}.change-up{color:#2f7a45;font-weight:700}.change-down{color:#a23b25;font-weight:700}
+.shop-section{margin:24px 0;padding-top:20px;border-top:1px solid var(--border)}
+.shop-editor{margin-top:16px;padding:14px;border:1px solid var(--border);border-radius:8px}
+.shop-editor summary{color:var(--green);font-weight:650;cursor:pointer}
+.shop-editor label{margin-top:10px}
+.shop-editor textarea{display:block;width:100%;margin-top:5px;padding:10px;border:1px solid #cdd8cd;border-radius:6px;font:inherit;color:inherit;resize:vertical}
+.shop-editor textarea:focus-visible{outline:3px solid #8bbd9d;outline-offset:3px}
+.shop-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.review-comment{white-space:pre-wrap;overflow-wrap:anywhere}
+#products .slot-card button{margin:6px 8px 0 0}

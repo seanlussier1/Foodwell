@@ -6,7 +6,9 @@ New customers can choose **Sign in → Create an account**, enter their name, em
 
 Signed-in customers can save products to favorites from the shop, browse their saved products across pages and remove them. Favorites are private to the owning customer; staff and administrator accounts cannot access another customer's list.
 
-The checkout page is at `/client/shop.html` (or `shop.html` on the separate client server). Sign in as an active customer first; the page uses that account's cart. Browse and search products, add and update cart lines, optionally check a postal area and select an offered window, then enter an address and place an order. The confirmation reads the saved order back. Cart and order routes require the signed-in customer's bearer session and only allow that customer's own cart and orders (or an administrator). Delivery-area lookup is advisory and does not validate the address. A selected window is rechecked for time and capacity at checkout.
+The checkout page is at `/client/shop.html` (or `shop.html` on the separate client server). Sign in as an active customer to use that account's cart. Browse products, add or update cart lines, and optionally check a postal area and select a delivery window. In **Saved addresses**, add, edit or delete an address. At checkout, choose a saved address or enter one manually. Checkout rechecks window capacity and records a copy of the address on the order. The confirmation reads back the saved order.
+
+Choose **View reviews** on a product to read its reviews. Signed-in customers can submit one review per product and edit or delete their own reviews. Administrators can delete reviews for moderation.
 
 See [checkout demonstration and evidence](../docs/CHECKOUT_DEMO.md) for the PHP consumer, concurrent booking check and manifest contribution.
 
