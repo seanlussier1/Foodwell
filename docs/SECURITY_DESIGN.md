@@ -6,7 +6,7 @@ Owner: Sean (@seanlussier1). Required resource reviews: Will (@Wlszn) and Mohame
 
 **Implementation update (#45):** Login, current-session and logout are implemented. This document describes the earlier design snapshot.
 
-**Status at the #43 documentation audit (November 18, 2026):** the design is implemented for every existing route. Sessions (#45), permission and ownership checks (#46) and catalog/slot rules (#40) are enforced, and the old demo flags no longer bypass them. Section 2 below is kept as the Build 2 history. For the current rule of each route, see the [route matrix](SECURITY_ROUTE_MATRIX.md); the 16 planned routes (addresses, favorites, reviews, inventory adjustments) do not exist yet and must apply this design when built.
+**Status at the #43 documentation audit (November 18, 2026):** the design is implemented for every existing route. Sessions (#45), permission and ownership checks (#46) and catalog/slot rules (#40) are enforced, and the old demo flags no longer bypass them. Section 2 below is kept as the Build 2 history. For the current rule of each route, see the [route matrix](SECURITY_ROUTE_MATRIX.md); the 10 planned routes (addresses, reviews) do not exist yet and must apply this design when built.
 
 ## How to read this plan
 
@@ -150,7 +150,7 @@ Client errors remain generic; detailed stack traces stay out of responses. Logs 
 |---|---|
 | [#45](https://github.com/seanlussier1/Foodwell/issues/45) / Sean | Login/session creation, digest-only storage, generic errors, expiry/revocation/inactivity, rate limiter, current-session/logout and token handling; matching OpenAPI schemas/statuses and any limiter migration |
 | [#46](https://github.com/seanlussier1/Foodwell/issues/46) / Sean + all route owners | Shared identity/permission helpers; apply this matrix to every private route; remove/disable local bypass in secured configuration; enforce category writes as staff/admin |
-| [#40](https://github.com/seanlussier1/Foodwell/issues/40) / Will | Catalog/slot/inventory role enforcement, actor binding and resource-specific denial tests. Status: product, category and slot writes enforce staff/admin and are tested by `scripts/check-catalog-authorization.php`; inventory-adjustment routes are still planned and must use the same check (and record the acting account) when built. |
+| [#40](https://github.com/seanlussier1/Foodwell/issues/40) / Will | Catalog/slot/inventory role enforcement, actor binding and resource-specific denial tests. Status: product, category and slot writes enforce staff/admin and are tested by `scripts/check-catalog-authorization.php`; inventory-adjustment routes use the same check, record the acting account from the session and are tested by `scripts/check-inventory-adjustments.php`. |
 | [#47](https://github.com/seanlussier1/Foodwell/issues/47) / Sean | Missing/malformed/unknown/expired/revoked tokens, inactive accounts, wrong roles, cross-user profile/cart/nested IDs, invalid/duplicate inputs and unchanged data after rejection |
 | #41/#42 / Will; #52/#53 / Mohamed | Catalog/category/order ownership and role cases, transactional actor binding, rollback, deactivation races, repeat mutations and unchanged state evidence |
 | #48 / Sean | Automate representative validation/auth/permission checks through PHPUnit/Newman; existing local-demo tests are not identity tests |

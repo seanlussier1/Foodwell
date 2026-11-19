@@ -2,8 +2,8 @@ openapi: 3.0.3
 info:
   title: Foodwell API
   version: 1.1.0-expanded-contract
-  description: 'Foodwell contract: 48 operations, 35 implemented and 13 planned (tag `planned`,
-    `x-status: planned`; addresses, reviews and inventory adjustments). Delivery-area
+  description: 'Foodwell contract: 48 operations, 38 implemented and 10 planned (tag `planned`,
+    `x-status: planned`; addresses and reviews). Delivery-area
     options combine Zippopotam.us/GeoNames prefix data with configured Foodwell service areas and
     database slot availability. Every implemented operation that lists BearerSession enforces it:
     401 without a working login, 403 for the wrong account or role (see x-access). Security on
@@ -27,7 +27,7 @@ tags:
 - name: Reviews
   description: Planned expanded resource
 - name: Inventory
-  description: Planned expanded resource
+  description: Implemented expanded resource (staff/admin audit log of manual stock changes)
 - name: Order history
   description: Implemented expanded resource
 paths:
@@ -2922,9 +2922,8 @@ paths:
   /products/{id}/inventory-adjustments:
     get:
       tags:
-      - planned
       - Inventory
-      x-status: planned
+      x-status: implemented
       operationId: get__products__id__inventory_adjustments
       summary: List manual inventory adjustments
       x-access: staff_or_admin
@@ -2945,12 +2944,6 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           description: Resource not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Resource conflict
           content:
             application/json:
               schema:
@@ -2981,10 +2974,12 @@ paths:
           minimum: 1
           default: 20
           maximum: 100
-      description: Planned bounded pagination, ordered by a stable identifier. Access is checked
-        before rows are returned.
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+      description: One product's adjustment history, newest first (ordered by id, so pages are
+        stable). page defaults to 1 and limit to 20 (maximum 100); any other query parameter, or
+        an invalid value, gives 400. An unknown product gives 404; a product with no history gives
+        an empty 200 list. Requires a staff or administrator login.
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
     parameters:
     - in: path
       name: id
@@ -2994,23 +2989,35 @@ paths:
         minimum: 1
     post:
       tags:
-      - planned
       - Inventory
-      x-status: planned
+      x-status: implemented
       operationId: post__products__id__inventory_adjustments
       summary: Record a manual stock adjustment atomically
+      description: The only way to change stock after a product is created. The product row is
+        locked, its stock is changed and the audit row is written in one transaction, so
+        parallel adjustments never lose an update. actorId is the signed-in account and
+        stockBefore/stockAfter are calculated by the server; sending them (or any other unknown
+        field) gives 422. A restock must be positive, damage must be negative and a correction
+        may go either way. The change must keep stock between 0 and 1000000, otherwise 409 and
+        nothing is saved. Works on inactive products too. Adjustments cannot be edited or
+        deleted (no PUT/PATCH/DELETE routes, 405); fix a mistake with a new correction.
       x-access: staff_or_admin
       security:
       - BearerSession: []
       responses:
         '201':
-          description: Success
+          description: Adjustment recorded and product stock changed
+          headers:
+            Location:
+              description: Path of the new adjustment, e.g. /api/v1/inventory-adjustments/2
+              schema:
+                type: string
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/InventoryAdjustment'
         '400':
-          description: Invalid input
+          description: Malformed JSON, or the body is not a JSON object
           content:
             application/json:
               schema:
@@ -3022,11 +3029,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '409':
-          description: Resource conflict
+          description: The change would take stock below 0 or above 1000000; nothing is saved
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '415':
+          description: Content-Type is not application/json
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Invalid fields (error.details names each one); nothing is saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  status: 422
+                  message: Validation failed.
+                  details:
+                    quantityChange: Damage removes stock, so quantityChange must be negative.
+                  requestId: 3f2a9c4e1b7d4a6f8e0c5b2d9a1f7e3c
         '401':
           description: Missing, expired, revoked or invalid session
           content:
@@ -3045,16 +3071,16 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/InventoryAdjustmentInput'
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
   /inventory-adjustments/{adjustmentId}:
     get:
       tags:
-      - planned
       - Inventory
-      x-status: planned
+      x-status: implemented
       operationId: get__inventory_adjustments__adjustmentId_
       summary: Read an inventory adjustment
+      description: Requires a staff or administrator login. Unknown id gives 404.
       x-access: staff_or_admin
       security:
       - BearerSession: []
@@ -3077,12 +3103,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '409':
-          description: Resource conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '401':
           description: Missing, expired, revoked or invalid session
           content:
@@ -3095,8 +3115,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-      x-current-access: not-implemented
-      x-security-enforcement: planned
+      x-current-access: bearer-session-required
+      x-security-enforcement: enforced
     parameters:
     - in: path
       name: adjustmentId
@@ -4117,11 +4137,12 @@ components:
       minProperties: 1
     InventoryAdjustmentInput:
       type: object
+      description: restock must be positive, damage negative, correction either way.
       properties:
         quantityChange:
           type: integer
-          minimum: -2147483648
-          maximum: 2147483647
+          minimum: -1000000
+          maximum: 1000000
           not:
             enum:
             - 0
@@ -4526,8 +4547,17 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/InventoryAdjustment'
+        metadata:
+          type: object
+          required: [page, limit, total, totalPages]
+          properties:
+            page: {type: integer, minimum: 1}
+            limit: {type: integer, minimum: 1, maximum: 100}
+            total: {type: integer, minimum: 0}
+            totalPages: {type: integer, minimum: 0}
       required:
       - data
+      - metadata
     OrderStatusEventList:
       type: object
       properties:

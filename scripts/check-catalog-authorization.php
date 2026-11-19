@@ -173,7 +173,9 @@ try {
         "#\\\$router->(post|put|patch|delete)\(API_PREFIX \. '(/(?:products|categories|delivery-slots)[^']*)',\s*(.+?)\);\r?\n#",
         $source, $routes, PREG_SET_ORDER
     );
-    check(count($routes) === 8, 'index.php registers 8 catalog/slot write routes (3 product, 2 category, 3 slot)');
+    // 9 = 3 product + 1 inventory adjustment (POST /products/{id}/inventory-adjustments) + 2 category + 3 slot.
+    // The adjustment route is under /products, so it is matched here too and must also be staff-only.
+    check(count($routes) === 9, 'index.php registers 9 catalog/slot write routes (3 product, 1 inventory adjustment, 2 category, 3 slot)');
     foreach ($routes as [, $method, $path, $handler]) {
         // The handler must be protect([...], 'staff'). Since #65 a formats list
         // (", $catalogFormats") may follow it; that only affects the response format.

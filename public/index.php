@@ -113,6 +113,7 @@ require $autoload;
 
 use Foodwell\Controllers\AuthController;
 use Foodwell\Controllers\FavoriteController;
+use Foodwell\Controllers\InventoryAdjustmentController;
 use Foodwell\Security\Authorization;
 use Foodwell\Controllers\ProductController;
 use Foodwell\Controllers\CustomerController;
@@ -129,6 +130,7 @@ use Foodwell\Http\Cors;
 use Foodwell\Http\Negotiation;
 use Foodwell\Repositories\ProductRepository;
 use Foodwell\Repositories\CustomerRepository;
+use Foodwell\Repositories\InventoryAdjustmentRepository;
 use Foodwell\Repositories\CartRepository;
 use Foodwell\Repositories\DeliveryOptionRepository;
 use Foodwell\Repositories\DeliverySlotRepository;
@@ -199,6 +201,7 @@ try {
 
     $auth = new AuthController(Database::connection());
     $favorites = new FavoriteController(Database::connection());
+    $inventory = new InventoryAdjustmentController(new InventoryAdjustmentRepository(Database::connection()));
     $authorization = new Authorization(Database::connection());
     $router = new Router();
     $router->post(API_PREFIX . '/auth/sessions', [$auth, 'login']);
@@ -252,6 +255,13 @@ try {
     $router->post(API_PREFIX . '/products', $authorization->protect([$products, 'store'], 'staff'), $catalogFormats);
     $router->put(API_PREFIX . '/products/{id}', $authorization->protect([$products, 'update'], 'staff'), $catalogFormats);
     $router->delete(API_PREFIX . '/products/{id}', $authorization->protect([$products, 'destroy'], 'staff'), $catalogFormats);
+
+    // Inventory adjustments (Will): staff or admin only, JSON only. The stock
+    // change and its audit row are saved in the transaction Authorization opens.
+    // No PUT/PATCH/DELETE on purpose: the audit log can only grow.
+    $router->get(API_PREFIX . '/products/{id}/inventory-adjustments', $authorization->protect([$inventory, 'index'], 'staff'));
+    $router->post(API_PREFIX . '/products/{id}/inventory-adjustments', $authorization->protect([$inventory, 'store'], 'staff'));
+    $router->get(API_PREFIX . '/inventory-adjustments/{adjustmentId}', $authorization->protect([$inventory, 'show'], 'staff'));
 
     $router->dispatch($_SERVER['REQUEST_METHOD'], $path);
 } catch (Throwable $e) {
