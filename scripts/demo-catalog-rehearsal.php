@@ -2,7 +2,8 @@
 declare(strict_types=1);
 
 /**
- * Demo rehearsal for Will's section: catalog, categories and delivery slots (#44).
+ * Demo rehearsal for Will's section: catalog, categories, delivery slots (#44)
+ * and inventory adjustments (#113, added for the final candidate).
  *
  *   php scripts/demo-catalog-rehearsal.php
  *
@@ -208,7 +209,42 @@ try {
     expect($status === 422 && isset($error['error']['details']['endsAt'], $error['error']['details']['capacity']),
         'a slot ending before it starts, with capacity 0: one 422 naming both fields');
 
-    echo "\nPASS: catalog and delivery slot demo rehearsal. The disposable database is dropped now.\n";
+    // =============================================== 6. inventory adjustments
+    echo "\n== 6. Stock changes go through inventory adjustments\n";
+    $stockOf = static fn (int $id): int => (int) $pdo->query("SELECT stock FROM products WHERE id = $id")->fetchColumn();
+    $auditRows = static fn (): int => (int) $pdo->query('SELECT COUNT(*) FROM inventory_adjustments')->fetchColumn();
+    $start = $stockOf(101); // read from the database: the checkout above may have used some milk
+    state($pdo, 'before the adjustments', ['wholeMilkStock' => $start, 'auditRows' => $auditRows()]);
+
+    [$status] = call('POST', '/products/101/inventory-adjustments', ['quantityChange' => 12, 'reason' => 'restock'], $alex);
+    expect($status === 403, 'a customer cannot change stock: 403');
+    [$status, $restock, $headers] = call('POST', '/products/101/inventory-adjustments',
+        ['quantityChange' => 12, 'reason' => 'restock', 'note' => 'Tuesday delivery'], $staff);
+    expect($status === 201 && $restock['stockBefore'] === $start && $restock['stockAfter'] === $start + 12 && $restock['actorId'] === 9,
+        "restock +12: stock $start -> " . ($start + 12) . ', recorded as staff account 9 by the server');
+    expect(str_ends_with($headers['location'], "/inventory-adjustments/{$restock['id']}") && $stockOf(101) === $start + 12,
+        'Location points at the new audit row, and the product row really changed');
+
+    [$status, $error] = call('POST', '/products/101/inventory-adjustments',
+        ['quantityChange' => -($start + 13), 'reason' => 'damage'], $staff);
+    expect($status === 409 && str_contains($error['error']['message'], 'below 0') && $stockOf(101) === $start + 12,
+        'removing more than the stock is a 409 and changes nothing (stock never goes below 0)');
+    [$status, $error] = call('POST', '/products/101/inventory-adjustments', ['quantityChange' => 3, 'reason' => 'damage'], $staff);
+    expect($status === 422 && isset($error['error']['details']['quantityChange']), 'damage that adds stock is a 422 naming quantityChange');
+    [$status, $error] = call('POST', '/products/101/inventory-adjustments',
+        ['quantityChange' => 1, 'reason' => 'correction', 'actorId' => 10], $staff);
+    expect($status === 422 && isset($error['error']['details']['actorId']), 'the client cannot choose who made the change: 422');
+
+    [$status, $history] = call('GET', '/products/101/inventory-adjustments?limit=5', null, $staff);
+    expect($status === 200 && $history['metadata']['total'] === 1 && $history['data'][0]['id'] === $restock['id'],
+        'the history lists exactly the one saved change (refused requests left no rows)');
+    [$status] = call('DELETE', "/inventory-adjustments/{$restock['id']}", null, $staff);
+    expect($status === 405, 'audit rows cannot be deleted: 405');
+    [$status] = call('DELETE', '/products/101', null, $staff);
+    expect($status === 409, 'Whole Milk now has stock history, so it cannot be deleted either: 409');
+    state($pdo, 'after the adjustments', ['wholeMilkStock' => $stockOf(101), 'auditRows' => $auditRows()]);
+
+    echo "\nPASS: catalog, delivery slot and inventory demo rehearsal. The disposable database is dropped now.\n";
     $exitCode = 0;
 } catch (Throwable $e) {
     echo "\n" . $e->getMessage() . "\n";

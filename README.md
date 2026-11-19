@@ -245,7 +245,7 @@ Run `composer test:catalog` (needs `npm ci` and the same `SCHEMA_TEST_*` setting
 
 JUnit reports are written to `var/test-results/catalog/` (git-ignored). The test file refuses to run against any database not named `foodwell_newman_<random>`.
 
-To rehearse the catalog and delivery slot demo, run `php scripts/demo-catalog-rehearsal.php` (same `SCHEMA_TEST_*` settings): it plays the demo in presentation order on a disposable database and prints each status and the database state.
+To rehearse the catalog, delivery slot and inventory demo, run `php scripts/demo-catalog-rehearsal.php` (same `SCHEMA_TEST_*` settings): it plays the demo in presentation order on a disposable database and prints each status and the database state.
 
 ## Automated customer, session and cart checks (#48)
 
