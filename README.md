@@ -214,6 +214,17 @@ Run the isolated authentication checks with `php scripts/check-auth.php`; config
 
 Customer profile, cart, checkout and order detail routes require a valid bearer session and the documented owner or administrator rule. Customer listing, deactivation, product writes and category writes require staff or administrator. The former loopback demo flags do not bypass these checks. The browser workspace uses the Account page to sign in, and retains the token in memory while navigating. Some older local-demo test scripts still require updating. Run `php scripts/check-authorization.php` with the same disposable-database configuration as the authentication checks.
 
+## Automated catalog and delivery slot checks (#42)
+
+`composer test:unit` now also runs `tests/catalog/ProductInputTest.php` and `tests/catalog/DeliverySlotInputTest.php` (58 tests, no database): every product and slot field rule, inclusive limits, time-zone conversion to UTC, impossible dates, and the create/update differences.
+
+Run `composer test:catalog` (needs `npm ci` and the same `SCHEMA_TEST_*` settings as `composer test:api`). It creates a disposable MariaDB database and API server, then:
+
+1. runs `tests/catalog/CatalogRepositoryTest.php` (17 tests) against the real database: product search, paging totals, sort tie-breakers, LIKE escaping and foreign keys; category listing, case-insensitive uniqueness and the three delete outcomes (also inside an outer transaction); slot booking counts, filters, UTC output, duplicate windows and row locking;
+2. reloads the seed data and runs `requests/Foodwell_Catalog_Slots.postman_collection.json` with Newman (38 requests, 90 assertions): public reads, filters, paging links, XML, 401/403 on writes, 422, 409 conflicts, attaching a slot at checkout and every error's request id.
+
+JUnit reports are written to `var/test-results/catalog/` (git-ignored). The test file refuses to run against any database not named `foodwell_newman_<random>`.
+
 ## Automated customer, session and cart checks (#48)
 
 Install development dependencies with `composer install` and `npm ci` (PHP 8.0 or newer, including PDO SQLite for the unit tests, and Node.js). Run `composer test:unit` for validation and password-hashing checks. The repository test uses an in-memory SQLite database; it does not replace the MariaDB API checks.

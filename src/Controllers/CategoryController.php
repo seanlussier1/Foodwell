@@ -157,4 +157,4 @@ final class CategoryController
 
         return (array) $input;
     }
-}
+}

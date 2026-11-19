@@ -1,0 +1,1309 @@
+{
+    "info": {
+        "name": "Foodwell Catalog and Delivery Slots",
+        "description": "Products, categories and delivery slots (#39-#42): public reads, filters, paging, XML, staff-only writes (401/403), validation (422), conflicts (409), and attaching a slot at checkout. Run with composer test:catalog, which provides a disposable database with the synthetic demo accounts.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Sign in as staff",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/auth/sessions",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"email\": \"staff@example.com\", \"password\": \"FoodwellDemo!2026\"}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                            "const body = pm.response.json();",
+                            "pm.collectionVariables.set(\"staffToken\", body.accessToken);"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Sign in as customer",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/auth/sessions",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"email\": \"alex@example.com\", \"password\": \"FoodwellDemo!2026\"}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                            "const body = pm.response.json();",
+                            "pm.collectionVariables.set(\"customerToken\", body.accessToken);"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "List products (public, default order)",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/products"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "const body = pm.response.json();",
+                            "pm.test(\"10 seeded products, ordered by id\", () => { pm.expect(body.meta.total).to.eql(10); pm.expect(body.data.map(p => p.id)).to.eql([101,102,103,104,105,106,107,108,109,110]); });",
+                            "pm.test(\"One page, no links\", () => { pm.expect(body.meta.totalPages).to.eql(1); pm.expect(body.meta.next).to.eql(null); pm.expect(body.meta.previous).to.eql(null); });"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Filter, sort and page 1",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/products?category=2&sort=-price&limit=2"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "const body = pm.response.json();",
+                            "pm.test(\"Dairy by price, highest first\", () => pm.expect(body.data.map(p => p.id)).to.eql([102, 101]));",
+                            "pm.test(\"Total counts all 3 matches, not just this page\", () => { pm.expect(body.meta.total).to.eql(3); pm.expect(body.meta.totalPages).to.eql(2); });",
+                            "pm.test(\"Next link keeps the filters\", () => { const next = body.meta.next; pm.expect(next).to.include(\"page=2\"); pm.expect(next).to.include(\"category=2\"); pm.expect(next).to.include(\"sort=-price\"); });"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Filter, sort and page 2",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/products?category=2&sort=-price&limit=2&page=2"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "const body = pm.response.json();",
+                            "pm.test(\"The last Dairy product\", () => pm.expect(body.data.map(p => p.id)).to.eql([103]));",
+                            "pm.test(\"Last page: no next, previous goes to page 1\", () => { pm.expect(body.meta.next).to.eql(null); pm.expect(body.meta.previous).to.include(\"page=1\"); });"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Products as XML",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/xml"
+                    }
+                ],
+                "url": "{{baseUrl}}/products?limit=1"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "pm.test(\"Content-Type is XML\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/xml\"));",
+                            "pm.test(\"XML root element is <products>\", () => pm.expect(pm.response.text()).to.include(\"<products>\"));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Reject repeated sort keys",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/products?sort=price&sort=name"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                            "pm.test(\"Says sort was repeated\", () => pm.expect(pm.response.json().error.message).to.include(\"sort was given 2 times\"));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Unknown product is 404",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/999"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Create product without login",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/products",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"name\": \"Newman Oat Milk\", \"price\": 3.49, \"categoryId\": 2, \"stock\": 5}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+                            "pm.test(\"Asks for a Bearer token\", () => pm.expect(pm.response.headers.get(\"WWW-Authenticate\")).to.eql(\"Bearer\"));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Create product as a customer",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{customerToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"name\": \"Newman Oat Milk\", \"price\": 3.49, \"categoryId\": 2, \"stock\": 5}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Create product as staff",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"name\": \"Newman Oat Milk\", \"price\": 3.49, \"categoryId\": 2, \"stock\": 5}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                            "const body = pm.response.json();",
+                            "pm.test(\"Saved as sent\", () => { pm.expect(body.name).to.eql(\"Newman Oat Milk\"); pm.expect(body.price).to.eql(3.49); pm.expect(body.categoryName).to.eql(\"Dairy\"); pm.expect(body.stock).to.eql(5); });",
+                            "pm.test(\"Location points at the new product\", () => pm.expect(pm.response.headers.get(\"Location\")).to.match(new RegExp(\"/products/\" + body.id + \"$\")));",
+                            "pm.collectionVariables.set(\"productId\", body.id);"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Create product with invalid fields",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"name\": \"Bad\", \"price\": -1, \"categoryId\": \"2\"}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                            "const details = pm.response.json().error.details;",
+                            "pm.test(\"Names each bad field\", () => pm.expect(Object.keys(details).sort()).to.eql([\"categoryId\", \"price\"]));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Update product as staff",
+            "request": {
+                "method": "PUT",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/{{productId}}",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"name\": \"Newman Oat Milk 2L\", \"price\": 5.99, \"categoryId\": 2, \"isActive\": false}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "const body = pm.response.json();",
+                            "pm.test(\"Changed and deactivated\", () => { pm.expect(body.name).to.eql(\"Newman Oat Milk 2L\"); pm.expect(body.price).to.eql(5.99); pm.expect(body.isActive).to.eql(false); });",
+                            "pm.test(\"Stock is untouched by PUT\", () => pm.expect(body.stock).to.eql(5));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Read the updated product",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/{{productId}}"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "pm.test(\"GET shows the update\", () => pm.expect(pm.response.json().name).to.eql(\"Newman Oat Milk 2L\"));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Refuse deleting a product with stock history",
+            "request": {
+                "method": "DELETE",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/109"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                            "pm.test(\"Suggests deactivating instead\", () => pm.expect(pm.response.json().error.message).to.include(\"Deactivate it instead\"));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Delete the new product",
+            "request": {
+                "method": "DELETE",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/{{productId}}"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));",
+                            "pm.test(\"No body\", () => pm.expect(pm.response.text()).to.eql(\"\"));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Deleted product is gone",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/products/{{productId}}"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "List categories",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/categories"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "pm.test(\"The 4 seeded categories in id order\", () => pm.expect(pm.response.json().data.map(c => c.name)).to.eql([\"Produce\",\"Dairy\",\"Bakery\",\"Pantry\"]));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Create category as staff",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/categories",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"name\": \"Newman Frozen\"}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                            "const body = pm.response.json();",
+                            "pm.test(\"Saved\", () => pm.expect(body.name).to.eql(\"Newman Frozen\"));",
+                            "pm.collectionVariables.set(\"categoryId\", body.id);"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Refuse a duplicate category name (any case)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/categories",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"name\": \"  NEWMAN FROZEN \"}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Refuse deleting a category with products",
+            "request": {
+                "method": "DELETE",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/categories/1"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                            "pm.test(\"Says it still has products\", () => pm.expect(pm.response.json().error.message).to.include(\"still has products\"));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Refuse deleting a category as a customer",
+            "request": {
+                "method": "DELETE",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{customerToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/categories/{{categoryId}}"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Delete the new category",
+            "request": {
+                "method": "DELETE",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/categories/{{categoryId}}"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "pm.test(\"Returns the deleted category\", () => pm.expect(pm.response.json().data.name).to.eql(\"Newman Frozen\"));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "List bookable slots",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/delivery-slots?available=true"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "pm.test(\"Only slot 304 is bookable in the seed data\", () => pm.expect(pm.response.json().data.map(s => s.id)).to.eql([304]));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Reject an impossible date filter",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/delivery-slots?date=2026-02-30"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                            "pm.test(\"Names the date parameter\", () => pm.expect(pm.response.json().error.details).to.have.property(\"date\"));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Create slot as a customer",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{customerToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/delivery-slots",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"startsAt\":\"{{slotStart}}\",\"endsAt\":\"{{slotEnd}}\",\"capacity\":2}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "prerequest",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "// A 2-hour window 5 days from now, in UTC, on the hour.",
+                            "const start = new Date(Date.now() + 5 * 24 * 3600 * 1000); start.setUTCMinutes(0, 0, 0);",
+                            "const end = new Date(start.getTime() + 2 * 3600 * 1000);",
+                            "const iso = d => d.toISOString().replace('.000Z', 'Z');",
+                            "pm.collectionVariables.set(\"slotStart\", iso(start));",
+                            "pm.collectionVariables.set(\"slotEnd\", iso(end));"
+                        ]
+                    }
+                },
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Create slot as staff",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/delivery-slots",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"startsAt\":\"{{slotStart}}\",\"endsAt\":\"{{slotEnd}}\",\"capacity\":2}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                            "const body = pm.response.json();",
+                            "pm.test(\"Saved in UTC, empty and bookable\", () => { pm.expect(body.startsAt).to.eql(pm.collectionVariables.get(\"slotStart\")); pm.expect(body.bookedCount).to.eql(0); pm.expect(body.availableCapacity).to.eql(2); pm.expect(body.isAvailable).to.eql(true); });",
+                            "pm.test(\"Location points at the new slot\", () => pm.expect(pm.response.headers.get(\"Location\")).to.match(new RegExp(\"/delivery-slots/\" + body.id + \"$\")));",
+                            "pm.collectionVariables.set(\"slotId\", body.id);"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Refuse the same window twice",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/delivery-slots",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"startsAt\":\"{{slotStart}}\",\"endsAt\":\"{{slotEnd}}\",\"capacity\":2}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                            "pm.test(\"Says the window exists\", () => pm.expect(pm.response.json().error.message).to.include(\"same startsAt and endsAt\"));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Refuse a slot that ends before it starts",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/delivery-slots",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"startsAt\":\"{{slotEnd}}\",\"endsAt\":\"{{slotStart}}\",\"capacity\":2}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                            "pm.test(\"Names endsAt\", () => pm.expect(pm.response.json().error.details).to.have.property(\"endsAt\"));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Check out with the new slot",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{customerToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/orders",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"customerId\":7,\"deliveryAddress\":\"123 Demo Street, Montreal, QC\",\"deliverySlotId\":{{slotId}}}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                            "pm.test(\"The order is attached to the slot\", () => pm.expect(pm.response.json().deliverySlotId).to.eql(Number(pm.collectionVariables.get(\"slotId\"))));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "The slot now has one booking",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/delivery-slots/{{slotId}}"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "const body = pm.response.json();",
+                            "pm.test(\"1 booked, 1 place left\", () => { pm.expect(body.bookedCount).to.eql(1); pm.expect(body.availableCapacity).to.eql(1); });"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Refuse moving a booked window",
+            "request": {
+                "method": "PUT",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/delivery-slots/{{slotId}}",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"startsAt\":\"{{slotStart}}\",\"endsAt\":\"{{slotLaterEnd}}\",\"capacity\":2}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "prerequest",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "// Same start, one hour longer: the window moves.",
+                            "const end = new Date(new Date(pm.collectionVariables.get('slotEnd')).getTime() + 3600 * 1000);",
+                            "pm.collectionVariables.set('slotLaterEnd', end.toISOString().replace('.000Z', 'Z'));"
+                        ]
+                    }
+                },
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                            "pm.test(\"Says the window cannot change\", () => pm.expect(pm.response.json().error.message).to.include(\"cannot change\"));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Refuse capacity below the bookings",
+            "request": {
+                "method": "PUT",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/delivery-slots/301",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"startsAt\":\"{{seedSlotStart}}\",\"endsAt\":\"{{seedSlotEnd}}\",\"capacity\":1}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "prerequest",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "// Seed slot 301 has 2 bookings. Read its current window first (it is",
+                            "// relative to today), so only the capacity changes: 2 -> 1.",
+                            "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/delivery-slots/301', method: 'GET', header: { Accept: 'application/json' } }, (err, res) => {",
+                            "    const slot = res.json();",
+                            "    pm.collectionVariables.set('seedSlotStart', slot.startsAt);",
+                            "    pm.collectionVariables.set('seedSlotEnd', slot.endsAt);",
+                            "});"
+                        ]
+                    }
+                },
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                            "pm.test(\"Says capacity cannot be lower\", () => pm.expect(pm.response.json().error.message).to.include(\"cannot be lower\"));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Deactivate the slot (bookings kept)",
+            "request": {
+                "method": "PUT",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/delivery-slots/{{slotId}}",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"startsAt\":\"{{slotStart}}\",\"endsAt\":\"{{slotEnd}}\",\"capacity\":2,\"isActive\":false}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                            "const body = pm.response.json();",
+                            "pm.test(\"Inactive, not bookable, booking kept\", () => { pm.expect(body.isActive).to.eql(false); pm.expect(body.isAvailable).to.eql(false); pm.expect(body.bookedCount).to.eql(1); });"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Refuse deleting a slot used by an order",
+            "request": {
+                "method": "DELETE",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/delivery-slots/{{slotId}}"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                            "pm.test(\"Suggests deactivating instead\", () => pm.expect(pm.response.json().error.message).to.include(\"Deactivate it instead\"));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Create an unused slot",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/delivery-slots",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"startsAt\":\"{{slotEnd}}\",\"endsAt\":\"{{slotLaterEnd}}\",\"capacity\":1}"
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                            "pm.collectionVariables.set(\"unusedSlotId\", pm.response.json().id);"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Delete the unused slot",
+            "request": {
+                "method": "DELETE",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{staffToken}}"
+                    }
+                ],
+                "url": "{{baseUrl}}/delivery-slots/{{unusedSlotId}}"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Deleted slot is gone",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "{{baseUrl}}/delivery-slots/{{unusedSlotId}}"
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                            "pm.test(\"Error carries the X-Request-ID\", () => pm.expect(pm.response.json().error.requestId).to.eql(pm.response.headers.get(\"X-Request-ID\")));"
+                        ]
+                    }
+                }
+            ]
+        }
+    ],
+    "variable": [
+        {
+            "key": "staffToken",
+            "value": ""
+        },
+        {
+            "key": "customerToken",
+            "value": ""
+        },
+        {
+            "key": "productId",
+            "value": ""
+        },
+        {
+            "key": "categoryId",
+            "value": ""
+        },
+        {
+            "key": "slotStart",
+            "value": ""
+        },
+        {
+            "key": "slotEnd",
+            "value": ""
+        },
+        {
+            "key": "slotLaterEnd",
+            "value": ""
+        },
+        {
+            "key": "slotId",
+            "value": ""
+        },
+        {
+            "key": "unusedSlotId",
+            "value": ""
+        },
+        {
+            "key": "seedSlotStart",
+            "value": ""
+        },
+        {
+            "key": "seedSlotEnd",
+            "value": ""
+        }
+    ]
+}
