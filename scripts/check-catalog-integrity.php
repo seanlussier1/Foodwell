@@ -47,6 +47,7 @@ $pdo = new PDO("mysql:host=$host;port=$port;charset=utf8mb4", $user, $pass, [
 $db = 'foodwell_catalog_integrity_' . bin2hex(random_bytes(4));
 $server = null;
 $log = null;
+$serverLog = null;
 $router = null;
 $exitCode = 0;
 $checks = 0;
@@ -195,11 +196,12 @@ try {
     file_put_contents($router, '<?php ' . ($pass === '' ? 'putenv("DB_PASS=");' : '')
         . ' return require ' . var_export("$root/public/index.php", true) . ';');
     $log = tempnam(sys_get_temp_dir(), 'catalog-integrity-log-');
+    $serverLog = tempnam(sys_get_temp_dir(), 'catalog-integrity-server-');
     $null = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
     $server = proc_open(
         [PHP_BINARY, '-d', 'display_errors=0', '-d', 'log_errors=1', '-d', "error_log=$log",
             '-S', "127.0.0.1:$serverPort", '-t', "$root/public", $router],
-        [0 => ['file', $null, 'r'], 1 => ['file', $null, 'w'], 2 => ['file', $log, 'a']],
+        [0 => ['file', $null, 'r'], 1 => ['file', $null, 'w'], 2 => ['file', $serverLog, 'a']],
         $pipes, $root,
         array_merge(getenv(), ['DB_HOST' => $host, 'DB_PORT' => $port, 'DB_NAME' => $db, 'DB_USER' => $user,
             'DB_PASS' => $pass, 'APP_BASE_PATH' => ''])
@@ -525,7 +527,7 @@ try {
         proc_close($server);
     }
     $pdo->exec("DROP DATABASE IF EXISTS `$db`");
-    foreach ([$log, $router] as $file) {
+    foreach ([$log, $serverLog, $router] as $file) {
         if ($file !== null) {
             @unlink($file);
         }
