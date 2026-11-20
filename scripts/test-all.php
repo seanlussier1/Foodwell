@@ -23,6 +23,7 @@ $checks = [
     'Orders tests and collection' => [$php, 'scripts/check-newman.php', '--orders'],
     'Catalog tests and collection' => [$php, 'scripts/check-newman.php', '--catalog'],
     'Inventory collection' => [$php, 'scripts/check-newman.php', '--inventory'],
+    'Security collection' => [$php, 'scripts/check-newman.php', '--security'],
 ];
 foreach (['schema', 'upgrade-paths', 'products', 'auth', 'authorization', 'registration', 'cart', 'delivery', 'delivery-slots', 'catalog-authorization', 'catalog-integrity', 'order-concurrency', 'representations', 'favorites', 'inventory-adjustments', 'address-review-peer'] as $name) {
     $checks[$name] = [$php, "scripts/check-$name.php"];

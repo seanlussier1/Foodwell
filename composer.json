@@ -27,7 +27,8 @@
         "test:api": "php scripts/check-newman.php",
         "test:orders": "php scripts/check-newman.php --orders",
         "test:catalog": "php scripts/check-newman.php --catalog",
-        "test:inventory": "php scripts/check-newman.php --inventory"
+        "test:inventory": "php scripts/check-newman.php --inventory",
+        "test:security": "php scripts/check-newman.php --security"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.6",
