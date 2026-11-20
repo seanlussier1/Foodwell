@@ -15,7 +15,7 @@ For the integration suite, use a **dedicated disposable MariaDB server** and a t
 
 The original product regression resets the database named by `DB_NAME` and `foodwell_empty`. Never point the suite at shared, personal, or production data. The remaining integration scripts create their own temporary databases. See [database setup and migrations](../database/README.md).
 
-The integration runner includes Newman collections and checks for schema and upgrade paths, product reads and writes, authentication, authorization, registration, cart, delivery, slots, catalog integrity, concurrent orders, representations, favorites, inventory adjustments, and the independent address/review checks. Run an individual `scripts/check-*.php` script for a focused check; most use the `SCHEMA_TEST_*` settings above.
+The integration runner includes Newman collections (customer, orders, catalog, inventory and the security-first `Foodwell_Security_Full` collection, also runnable alone with `composer test:security`), and checks for schema and upgrade paths, product reads and writes, authentication, authorization, registration, cart, delivery, slots, catalog integrity, concurrent orders, representations, favorites, inventory adjustments, and the independent address/review checks. Run an individual `scripts/check-*.php` script for a focused check; most use the `SCHEMA_TEST_*` settings above.
 
 ## Outside CI
 

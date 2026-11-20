@@ -9,8 +9,11 @@ $orders = in_array('--orders', $argv, true);
 $catalog = !$orders && in_array('--catalog', $argv, true);
 // --inventory: the inventory-adjustment Newman collection (Will). JUnit report in var/test-results/inventory.
 $inventory = !$orders && !$catalog && in_array('--inventory', $argv, true);
+// --security: the security-first full-API collection. JUnit report in var/test-results/security.
+$security = !$orders && !$catalog && !$inventory && in_array('--security', $argv, true);
 $artifactDir = $orders ? ($root . '/.issue-53-tests') : ($catalog ? ($root . '/var/test-results/catalog')
-    : ($inventory ? ($root . '/var/test-results/inventory') : sys_get_temp_dir()));
+    : ($inventory ? ($root . '/var/test-results/inventory')
+    : ($security ? ($root . '/var/test-results/security') : sys_get_temp_dir())));
 if (!is_dir($artifactDir) && !mkdir($artifactDir, 0700, true) && !is_dir($artifactDir)) {
     throw new RuntimeException('Cannot create the test artifact directory.');
 }
@@ -69,10 +72,11 @@ try {
         $pdo->exec(file_get_contents($root . '/database/seed.sql'));
     }
     $collection = $orders ? 'Foodwell_Orders_Checkout' : ($catalog ? 'Foodwell_Catalog_Slots'
-        : ($inventory ? 'Foodwell_Inventory_Adjustments' : 'Foodwell_Customer_Auth_Cart'));
+        : ($inventory ? 'Foodwell_Inventory_Adjustments'
+        : ($security ? 'Foodwell_Security_Full' : 'Foodwell_Customer_Auth_Cart')));
     $command = ['node', $newman, 'run', "$root/requests/$collection.postman_collection.json",
         '--env-var', "baseUrl=http://127.0.0.1:{$ports[0]}/api/v1", '--bail', '--disable-unicode', '--color', 'off'];
-    if ($orders || $catalog || $inventory) {
+    if ($orders || $catalog || $inventory || $security) {
         array_push($command, '--reporters', 'cli,junit', '--reporter-junit-export', "$artifactDir/newman.xml");
     }
     runTest($command, $root, $env);
